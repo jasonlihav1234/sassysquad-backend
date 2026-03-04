@@ -9,5 +9,7 @@ export async function handleRequest(req, res) {
     return res.status(200).json(ret_val);
   }
 
+  console.log(method, url);
+
   return res.status(404).json({ error: "Not found" });
 }
