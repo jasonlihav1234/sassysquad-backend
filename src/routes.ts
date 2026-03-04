@@ -1,7 +1,7 @@
 export async function handleRequest(req, res) {
   const { method, url } = req;
 
-  if (url === "/" && method == "GET") {
+  if (url === "/api" && method == "GET") {
     const ret_val = {
       test: "hello",
     };
