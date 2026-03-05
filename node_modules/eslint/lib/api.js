@@ -9,18 +9,31 @@
 // Requirements
 //-----------------------------------------------------------------------------
 
-const { ESLint } = require("./eslint");
+const { ESLint } = require("./eslint/eslint");
 const { Linter } = require("./linter");
 const { RuleTester } = require("./rule-tester");
-const { SourceCode } = require("./source-code");
+const { SourceCode } = require("./languages/js/source-code");
+
+//-----------------------------------------------------------------------------
+// Functions
+//-----------------------------------------------------------------------------
+
+/**
+ * Loads the correct `ESLint` constructor.
+ * @returns {Promise<ESLint>} The ESLint constructor.
+ */
+async function loadESLint() {
+	return ESLint;
+}
 
 //-----------------------------------------------------------------------------
 // Exports
 //-----------------------------------------------------------------------------
 
 module.exports = {
-    Linter,
-    ESLint,
-    RuleTester,
-    SourceCode
+	Linter,
+	loadESLint,
+	ESLint,
+	RuleTester,
+	SourceCode,
 };
