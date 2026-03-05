@@ -8,7 +8,12 @@ export default [
   { ignores: ["dist", "node_modules", ".bun", "coverage"] },
 
   {
-    files: ["**/*.{js, mjs, cjs, jsx}"],
+    files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
+
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+    },
+    
     languageOptions: {
       globals: { ...globals.node, ...globals.browser },
       parser: tseslint.parser,
