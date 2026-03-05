@@ -36,23 +36,21 @@ jobs:
         with:
           bun-version: 1.3.9
 
-      - name: Install ESLint
-        run: |
-          bun install eslint@8.10.0
-          bun install @microsoft/eslint-formatter-sarif@3.1.0
+      - name: Install dependencies
+        run: bun install
 
       - name: Run ESLint
         env:
           SARIF_ESLINT_IGNORE_SUPPRESSED: "true"
-        run: bunx eslint .
-          --config .eslintrc.js
-          --ext .js,.jsx,.ts,.tsx
-          --format @microsoft/eslint-formatter-sarif
-          --output-file eslint-results.sarif
+        run: |
+          bun eslint . \
+            --ext .js,.jsx,.ts,.tsx \
+            --format @microsoft/eslint-formatter-sarif\
+            --output-file eslint-results.sarif
         continue-on-error: true
 
       - name: Upload analysis results to GitHub
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: eslint-results.sarif
           wait-for-processing: true

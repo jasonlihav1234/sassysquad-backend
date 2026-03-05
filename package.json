@@ -1,5 +1,9 @@
 {
   "dependencies": {
     "xmlbuilder2": "^4.0.3"
+  },
+  "devDependencies": {
+    "@microsoft/eslint-formatter-sarif": "3.1.0",
+    "eslint": "8.10.0"
   }
 }
