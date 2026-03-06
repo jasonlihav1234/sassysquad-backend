@@ -65,7 +65,7 @@ if (url === "/orders" && method === "POST") {
     const xml = root.end({ prettyPrint: true });
 
     res.setHeader("Content-Type", "application/xml");
-    return res.status(201).send(xmlString);
+    return res.status(201).send(xml);
   }
 
   // debugging
