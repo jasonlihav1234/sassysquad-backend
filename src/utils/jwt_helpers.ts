@@ -10,7 +10,7 @@ interface TokenMetadata {
   created: Date;
   expires: Date;
   tokenId: string;
-  familyId: string; // groups tokens for same login session
+  sessionId: string; // groups tokens for same login session
   deviceInfo: string;
 }
 
@@ -64,7 +64,7 @@ export function authHelper(
 
 export async function storeRefreshToken(
   userId: string,
-  familyId: string,
+  sessionId: string,
   deviceInfo: string,
   tokenId: string,
   expiresInDays: number = 7,
@@ -87,4 +87,24 @@ export async function storeRefreshToken(
 //   }
 
 //   return false;
+// }
+
+export function revokeRefreshTokenSession(sessionId: string): void {
+  // get all tokens with this session id
+}
+
+export function revokeAllUserRefreshTokens(userId: string): void {
+  // sql statment which changes all userId == userId to true
+}
+
+// export function getAllUserRefreshTokens(userId: string): StoredToken[] {
+//   // query which gets all refresh tokens that are not revoked and userId === userId
+// }
+
+// export function deleteExpiredRefreshTokens(): number {
+//   const now = new Date();
+//   let removed = 0;
+
+//   // query all refresh tokens
+//   // delet all refresh tokens with date < now
 // }
