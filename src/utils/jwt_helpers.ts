@@ -4,6 +4,16 @@ export interface AuthReq extends Request {
   user?: TokenPayload; // user is optional, can be undefined or not present
 }
 
+interface TokenMetadata {
+  revoked: boolean;
+  userId: string;
+  created: Date;
+  expires: Date;
+  tokenId: string;
+  familyId: string; // groups tokens for same login session
+  deviceInfo: string;
+}
+
 function jsonHelper(data: object, status: number = 200): Response {
   return new Response(JSON.stringify(data), {
     headers: { "Content-Type": "application/json" },
@@ -51,3 +61,30 @@ export function authHelper(
     return passedFunc(result);
   };
 }
+
+export async function storeRefreshToken(
+  userId: string,
+  familyId: string,
+  deviceInfo: string,
+  tokenId: string,
+  expiresInDays: number = 7,
+): Promise<void> {
+  const expires = new Date();
+  expires.setDate(expires.getDate() + expiresInDays);
+
+  // add it to database
+}
+
+// export async function getRefreshToken(tokenId: string): Promise<TokenMetadata> {
+//   // get the token from the database
+// }
+
+// export function revokeRefreshToken(tokenId: string): boolean {
+//   // get token from database
+//   if (refreshToken) {
+//     refreshToken.revoked = true;
+//     return true;
+//   }
+
+//   return false;
+// }
