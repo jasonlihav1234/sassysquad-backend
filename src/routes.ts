@@ -8,8 +8,10 @@ export async function handleRequest(req, res) {
 
     return res.status(200).json(ret_val);
   }
+  else if (url === "/auth/register" && method === "POST") {
+    handleRegister();
+  }
 
-  console.log(method, url);
 
   return res.status(404).json({ error: "Not found" });
 }
