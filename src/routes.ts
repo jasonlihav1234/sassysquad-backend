@@ -1,6 +1,6 @@
 import { create } from "xmlbuilder2";
 
-export async function handleRequest(req, res) {
+export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
 
   if (url === "/" && method === "GET") {
@@ -10,9 +10,12 @@ export async function handleRequest(req, res) {
 
     return res.status(200).json(ret_val);
   }
+  if (url === "/auth/register" && method === "POST") {
+    // handleRegister();
+  }
 
-   // POST /orders
-if (url === "/orders" && method === "POST") {
+  // POST /orders
+  if (url === "/orders" && method === "POST") {
     const { userId, orderLines } = body || {};
 
     if (!userId || typeof userId !== "string") {
@@ -52,11 +55,20 @@ if (url === "/orders" && method === "POST") {
       const line = orderLines[i];
 
       const orderLine = root.ele("cac:OrderLine");
-      orderLine.ele("cbc:ID").txt(String(i + 1)).up();
-      orderLine.ele("cbc:Quantity").txt(String(line.quantity ?? 1)).up();
+      orderLine
+        .ele("cbc:ID")
+        .txt(String(i + 1))
+        .up();
+      orderLine
+        .ele("cbc:Quantity")
+        .txt(String(line.quantity ?? 1))
+        .up();
 
       const item = orderLine.ele("cac:Item");
-      item.ele("cbc:Name").txt(line.itemName || "Unknown Item").up();
+      item
+        .ele("cbc:Name")
+        .txt(line.itemName || "Unknown Item")
+        .up();
       item.up();
 
       orderLine.up();
@@ -67,9 +79,6 @@ if (url === "/orders" && method === "POST") {
     res.setHeader("Content-Type", "application/xml");
     return res.status(201).send(xml);
   }
-
-  // debugging
-  console.log(method, url);
 
   // 404 if no roiutes match
   return res.status(404).json({ error: "Not found" });
