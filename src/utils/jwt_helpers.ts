@@ -1,4 +1,6 @@
 import { verifyAccessToken, type TokenPayload } from "./jwt_config";
+import pg from "../utils/db";
+import bcrypt from "bcrypt";
 
 export interface AuthReq extends Request {
   user?: TokenPayload; // user is optional, can be undefined or not present
@@ -13,6 +15,7 @@ interface TokenMetadata {
   sessionId: string; // groups tokens for same login session
   deviceInfo: string;
 }
+const SALT_ROUNDS = 10;
 
 function jsonHelper(data: object, status: number = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -71,15 +74,27 @@ export async function storeRefreshToken(
 ): Promise<void> {
   const expires = new Date();
   expires.setDate(expires.getDate() + expiresInDays);
-
-  
+  const tokenHash = await bcrypt.hash(tokenId, SALT_ROUNDS);
 
   // add it to database
+  await pg`insert into refreshtokens (token_id, token_hash, session_id, user_id, expires, created, created, revoked)
+    values (${crypto.randomUUID()}, ${tokenHash}, ${sessionId}, ${userId}, ${new Date()})`;
 }
 
-// export async function getRefreshToken(tokenId: string): Promise<TokenMetadata> {
-//   // get the token from the database
-// }
+export async function getRefreshToken(
+  tokenId: string,
+): Promise<TokenMetadata | null> {
+  // get the token from the database
+  const tokenHash = await bcrypt.hash(tokenId, SALT_ROUNDS);
+  const query =
+    await pg`select * from refreshtokens where token_id = ${tokenHash}`;
+
+  if (!query) {
+    return null;
+  }
+
+  return query[0] as TokenMetadata;
+}
 
 // export function revokeRefreshToken(tokenId: string): boolean {
 //   // get token from database
