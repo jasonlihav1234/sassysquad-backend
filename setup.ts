@@ -1,7 +1,7 @@
-import { neon } from '@neondatabase/serverless';
+import { SQL } from "bun";
 import fs from 'node:fs';
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = new SQL(process.env.DATABASE_URL!);
 
 async function deploy() {
   try {
@@ -15,7 +15,11 @@ async function deploy() {
 
     console.log("Database is now ready.");
   } catch (error) {
-    console.error("Something went wrong:", error);
+    if (error instanceof Error) {
+      console.error("Something went wrong:", error.message);
+    } else {
+      console.error("Something went wrong:", error);
+    }
   }
 }
 
