@@ -81,7 +81,7 @@ export async function storeRefreshToken(
     values (${crypto.randomUUID()}, ${tokenHash}, ${sessionId}, ${userId}, ${new Date()})`;
 
   await pg`
-  insert into RefreshTokens (
+  insert into refresh_tokens (
     token_id, 
     user_id, 
     token_hash, 
@@ -110,7 +110,7 @@ export async function getRefreshToken(
   // get the token from the database
   const tokenHash = await bcrypt.hash(tokenId, SALT_ROUNDS);
   const query =
-    await pg`select * from RefreshTokens where token_hash = ${tokenHash}`;
+    await pg`select * from refresh_tokens where token_hash = ${tokenHash}`;
 
   if (!query) {
     return null;
@@ -119,27 +119,53 @@ export async function getRefreshToken(
   return query[0] as TokenMetadata;
 }
 
-// export function revokeRefreshToken(tokenId: string): boolean {
-//   // get token from database
-//   if (refreshToken) {
-//     refreshToken.revoked = true;
-//     return true;
-//   }
+export async function revokeRefreshToken(tokenId: string): Promise<boolean> {
+  // get token from database
+  const tokenHash = await bcrypt.hash(tokenId, SALT_ROUNDS);
+  const query =
+    await pg`select * from refresh_tokens where token_hash = ${tokenHash}`;
 
-//   return false;
-// }
+  if (query.length === 1) {
+    await pg`update refresh_tokens
+             set
+              revoked = true
+             where
+              token_hash = ${tokenHash}`;
 
-export function revokeRefreshTokenSession(sessionId: string): void {
+    return true;
+  }
+
+  return false;
+}
+
+export async function revokeRefreshTokenSession(
+  sessionId: string,
+): Promise<void> {
   // get all tokens with this session id
+  await pg`update refresh_tokens
+           set
+            revoked = true
+           where
+            session_id = ${sessionId}`;
 }
 
-export function revokeAllUserRefreshTokens(userId: string): void {
+export async function revokeAllUserRefreshTokens(
+  userId: string,
+): Promise<void> {
   // sql statment which changes all userId == userId to true
+  await pg`update refresh_tokens
+           set
+            revoked = true
+           where
+            userId = ${userId}`;
 }
 
-// export function getAllUserRefreshTokens(userId: string): StoredToken[] {
-//   // query which gets all refresh tokens that are not revoked and userId === userId
-// }
+export function getAllUserRefreshTokens(userId: string): any {
+  // query which gets all refresh tokens that are not revoked and userId === userId
+  const query = pg`select * from refresh_tokens where user_id = ${userId} and revoked = false and expires > ${new Date()}`;
+
+  return query;
+}
 
 // export function deleteExpiredRefreshTokens(): number {
 //   const now = new Date();
