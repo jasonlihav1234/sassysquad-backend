@@ -215,3 +215,70 @@ describe("Login User", () => {
     await pg`truncate table refresh_tokens restart identity cascade`;
   });
 });
+
+describe("Refresh token test", () => {
+  const refreshRoute = "http://localhost/auth/refresh";
+  const loginRoute = "http://localhost/auth/login";
+
+  afterEach(async () => {
+    await pg`truncate table users restart identity cascade`;
+    await pg`truncate table refresh_tokens restart identity cascade`;
+  });
+
+  test("No refresh token provided", async () => {
+    const request = generateRequest(refreshRoute, "POST", {
+      invalidField: "byeol",
+    });
+
+    const response = await refresh(request);
+    const message = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(message.error).toBe("Refresh token required");
+  });
+
+  test("Invalid refresh token", async () => {
+    const request = generateRequest(refreshRoute, "POST", {
+      refreshToken: "akwdnkjawdaljnbda",
+    });
+
+    const response = await refresh(request);
+    const message = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(message.error).toBe("Refresh token is invalid");
+  });
+
+  test("Refresh token does not exist", async () => {
+    let request = generateRequest(registerRoute, "POST", {
+      email: "testing@gmail.com",
+      username: "test",
+      password: "password123",
+    });
+
+    const user = await register(request);
+    const userBody = await user.json();
+
+    request = generateRequest(loginRoute, "POST", {
+      email: "testing@gmail.com",
+      password: "password123",
+    });
+
+    const response = await login(request);
+    const loginBody = await response.json();
+    // delete the refresh token, current holding one still has valid issuer
+    await pg`delete from refresh_tokens where user_id = ${userBody.user}`;
+
+    request = generateRequest(refreshRoute, "POST", {
+      refreshToken: loginBody.refreshToken,
+    });
+
+    const refreshResponse = await refresh(request);
+    const refreshBody = await refreshResponse.json();
+
+    expect(refreshResponse.status).toBe(401);
+    expect(refreshBody.error).toBe("Refresh token does not exist");
+  });
+
+  test("Refresh token revoked", async () => {});
+});
