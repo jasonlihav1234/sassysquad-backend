@@ -56,7 +56,7 @@ export async function generateUser(
   };
 
   await pg`insert into users (user_id, user_name, email, password_hash, created_at) 
-            values (${newUser.id}, ${username}, ${newUser.email}, ${newUser.password}, ${newUser.createdAt})`;
+            values (${newUser.id}, ${username}, ${newUser.email}, ${newUser.password}, ${newUser.createdAt.toISOString()})`;
 
   return newUser;
 }
@@ -77,7 +77,7 @@ export async function checkUser(
 
   const user = query[0];
   // need to change this for how it is returned in a table
-  const checkPassword = await bcrypt.compare(password, user.passwordHash);
+  const checkPassword = await bcrypt.compare(password, user.password_hash);
 
   if (!checkPassword) {
     return null;
@@ -149,14 +149,14 @@ export async function login(request: Request) {
     const refreshToken = await createRefreshToken(user.id, user.email);
     const sessionId = crypto.randomUUID();
     const device = request.headers.get("User-Agent") || "null";
-
     await storeRefreshToken(user.id, sessionId, device, refreshToken.tokenId);
+
     // setting expiration to 10 minutes = 600 seconds
     return jsonHelper({
       accessToken: accessToken,
       refreshToken: refreshToken.token,
       tokenType: "Bearer",
-      expiresin: 600,
+      expiresIn: 600,
     });
   } catch (error) {
     return jsonHelper({ error: "Login failed" }, 500);

@@ -7,7 +7,7 @@ import {
   refresh,
 } from "../src/application/user_application";
 import { handleRequest } from "../src/routes";
-import { beforeEach, mock } from "node:test";
+import { afterEach, beforeEach, mock } from "node:test";
 import { devNull } from "node:os";
 import pg from "../src/utils/db";
 
@@ -22,8 +22,15 @@ const generateRequest = (
   });
 };
 
+const registerRoute = "http://localhost/auth/register";
+
 describe("Register User", () => {
   const registerRoute = "http://localhost/auth/register";
+
+  afterEach(async () => {
+    await pg`truncate table users restart identity cascade`;
+    await pg`truncate table refresh_tokens restart identity cascade`;
+  });
 
   test("Email not provided", async () => {
     const request = generateRequest(registerRoute, "POST", {
@@ -133,6 +140,11 @@ describe("Register User", () => {
 describe("Login User", () => {
   const loginRoute = "http://localhost/auth/login";
 
+  afterEach(async () => {
+    await pg`truncate table users restart identity cascade`;
+    await pg`truncate table refresh_tokens restart identity cascade`;
+  });
+
   test("User does not exist", async () => {
     const request = new Request(loginRoute, {
       method: "POST",
@@ -168,5 +180,38 @@ describe("Login User", () => {
     const message = await response.json();
     expect(response.status).toBe(400);
     expect(message.error).toBe("Email and password required");
+  });
+
+  test("User gets logged in", async () => {
+    let request = generateRequest(registerRoute, "POST", {
+      email: "testing@gmail.com",
+      username: "test",
+      password: "password123",
+    });
+
+    const userResponse = await register(request);
+    const userBody = await userResponse.json();
+
+    request = generateRequest(loginRoute, "POST", {
+      email: "testing@gmail.com",
+      password: "password123",
+    });
+
+    const response = await login(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.accessToken).not.toBe(undefined);
+    expect(body.refreshToken).not.toBe(undefined);
+    expect(body.tokenType).toBe("Bearer");
+    expect(body.expiresIn).toBe(600);
+
+    const query =
+      await pg`select * from refresh_tokens where user_id = ${userBody.user}`;
+
+    expect(query.length).toBe(1);
+
+    await pg`truncate table users restart identity cascade`;
+    await pg`truncate table refresh_tokens restart identity cascade`;
   });
 });

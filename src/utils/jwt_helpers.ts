@@ -76,10 +76,6 @@ export async function storeRefreshToken(
   expires.setDate(expires.getDate() + expiresInDays);
   const tokenHash = await bcrypt.hash(tokenId, SALT_ROUNDS);
 
-  // add it to database
-  await pg`insert into refreshtokens (token_id, token_hash, session_id, user_id, expires, created, created, revoked)
-    values (${crypto.randomUUID()}, ${tokenHash}, ${sessionId}, ${userId}, ${new Date()})`;
-
   await pg`
   insert into refresh_tokens (
     token_id, 
@@ -95,10 +91,10 @@ export async function storeRefreshToken(
     ${crypto.randomUUID()},
     ${userId},
     ${tokenHash},
-    ${expires},
+    ${expires.toISOString()},
     ${false},
     ${deviceInfo},
-    ${new Date()},
+    ${new Date().toISOString()},
     ${sessionId}
   )
   `;
@@ -163,11 +159,11 @@ export async function revokeAllUserRefreshTokens(
 export async function getAllUserRefreshTokens(userId: string): Promise<any> {
   // query which gets all refresh tokens that are not revoked and userId === userId
   const query =
-    await pg`select * from refresh_tokens where user_id = ${userId} and revoked = false and expires > ${new Date()}`;
+    await pg`select * from refresh_tokens where user_id = ${userId} and revoked = false and expires > ${new Date().toISOString()}`;
 
   return query;
 }
 
 export async function deleteExpiredRefreshTokens(): Promise<void> {
-  await pg`delete from refresh_tokens where expires < ${new Date()}`;
+  await pg`delete from refresh_tokens where expires < ${new Date().toISOString()}`;
 }
