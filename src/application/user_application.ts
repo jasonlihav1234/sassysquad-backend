@@ -34,11 +34,6 @@ const refreshSecret = new TextEncoder().encode(config.refreshSecret);
 
 const SALT_ROUNDS = 10;
 
-// unique token ID for tracking and revocation
-function generateTokenId(): string {
-  return crypto.randomUUID();
-}
-
 export async function generateUser(
   email: string,
   password: string,
@@ -70,7 +65,7 @@ export async function checkUser(
 ): Promise<UserDetails | null> {
   const query = await pg`select * from users where email = ${email}`;
 
-  if (!query) {
+  if (query.length === 0) {
     // doing fake hash to make it slower on fails, prevents attackers from checking which accounts don't exist
     await bcrypt.hash(password, SALT_ROUNDS);
 
@@ -130,7 +125,7 @@ export async function login(request: Request) {
 
     const user = await checkUser(email, password);
 
-    if (!user) {
+    if (user === null) {
       // user enumeration
       return jsonHelper({ error: "Invalid credentials" }, 401);
     }

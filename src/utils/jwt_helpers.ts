@@ -112,7 +112,7 @@ export async function getRefreshToken(
   const query =
     await pg`select * from refresh_tokens where token_hash = ${tokenHash}`;
 
-  if (!query) {
+  if (query.length === 0) {
     return null;
   }
 
