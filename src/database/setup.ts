@@ -1,13 +1,12 @@
-import { SQL } from "bun";
-import fs from 'node:fs';
-
-const sql = new SQL(process.env.DATABASE_URL!);
+import { sql } from "./client";
+import fs from "node:fs";
 
 async function deploy() {
   try {
     console.log("Reading schema...");
 
-    const instructions = fs.readFileSync('src/database/schema.sql', 'utf8');
+    const schemaPath = `${import.meta.dir}/schema.sql`;
+    const instructions = fs.readFileSync(schemaPath, "utf8");
 
     console.log("Establishing connection...");
 
@@ -20,6 +19,9 @@ async function deploy() {
     } else {
       console.error("Something went wrong:", error);
     }
+  } finally {
+    console.log("Closing connection");
+    await sql.close();
   }
 }
 
