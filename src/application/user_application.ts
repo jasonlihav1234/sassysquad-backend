@@ -177,7 +177,7 @@ export async function refresh(request: Request) {
     const storedRefreshToken = await getRefreshToken(
       verifiedRefreshToken.jwt_id as string,
     );
-
+    console.log(storedRefreshToken);
     if (!storedRefreshToken) {
       return jsonHelper({ error: "Refresh token does not exist" }, 401);
     }

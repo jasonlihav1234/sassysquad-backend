@@ -74,7 +74,7 @@ export async function storeRefreshToken(
 ): Promise<void> {
   const expires = new Date();
   expires.setDate(expires.getDate() + expiresInDays);
-  const tokenHash = await bcrypt.hash(tokenId, SALT_ROUNDS);
+  const tokenHash = Bun.hash(tokenId).toString();
 
   await pg`
   insert into refresh_tokens (
@@ -104,7 +104,7 @@ export async function getRefreshToken(
   tokenId: string,
 ): Promise<TokenMetadata | null> {
   // get the token from the database
-  const tokenHash = await bcrypt.hash(tokenId, SALT_ROUNDS);
+  const tokenHash = Bun.hash(tokenId).toString();
   const query =
     await pg`select * from refresh_tokens where token_hash = ${tokenHash}`;
 
@@ -117,7 +117,7 @@ export async function getRefreshToken(
 
 export async function revokeRefreshToken(tokenId: string): Promise<boolean> {
   // get token from database
-  const tokenHash = await bcrypt.hash(tokenId, SALT_ROUNDS);
+  const tokenHash = Bun.hash(tokenId).toString();
   const query =
     await pg`select * from refresh_tokens where token_hash = ${tokenHash}`;
 
