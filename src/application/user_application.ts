@@ -1,8 +1,9 @@
 import { config } from "../utils/jwt_config";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
-import { SQL, sql } from "bun";
 import bcrypt from "bcrypt";
 import pg from "../utils/db";
+import { jsonHelper } from "../utils/jwt_helpers";
+import { json } from "node:stream/consumers";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -35,11 +36,10 @@ export async function generateUser(
 ): Promise<UserDetails> {
   const query = await pg`select * from users where email = ${email}`;
 
-  if (query) {
+  if (query.length > 0) {
     throw new Error("User already exists");
   }
 
-  const user = query[0];
   const hashPassword = await bcrypt.hash(password, SALT_ROUNDS);
   const newUser: UserDetails = {
     email: email,
@@ -76,4 +76,34 @@ export async function checkUser(
   }
 
   return user;
+}
+
+// expecting email and password passed in
+export async function register(request: Request) {
+  try {
+    const body = await request.json();
+    const email = body.email;
+    const password = body.password;
+
+    if (!email || !password) {
+      return jsonHelper({ error: "Email and password required" }, 400);
+    }
+
+    if (password.length < 7) {
+      return jsonHelper(
+        { error: "Password must be at least 7 characters long" },
+        400,
+      );
+    }
+
+    const user = await generateUser(email, password);
+
+    return jsonHelper({ message: "User has been created", user: user.id }, 201);
+  } catch (error) {
+    if (error instanceof Error && error.message === "User already exists") {
+      return jsonHelper({ error: "User with this email already exists" }, 409);
+    }
+
+    return jsonHelper({ error: "Error occurred during registration" }, 500);
+  }
 }
