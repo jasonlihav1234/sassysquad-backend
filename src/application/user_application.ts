@@ -13,8 +13,6 @@ import {
   getRefreshToken,
   revokeRefreshTokenSession,
 } from "../utils/jwt_helpers";
-import { json } from "node:stream/consumers";
-import { Tracing } from "node:trace_events";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
