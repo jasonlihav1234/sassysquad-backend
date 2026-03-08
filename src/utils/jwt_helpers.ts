@@ -79,6 +79,29 @@ export async function storeRefreshToken(
   // add it to database
   await pg`insert into refreshtokens (token_id, token_hash, session_id, user_id, expires, created, created, revoked)
     values (${crypto.randomUUID()}, ${tokenHash}, ${sessionId}, ${userId}, ${new Date()})`;
+
+  await pg`
+  insert into RefreshTokens (
+    token_id, 
+    user_id, 
+    token_hash, 
+    expires, 
+    revoked, 
+    device_info, 
+    created, 
+    session_id
+  )
+  values (
+    ${crypto.randomUUID()},
+    ${userId},
+    ${tokenHash},
+    ${expires},
+    ${false},
+    ${deviceInfo},
+    ${new Date()},
+    ${sessionId}
+  )
+  `;
 }
 
 export async function getRefreshToken(
@@ -87,7 +110,7 @@ export async function getRefreshToken(
   // get the token from the database
   const tokenHash = await bcrypt.hash(tokenId, SALT_ROUNDS);
   const query =
-    await pg`select * from refreshtokens where token_hash = ${tokenHash}`;
+    await pg`select * from RefreshTokens where token_hash = ${tokenHash}`;
 
   if (!query) {
     return null;
