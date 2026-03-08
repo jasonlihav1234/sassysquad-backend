@@ -27,7 +27,21 @@ describe("Register User", () => {
 
   test("Email not provided", async () => {
     const request = generateRequest(registerRoute, "POST", {
+      username: "awdjbadadjkwbn",
       password: "akwdhadw",
+    });
+
+    const response = await register(request);
+    const message = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(message.error).toBe("Email, password, and username required");
+  });
+
+  test("Username not provided", async () => {
+    const request = generateRequest(registerRoute, "POST", {
+      email: "test@gmail.com",
+      password: "dajkwhdaj",
     });
 
     const response = await register(request);
@@ -40,6 +54,7 @@ describe("Register User", () => {
   test("Password not provided", async () => {
     const request = generateRequest(registerRoute, "POST", {
       email: "tesing@gmail.com",
+      username: "aiohdaadw",
     });
 
     const response = await register(request);
@@ -88,6 +103,29 @@ describe("Register User", () => {
     expect(message.error).toBe("User with this email already exists");
 
     // 5. CLEANUP: Remove the user after the test
+    await pg`delete from users where email = ${email}`;
+  });
+
+  test("Successfully create user", async () => {
+    const email = "testing@gmail.com";
+
+    await pg`delete from users where email = ${email}`;
+
+    const request = generateRequest(registerRoute, "POST", {
+      email: email,
+      username: "test",
+      password: "password123",
+    });
+
+    const response = await register(request);
+    const message = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(message.message).toBe("User has been created");
+
+    const user = await pg`select * from users where email = ${email}`;
+    expect(user.length).toBe(1);
+
     await pg`delete from users where email = ${email}`;
   });
 });
