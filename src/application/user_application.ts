@@ -2,12 +2,19 @@ import {
   config,
   createAccessToken,
   createRefreshToken,
+  verifyRefreshToken,
 } from "../utils/jwt_config";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import bcrypt from "bcrypt";
 import pg from "../utils/db";
-import { jsonHelper, storeRefreshToken } from "../utils/jwt_helpers";
+import {
+  jsonHelper,
+  storeRefreshToken,
+  getRefreshToken,
+  revokeRefreshTokenSession,
+} from "../utils/jwt_helpers";
 import { json } from "node:stream/consumers";
+import { Tracing } from "node:trace_events";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -145,5 +152,67 @@ export async function login(request: Request) {
     });
   } catch (error) {
     return jsonHelper({ error: "Login failed" }, 500);
+  }
+}
+
+export async function refresh(request: Request) {
+  try {
+    const body = await request.json();
+    const refreshToken = body.refreshToken;
+    const newTokenId = crypto.randomUUID();
+
+    if (!refreshToken) {
+      return jsonHelper({ error: "Refresh token required" }, 400);
+    }
+
+    const verifiedRefreshToken = await verifyRefreshToken(refreshToken);
+    const storedRefreshToken = await getRefreshToken(
+      verifiedRefreshToken.jwt_id as string,
+    );
+
+    if (!storedRefreshToken) {
+      return jsonHelper({ error: "Refresh token does not exist" }, 401);
+    }
+
+    if (storedRefreshToken.revoked) {
+      // revoke entire token faily to force re-authentication, may be stolen
+      revokeRefreshTokenSession(storedRefreshToken.sessionId);
+      return jsonHelper({ error: "Revoked all sessions" }, 401);
+    }
+
+    // revoke old token
+    // revokeRefreshToken(verifiedRefreshToken.jwt_id as string);
+
+    // generate new pair
+    const newAccessToken = await createAccessToken(
+      verifiedRefreshToken.subject_claim,
+      verifiedRefreshToken.email,
+    );
+
+    const newRefreshToken = await createRefreshToken(
+      verifiedRefreshToken.subject_claim,
+      verifiedRefreshToken.email,
+    );
+
+    await storeRefreshToken(
+      verifiedRefreshToken.subject_claim,
+      storedRefreshToken.sessionId,
+      storedRefreshToken.deviceInfo,
+      newTokenId,
+    );
+
+    return jsonHelper({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      tokenType: "Bearer",
+      expiresIn: 600,
+    });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: "Refresh token is invalid",
+      },
+      401,
+    );
   }
 }

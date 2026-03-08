@@ -87,7 +87,7 @@ export async function getRefreshToken(
   // get the token from the database
   const tokenHash = await bcrypt.hash(tokenId, SALT_ROUNDS);
   const query =
-    await pg`select * from refreshtokens where token_id = ${tokenHash}`;
+    await pg`select * from refreshtokens where token_hash = ${tokenHash}`;
 
   if (!query) {
     return null;
