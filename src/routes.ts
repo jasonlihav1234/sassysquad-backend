@@ -6,11 +6,9 @@ export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
 
   if (url === "/" && method === "GET") {
-    const ret_val = {
+    return res.status(200).json({
       test: "hello",
-    };
-
-    return res.status(200).json(ret_val);
+    });
   }
   if (url === "/auth/register" && method === "POST") {
     return await register(req);
@@ -34,13 +32,13 @@ export async function handleRequest(req: any, res: any) {
 
     if (!userId || typeof userId !== "string") {
       return res.status(400).json({
-        error: "userId is required and needs to be string",
+        error: "userId is required and must be a string",
       });
     }
 
     if (!Array.isArray(orderLines) || orderLines.length === 0) {
       return res.status(400).json({
-        error: "orderLines is required and has to be non empty array",
+        error: "orderLines is required and must be a non-empty array",
       });
     }
 
@@ -50,6 +48,7 @@ export async function handleRequest(req: any, res: any) {
       orderLines,
       createdAt: new Date().toISOString(),
     };
+
     const root = create({ version: "1.0" }).ele("Order", {
       xmlns: "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
       "xmlns:cac":
