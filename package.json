@@ -15,5 +15,8 @@
     "eslint": "^10.0.2",
     "globals": "^17.4.0",
     "typescript-eslint": "^8.56.1"
+  }, 
+  "scripts": {
+    "db:setup": "bun --env-file=.env src/database/setup.ts"
   }
 }
