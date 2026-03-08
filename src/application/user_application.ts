@@ -12,6 +12,7 @@ import {
   storeRefreshToken,
   getRefreshToken,
   revokeRefreshTokenSession,
+  revokeRefreshToken,
 } from "../utils/jwt_helpers";
 
 export interface TokenPayload extends JWTPayload {
@@ -122,8 +123,6 @@ export async function register(request: Request) {
       return jsonHelper({ error: "User with this email already exists" }, 409);
     }
 
-    console.log(error);
-
     return jsonHelper({ error: "Error occurred during registration" }, 500);
   }
 }
@@ -150,7 +149,6 @@ export async function login(request: Request) {
     const sessionId = crypto.randomUUID();
     const device = request.headers.get("User-Agent") || "null";
     await storeRefreshToken(user.id, sessionId, device, refreshToken.tokenId);
-
     // setting expiration to 10 minutes = 600 seconds
     return jsonHelper({
       accessToken: accessToken,
@@ -177,19 +175,19 @@ export async function refresh(request: Request) {
     const storedRefreshToken = await getRefreshToken(
       verifiedRefreshToken.jwt_id as string,
     );
-    console.log(storedRefreshToken);
+
     if (!storedRefreshToken) {
       return jsonHelper({ error: "Refresh token does not exist" }, 401);
     }
 
     if (storedRefreshToken.revoked) {
       // revoke entire token faily to force re-authentication, may be stolen
-      revokeRefreshTokenSession(storedRefreshToken.sessionId);
+      revokeRefreshTokenSession(storedRefreshToken.session_id);
       return jsonHelper({ error: "Revoked all sessions" }, 401);
     }
 
     // revoke old token
-    // revokeRefreshToken(verifiedRefreshToken.jwt_id as string);
+    revokeRefreshToken(verifiedRefreshToken.jwt_id as string);
 
     // generate new pair
     const newAccessToken = await createAccessToken(
@@ -201,17 +199,16 @@ export async function refresh(request: Request) {
       verifiedRefreshToken.subject_claim,
       verifiedRefreshToken.email,
     );
-
     await storeRefreshToken(
       verifiedRefreshToken.subject_claim,
-      storedRefreshToken.sessionId,
-      storedRefreshToken.deviceInfo,
-      newTokenId,
+      storedRefreshToken.session_id,
+      storedRefreshToken.device_info,
+      newRefreshToken.tokenId,
     );
 
     return jsonHelper({
       accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
+      refreshToken: newRefreshToken.token,
       tokenType: "Bearer",
       expiresIn: 600,
     });
