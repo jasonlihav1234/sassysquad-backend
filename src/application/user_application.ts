@@ -1,8 +1,12 @@
-import { config } from "../utils/jwt_config";
+import {
+  config,
+  createAccessToken,
+  createRefreshToken,
+} from "../utils/jwt_config";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import bcrypt from "bcrypt";
 import pg from "../utils/db";
-import { jsonHelper } from "../utils/jwt_helpers";
+import { jsonHelper, storeRefreshToken } from "../utils/jwt_helpers";
 import { json } from "node:stream/consumers";
 
 export interface TokenPayload extends JWTPayload {
@@ -54,6 +58,7 @@ export async function generateUser(
   return newUser;
 }
 
+// checks if password is correct
 export async function checkUser(
   email: string,
   password: string,
@@ -105,5 +110,40 @@ export async function register(request: Request) {
     }
 
     return jsonHelper({ error: "Error occurred during registration" }, 500);
+  }
+}
+
+export async function login(request: Request) {
+  try {
+    const body = await request.json();
+    const email = body.email;
+    const password = body.password;
+
+    if (!email || !password) {
+      return jsonHelper({ error: "Email and password required" }, 400);
+    }
+
+    const user = await checkUser(email, password);
+
+    if (!user) {
+      // user enumeration
+      return jsonHelper({ error: "Invalid credentials" }, 401);
+    }
+
+    const accessToken = await createAccessToken(user.id, user.email);
+    const refreshToken = await createRefreshToken(user.id, user.email);
+    const sessionId = crypto.randomUUID();
+    const device = request.headers.get("User-Agent") || "null";
+
+    await storeRefreshToken(user.id, sessionId, device, refreshToken.tokenId);
+    // setting expiration to 10 minutes = 600 seconds
+    return jsonHelper({
+      accessToken: accessToken,
+      refreshToken: refreshToken.token,
+      tokenType: "Bearer",
+      expiresin: 600,
+    });
+  } catch (error) {
+    return jsonHelper({ error: "Login failed" }, 500);
   }
 }
