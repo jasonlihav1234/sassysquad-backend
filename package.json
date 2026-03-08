@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2",
     "xmlbuilder2": "^4.0.3"
   },
   "devDependencies": {
