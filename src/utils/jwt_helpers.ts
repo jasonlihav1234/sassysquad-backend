@@ -1,6 +1,6 @@
 import { verifyAccessToken, type TokenPayload } from "./jwt_config";
 import pg from "../utils/db";
-import bcrypt from "bcrypt";
+import { createHash } from "node:crypto";
 
 export interface AuthReq extends Request {
   user?: TokenPayload; // user is optional, can be undefined or not present
@@ -8,12 +8,12 @@ export interface AuthReq extends Request {
 
 interface TokenMetadata {
   revoked: boolean;
-  userId: string;
+  user_id: string;
   created: Date;
   expires: Date;
-  tokenId: string;
-  sessionId: string; // groups tokens for same login session
-  deviceInfo: string;
+  token_id: string;
+  session_id: string; // groups tokens for same login session
+  device_info: string;
 }
 const SALT_ROUNDS = 10;
 
@@ -74,7 +74,7 @@ export async function storeRefreshToken(
 ): Promise<void> {
   const expires = new Date();
   expires.setDate(expires.getDate() + expiresInDays);
-  const tokenHash = Bun.hash(tokenId).toString();
+  const tokenHash = createHash("sha256").update(tokenId).digest("hex");
 
   await pg`
   insert into refresh_tokens (
@@ -93,7 +93,7 @@ export async function storeRefreshToken(
     ${tokenHash},
     ${expires.toISOString()},
     ${false},
-    ${deviceInfo},
+    ${deviceInfo || null},
     ${new Date().toISOString()},
     ${sessionId}
   )
@@ -104,7 +104,8 @@ export async function getRefreshToken(
   tokenId: string,
 ): Promise<TokenMetadata | null> {
   // get the token from the database
-  const tokenHash = Bun.hash(tokenId).toString();
+  const tokenHash = createHash("sha256").update(tokenId).digest("hex");
+ 
   const query =
     await pg`select * from refresh_tokens where token_hash = ${tokenHash}`;
 
@@ -117,17 +118,16 @@ export async function getRefreshToken(
 
 export async function revokeRefreshToken(tokenId: string): Promise<boolean> {
   // get token from database
-  const tokenHash = Bun.hash(tokenId).toString();
-  const query =
-    await pg`select * from refresh_tokens where token_hash = ${tokenHash}`;
+  const tokenHash = createHash("sha256").update(tokenId).digest("hex");
+ 
+  const query = await pg`
+    update refresh_tokens
+    set revoked = true
+    where token_hash = ${tokenHash}
+    returning *
+  `;
 
-  if (query.length === 1) {
-    await pg`update refresh_tokens
-             set
-              revoked = true
-             where
-              token_hash = ${tokenHash}`;
-
+  if (query.length > 0) {
     return true;
   }
 
