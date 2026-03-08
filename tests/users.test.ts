@@ -6,10 +6,10 @@ import {
   login,
   refresh,
 } from "../src/application/user_application";
-import { handleRequest } from "../src/routes";
 import { afterEach, beforeEach, mock } from "node:test";
-import { devNull } from "node:os";
 import pg from "../src/utils/db";
+import { createHash } from "node:crypto";
+import { verifyRefreshToken } from "../src/utils/jwt_config";
 
 const generateRequest = (
   url: string,
@@ -280,5 +280,81 @@ describe("Refresh token test", () => {
     expect(refreshBody.error).toBe("Refresh token does not exist");
   });
 
-  test("Refresh token revoked", async () => {});
+  test("Refresh token revoked", async () => {
+    let request = generateRequest(registerRoute, "POST", {
+      email: "testing@gmail.com",
+      username: "test",
+      password: "password123",
+    });
+
+    const user = await register(request);
+    const userBody = await user.json();
+
+    request = generateRequest(loginRoute, "POST", {
+      email: "testing@gmail.com",
+      password: "password123",
+    });
+
+    const response = await login(request);
+    const loginBody = await response.json();
+    // delete the refresh token, current holding one still has valid issuer
+    await pg`update refresh_tokens set revoked = true where user_id = ${userBody.user}`;
+
+    request = generateRequest(refreshRoute, "POST", {
+      refreshToken: loginBody.refreshToken,
+    });
+
+    const refreshResponse = await refresh(request);
+    const refreshBody = await refreshResponse.json();
+
+    expect(refreshResponse.status).toBe(401);
+    expect(refreshBody.error).toBe("Revoked all sessions");
+  });
+
+  test("Successful refresh", async () => {
+    let request = generateRequest(registerRoute, "POST", {
+      email: "testing@gmail.com",
+      username: "test",
+      password: "password123",
+    });
+
+    const user = await register(request);
+
+    request = generateRequest(loginRoute, "POST", {
+      email: "testing@gmail.com",
+      password: "password123",
+    });
+
+    const response = await login(request);
+    const loginBody = await response.json();
+
+    request = generateRequest(refreshRoute, "POST", {
+      refreshToken: loginBody.refreshToken,
+    });
+
+    const refreshResponse = await refresh(request);
+    const refreshBody = await refreshResponse.json();
+
+    expect(refreshResponse.status).toBe(200);
+    expect(refreshBody.accessToken).not.toBe(null);
+    expect(refreshBody.refreshToken).not.toBe(null);
+    expect(refreshBody.tokenType).toBe("Bearer");
+    expect(refreshBody.expiresIn).toBe(600);
+
+    const test = await pg`select * from refresh_tokens`;
+    expect(test.length).toBe(2);
+
+    const tokenPayload = await verifyRefreshToken(refreshBody.refreshToken);
+    const newTokenHash = createHash("sha256")
+      .update(tokenPayload.jwt_id)
+      .digest("hex");
+
+    for (const refresh of test) {
+      if (refresh.token_hash === newTokenHash) {
+        expect(refresh.revoked).toBe(false);
+      } else {
+        expect(refresh.revoked).toBe(true);
+      }
+    }
+  });
 });
