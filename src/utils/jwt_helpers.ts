@@ -160,17 +160,14 @@ export async function revokeAllUserRefreshTokens(
             userId = ${userId}`;
 }
 
-export function getAllUserRefreshTokens(userId: string): any {
+export async function getAllUserRefreshTokens(userId: string): Promise<any> {
   // query which gets all refresh tokens that are not revoked and userId === userId
-  const query = pg`select * from refresh_tokens where user_id = ${userId} and revoked = false and expires > ${new Date()}`;
+  const query =
+    await pg`select * from refresh_tokens where user_id = ${userId} and revoked = false and expires > ${new Date()}`;
 
   return query;
 }
 
-// export function deleteExpiredRefreshTokens(): number {
-//   const now = new Date();
-//   let removed = 0;
-
-//   // query all refresh tokens
-//   // delet all refresh tokens with date < now
-// }
+export async function deleteExpiredRefreshTokens(): Promise<void> {
+  await pg`delete from refresh_tokens where expires < ${new Date()}`;
+}
