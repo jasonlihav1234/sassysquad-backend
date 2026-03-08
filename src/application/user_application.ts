@@ -24,11 +24,12 @@ export interface TokenPayload extends JWTPayload {
 export interface UserDetails {
   email: string;
   password: string;
+  username: string;
   id: string;
   createdAt: Date;
 }
 
-// converts secret strings to Uint8Array for jose library
+// converts secret strings to int8Array for jose library
 const accessSecret = new TextEncoder().encode(config.jwtSecret);
 const refreshSecret = new TextEncoder().encode(config.refreshSecret);
 
@@ -48,6 +49,7 @@ export async function generateUser(
   const hashPassword = await bcrypt.hash(password, SALT_ROUNDS);
   const newUser: UserDetails = {
     email: email,
+    username: username,
     password: hashPassword,
     id: crypto.randomUUID(),
     createdAt: new Date(),
@@ -81,7 +83,13 @@ export async function checkUser(
     return null;
   }
 
-  return user;
+  return {
+    email: user.email,
+    password: user.password,
+    username: user.username,
+    id: user.user_id,
+    createdAt: user.created_at,
+  };
 }
 
 // expecting email and password passed in

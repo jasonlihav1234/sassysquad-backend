@@ -64,23 +64,31 @@ describe("Register User", () => {
   });
 
   test("User already exists", async () => {
-    try {
-      await generateUser("testing@gmail.com", "test", "password123");
-    } catch (error) {
-      pg`delete from users where email = testing@gmail.com`;
-    }
+    const email = "testing@gmail.com";
 
+    // 1. SETUP: Ensure a clean slate first (await this!)
+    await pg`delete from users where email = ${email}`;
+
+    // 2. SEED: Create the user so they "already exist"
+    // (Assuming your generateUser function takes these arguments)
+    await generateUser(email, "test", "password123");
+
+    // 3. ACT: Try to register the same user again
     const request = generateRequest(registerRoute, "POST", {
-      email: "testing@gmail.com",
+      email: email,
       username: "test",
       password: "password123",
     });
-    const response = await register(request);
-    pg`delete from users where email = testing@gmail.com`;
 
+    const response = await register(request);
     const message = await response.json();
+
+    // 4. ASSERT: Check for 409 Conflict
     expect(response.status).toBe(409);
     expect(message.error).toBe("User with this email already exists");
+
+    // 5. CLEANUP: Remove the user after the test
+    await pg`delete from users where email = ${email}`;
   });
 });
 
