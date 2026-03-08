@@ -36,6 +36,7 @@ const SALT_ROUNDS = 10;
 
 export async function generateUser(
   email: string,
+  username: string,
   password: string,
 ): Promise<UserDetails> {
   const query = await pg`select * from users where email = ${email}`;
@@ -52,8 +53,8 @@ export async function generateUser(
     createdAt: new Date(),
   };
 
-  await pg`insert into users (user_id, email, password, created_at) 
-            values (${newUser.id}, ${newUser.email}, ${newUser.password}, ${newUser.createdAt})`;
+  await pg`insert into users (user_id, user_name, email, password_hash, created_at) 
+            values (${newUser.id}, ${username}, ${newUser.email}, ${newUser.password}, ${newUser.createdAt})`;
 
   return newUser;
 }
@@ -89,9 +90,13 @@ export async function register(request: Request) {
     const body = await request.json();
     const email = body.email;
     const password = body.password;
+    const username = body.username;
 
-    if (!email || !password) {
-      return jsonHelper({ error: "Email and password required" }, 400);
+    if (!email || !password || !username) {
+      return jsonHelper(
+        { error: "Email, password, and username required" },
+        400,
+      );
     }
 
     if (password.length < 7) {
@@ -101,13 +106,15 @@ export async function register(request: Request) {
       );
     }
 
-    const user = await generateUser(email, password);
+    const user = await generateUser(email, username, password);
 
     return jsonHelper({ message: "User has been created", user: user.id }, 201);
   } catch (error) {
     if (error instanceof Error && error.message === "User already exists") {
       return jsonHelper({ error: "User with this email already exists" }, 409);
     }
+
+    console.log(error);
 
     return jsonHelper({ error: "Error occurred during registration" }, 500);
   }
