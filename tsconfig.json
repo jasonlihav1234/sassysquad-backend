@@ -1,5 +1,10 @@
 {
   "compilerOptions": {
-    "types": ["node"]
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["bun", "node"],
+    "strict": true,
+    "skipLibCheck": true
   }
 }
