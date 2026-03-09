@@ -8,7 +8,7 @@ interface Item {
 }
 
 /**
- * Fetches an orderID based on its name.
+ * Fetches an orderID based on its name, make sure to prepend await since these are async functions
  */
 export async function getOrderIdByName(
   orderName: string,
@@ -28,7 +28,7 @@ export async function getOrderIdByName(
 }
 
 /**
- * Creates an order in the database
+ * Creates an order in the database, make sure to prepend await since these are async functions
  * items should follow - [
  *  {
  *    quantity,
@@ -165,7 +165,7 @@ export async function createOrderQuery(
   }
 }
 
-/**
+/** Creates an order line, make sure to prepend await since these are async functions
  * line_id - make this
  * order_id - need
  * item_id - need
@@ -196,5 +196,154 @@ export async function createOrderlineQuery(
     return totalItemPrice;
   } catch (error) {
     return null;
+  }
+}
+
+/**
+ * Obtaining all orders given a user ID, make sure to prepend await since these are async functions
+ */
+
+export async function getOrdersByUserId(userId: string) {
+  try {
+    const response = await sql`select * from users where user_id = ${userId}`;
+    return response;
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+}
+
+/**
+ * Deleting an order by given a order id, make sure to prepend await since these are async functions
+ */
+
+export async function deleteOrdersById(orderId: string) {
+  try {
+    await sql`delete from orders where order_id = ${orderId}`;
+
+    return jsonHelper({ message: "Order deleted" });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: error,
+        message: "Order deletion failed",
+      },
+      500,
+    );
+  }
+}
+
+/**
+ * Updating an order, make sure to prepend await since these are async functions, think about deleting an item - it can't be done if there are open orders for it
+ * for the items - have to always provide every item in an order, even if you are not adding or removing an item
+ * please provide the previous values of the order if they are not changed
+ */
+export async function updateOrdersById(
+  orderId: string,
+  orderName: string,
+  buyerId: string,
+  sellerId: string,
+  documentCurrencyCode: string,
+  pricingCurrencyCode: string,
+  taxCurrencyCode: string,
+  requestedInvoiceCurrencyCode: string,
+  accountingCost: number,
+  paymentMethodCode: string,
+  destinationCountryCode: string,
+  ublXMLContent: string,
+  items: Array<Item>,
+) {
+  let totalItemCost = 0;
+
+  // looping through and creating all the orderlines if they don't exist
+  for (const item of items) {
+    // if the orderline has this order id and item id already exists, also quantity has to be the same for it to not change
+    const checkExists =
+      await sql`select * from order_lines where order_id = ${orderId} and item_id = ${item.itemId}`;
+    // shouldn't be able to change the price at purchase right doens't make sense
+    if (checkExists.length !== 0) {
+      // there should only be 1 order line here because each order line should have unique itemIds
+      if (checkExists[0].quantity === item.quantity) {
+        continue;
+      }
+
+      // different quantity, update the quantity and price
+      await sql`
+      update order_lines
+      set quantity = ${item.quantity}
+      where order_id = ${orderId} and item_id = ${item.itemId}
+      `;
+
+      totalItemCost += item.quantity * item.priceAtPurchase;
+    } else {
+      // doesn't exist in the orderline, create it
+      const response = await createOrderlineQuery(
+        orderId,
+        item.itemId,
+        item.quantity,
+        0,
+        item.priceAtPurchase,
+      );
+
+      if (response !== null) {
+        totalItemCost += response;
+      }
+    }
+  }
+
+  const totalTaxCost = totalItemCost / 11; // GST
+  let paymentMethodCost = 0;
+
+  switch (paymentMethodCode.toLowerCase()) {
+    case "visa":
+      paymentMethodCost = totalItemCost * (0.58 / 100); // 0.58 for visa and 0.5 for mastercard
+      break;
+    case "mastercard":
+      paymentMethodCost = totalItemCost * (0.5 / 100);
+      break;
+    default:
+      paymentMethodCost = totalItemCost * (1.4 / 100); // 1.4% default
+      break;
+  }
+
+  const totalCost =
+    totalItemCost + totalTaxCost + paymentMethodCost + accountingCost;
+  const status = "pending"; // maybe use stripe for changing this status?
+
+  try {
+    await sql`
+    update orders
+    set
+      order_name = ${orderName},
+      buyer_id = ${buyerId},
+      seller_id = ${sellerId},
+      document_currency_code = ${documentCurrencyCode},
+      pricing_currency_code = ${pricingCurrencyCode},
+      tax_currency_code = ${taxCurrencyCode},
+      request_invoice_currency_code = ${requestedInvoiceCurrencyCode},
+      total_order_item_cost = ${totalItemCost},
+      accounting_cost = ${accountingCost},
+      total_tax_cost = ${totalTaxCost},
+      payment_method_cost = ${paymentMethodCost},
+      total_cost = ${totalCost},
+      payment_method_code = ${paymentMethodCode},
+      destination_country_code = ${destinationCountryCode},
+      status = ${status},
+      ubl_xml_content = ${ublXMLContent}
+    where
+      order_id = ${orderId}
+    `;
+
+    return jsonHelper({
+      message: "Update successful",
+    });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: error,
+        error_msg: "Update failed",
+      },
+      500,
+    );
   }
 }
