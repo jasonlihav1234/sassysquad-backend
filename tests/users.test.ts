@@ -403,7 +403,7 @@ describe("Forgot password test", () => {
 
   test("Email gets sent", async () => {
     let request = generateRequest(registerRoute, "POST", {
-      email: "testing1231nkgsekln12u34907n@gmail.com",
+      email: "jasonli3960@gmail.com",
       username: "test",
       password: "password123",
     });
@@ -411,7 +411,7 @@ describe("Forgot password test", () => {
     await register(request);
 
     request = generateRequest("http://localhost/auth/reset-password", "POST", {
-      email: "testing1231nkgsekln12u34907n@gmail.com",
+      email: "jasonli3960@gmail.com",
     });
 
     const response = await forgotPassword(request);
@@ -422,9 +422,7 @@ describe("Forgot password test", () => {
 
     let getToken = null;
     for (let i = 0; i < 20; i++) {
-      getToken = await redis.get(
-        `resetPassword:testing1231nkgsekln12u34907n@gmail.com`,
-      );
+      getToken = await redis.get(`resetPassword:jasonli3960@gmail.com`);
       if (getToken) break; // Found it! Exit loop.
       await sleep(100);
     }
@@ -511,27 +509,25 @@ describe("Reset password tests", () => {
 
   test("Successful reset", async () => {
     let request = generateRequest(registerRoute, "POST", {
-      email: "testing1231nkgsekln12u34907n@gmail.com",
+      email: "jasonli3960@gmail.com",
       username: "test",
       password: "password123",
     });
 
     await register(request);
-    const testingEmail = "testing1231nkgsekln12u34907n@gmail.com";
+    const testingEmail = "jasonli3960@gmail.com";
 
     request = generateRequest("http://localhost/auth/reset-password", "POST", {
-      email: "testing1231nkgsekln12u34907n@gmail.com",
+      email: "jasonli3960@gmail.com",
     });
 
     const response = await forgotPassword(request);
     await response.json();
 
-    let getToken = await redis.get(
-      `resetPassword:testing1231nkgsekln12u34907n@gmail.com`,
-    );
+    let getToken = await redis.get(`resetPassword:jasonli3960@gmail.com`);
 
     request = generateRequest("http://localhost/auth/reset-password", "POST", {
-      email: "testing1231nkgsekln12u34907n@gmail.com",
+      email: "jasonli3960@gmail.com",
       token: getToken,
       password: "newpassword1234",
     });
@@ -544,9 +540,7 @@ describe("Reset password tests", () => {
     expect(resetResponse.status).toBe(200);
     expect(resetBody.message).toBe("Password successfully updated");
 
-    getToken = await redis.get(
-      `resetPassword:testing1231nkgsekln12u34907n@gmail.com`,
-    );
+    getToken = await redis.get(`resetPassword:jasonli3960@gmail.com`);
 
     expect(getToken).toBe(null);
 
