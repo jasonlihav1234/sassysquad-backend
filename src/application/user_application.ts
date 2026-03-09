@@ -227,7 +227,7 @@ export async function refresh(request: Request) {
 export async function forgotPassword(request: Request) {
   const body = await request.json();
 
-  if (!body) {
+  if (!body.email) {
     return jsonHelper(
       {
         error: "Email not provided",
@@ -238,17 +238,17 @@ export async function forgotPassword(request: Request) {
 
   // verify that email is valid, and that the email exists in the database
   const recipentEmail = body.email;
-  // const checkEmail =
-  //   await pg`select * from users where email = ${recipentEmail}`;
+  const checkEmail =
+    await pg`select * from users where email = ${recipentEmail}`;
 
-  // if (checkEmail.length === 0) {
-  //   return jsonHelper(
-  //     {
-  //       error: "User does not exist",
-  //     },
-  //     404,
-  //   );
-  // }
+  if (checkEmail.length === 0) {
+    return jsonHelper(
+      {
+        error: "User does not exist",
+      },
+      404,
+    );
+  }
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -264,6 +264,7 @@ export async function forgotPassword(request: Request) {
 
   const resetPasswordToken = crypto.randomUUID();
   const key = `resetPassword:${recipentEmail}`;
+
   // conflicting keys
   await redis.set(key, resetPasswordToken);
   await redis.expire(key, 600); // reset password token lasts 30 minutes
