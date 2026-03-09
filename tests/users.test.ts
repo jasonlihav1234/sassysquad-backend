@@ -6,11 +6,13 @@ import {
   refresh,
   login,
   logout,
+  logoutAll,
 } from "../src/application/user_application";
 import { afterEach, beforeEach, mock } from "node:test";
 import pg from "../src/utils/db";
 import { createHash } from "node:crypto";
 import { verifyRefreshToken } from "../src/utils/jwt_config";
+import { getMaxListeners } from "node:cluster";
 
 const generateRequest = (
   url: string,
@@ -46,6 +48,7 @@ const registerRoute = "http://localhost/auth/register";
 const logoutRoute = "http://localhost/auth/logout";
 const refreshRoute = "http://localhost/auth/refresh";
 const loginRoute = "http://localhost/auth/login";
+const logoutAllRoute = "http://localhost/auth/logout-all";
 
 describe("Register User", () => {
   const registerRoute = "http://localhost/auth/register";
@@ -111,14 +114,10 @@ describe("Register User", () => {
   test("User already exists", async () => {
     const email = "testing@gmail.com";
 
-    // 1. SETUP: Ensure a clean slate first (await this!)
     await pg`delete from users where email = ${email}`;
 
-    // 2. SEED: Create the user so they "already exist"
-    // (Assuming your generateUser function takes these arguments)
     await generateUser(email, "test", "password123");
 
-    // 3. ACT: Try to register the same user again
     const request = generateRequest(registerRoute, "POST", {
       email: email,
       username: "test",
@@ -128,11 +127,9 @@ describe("Register User", () => {
     const response = await register(request);
     const message = await response.json();
 
-    // 4. ASSERT: Check for 409 Conflict
     expect(response.status).toBe(409);
     expect(message.error).toBe("User with this email already exists");
 
-    // 5. CLEANUP: Remove the user after the test
     await pg`delete from users where email = ${email}`;
   });
 
@@ -396,7 +393,8 @@ describe("Logout tests", () => {
       password: "password123",
     });
 
-    await register(request);
+    const userResponse = await register(request);
+    const userBody = await userResponse.json();
 
     request = generateRequest(loginRoute, "POST", {
       email: "testing@gmail.com",
@@ -420,6 +418,11 @@ describe("Logout tests", () => {
 
     expect(logoutResponse.status).toBe(200);
     expect(logoutBody.message).toBe("User has been logged out");
+
+    const findToken =
+      await pg`select * from refresh_tokens where user_id = ${userBody.user}`;
+
+    expect(findToken[0].revoked).toBe(true);
   });
 
   test("User doesn't get logged out, success still returned", async () => {
@@ -453,5 +456,89 @@ describe("Logout tests", () => {
 
     expect(logoutResponse.status).toBe(200);
     expect(logoutBody.message).toBe("User has been logged out");
+  });
+});
+
+describe("Logout-all tests", () => {
+  afterEach(async () => {
+    await pg`truncate table users restart identity cascade`;
+    await pg`truncate table refresh_tokens restart identity cascade`;
+  });
+
+  test("User is not authorised to logout", async () => {
+    let request = generateRequest(registerRoute, "POST", {
+      email: "testing@gmail.com",
+      username: "test",
+      password: "password123",
+    });
+
+    const userResponse = await register(request);
+    await userResponse.json();
+
+    request = generateAuthenticatedRequest(
+      logoutAllRoute,
+      "POST",
+      {
+        test: "dawjdakd",
+      },
+      "dajwhdajkdad",
+    );
+
+    const logoutAllResponse = await logoutAll(request);
+    const logoutAllResponseBody = await logoutAllResponse.json();
+
+    expect(logoutAllResponse.status).toBe(401);
+    expect(logoutAllResponseBody.error).toBe("Invalid or expired token");
+  });
+
+  test("All sessions logged out", async () => {
+    let request = generateRequest(registerRoute, "POST", {
+      email: "testing@gmail.com",
+      username: "test",
+      password: "password123",
+    });
+
+    const registerResponse = await register(request);
+    const registerBody = await registerResponse.json();
+
+    request = generateRequest(loginRoute, "POST", {
+      email: "testing@gmail.com",
+      password: "password123",
+    });
+
+    const loginResponse = await login(request);
+    const loginBody = await loginResponse.json();
+
+    request = generateRequest(loginRoute, "POST", {
+      email: "testing@gmail.com",
+      password: "password123",
+    });
+
+    const loginResponse2 = await login(request);
+    await loginResponse2.json();
+
+    request = generateAuthenticatedRequest(
+      logoutAllRoute,
+      "POST",
+      {
+        refreshToken: loginBody.refreshToken,
+      },
+      loginBody.accessToken,
+    );
+
+    const logoutAllResponse = await logoutAll(request);
+    const logoutAllResponseBody = await logoutAllResponse.json();
+
+    expect(logoutAllResponse.status).toBe(200);
+    expect(logoutAllResponseBody.message).toBe("All sessions logged out");
+
+    const email = registerBody.user;
+    const findTokens =
+      await pg`select * from refresh_tokens where user_id = ${email}`;
+    expect(findTokens.length).toBe(2);
+
+    for (const refresh of findTokens) {
+      expect(refresh.revoked).toBe(true);
+    }
   });
 });

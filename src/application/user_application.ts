@@ -160,6 +160,7 @@ export async function login(request: Request) {
       expiresIn: 600,
     });
   } catch (error) {
+    console.log(error);
     return jsonHelper({ error: "Login failed" }, 500);
   }
 }
@@ -245,11 +246,7 @@ export const logout = authHelper(
 );
 
 export const logoutAll = authHelper(async (req: AuthReq): Promise<Response> => {
-  if (!req.user) {
-    return jsonHelper({ error: "User is not authorised" }, 401);
-  }
-
-  await revokeAllUserRefreshTokens(req.user.subject_claim);
+  await revokeAllUserRefreshTokens(req.user!.subject_claim);
 
   return jsonHelper({ message: "All sessions logged out" });
 });

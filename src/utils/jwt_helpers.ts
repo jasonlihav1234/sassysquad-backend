@@ -105,7 +105,7 @@ export async function getRefreshToken(
 ): Promise<TokenMetadata | null> {
   // get the token from the database
   const tokenHash = createHash("sha256").update(tokenId).digest("hex");
- 
+
   const query =
     await pg`select * from refresh_tokens where token_hash = ${tokenHash}`;
 
@@ -119,7 +119,7 @@ export async function getRefreshToken(
 export async function revokeRefreshToken(tokenId: string): Promise<boolean> {
   // get token from database
   const tokenHash = createHash("sha256").update(tokenId).digest("hex");
- 
+
   const query = await pg`
     update refresh_tokens
     set revoked = true
@@ -153,7 +153,7 @@ export async function revokeAllUserRefreshTokens(
            set
             revoked = true
            where
-            userId = ${userId}`;
+            user_id = ${userId}`;
 }
 
 export async function getAllUserRefreshTokens(userId: string): Promise<any> {
