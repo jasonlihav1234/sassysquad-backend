@@ -264,7 +264,7 @@ export async function forgotPassword(request: Request) {
 
   const resetPasswordToken = crypto.randomUUID();
   const key = `resetPassword:${recipentEmail}`;
-
+  // conflicting keys
   await redis.set(key, resetPasswordToken);
   await redis.expire(key, 600); // reset password token lasts 30 minutes
 
@@ -287,7 +287,7 @@ export async function forgotPassword(request: Request) {
         <div style="padding: 20px 40px; color: #333; line-height: 1.6; font-size: 14px;">
           <p>We received a request to <span style="background-color: #ffeeba;">reset</span> the <span style="background-color: #ffeeba;">password</span> associated with this email address.</p>
           <p>If you made this request, please follow the instructions below.</p>
-          
+
           <p style="margin-top: 25px;">Click the link below to go to the last step to <span style="background-color: #ffeeba;">reset</span> your <span style="background-color: #ffeeba;">password</span>: (need frontend for this part)</p>
           <p>Testing reset password token: ${resetPasswordToken}</p>
 
@@ -312,4 +312,46 @@ export async function forgotPassword(request: Request) {
   } catch (error) {
     return jsonHelper({ error: "Mail failed to send" }, 500);
   }
+}
+
+export async function resetPassword(request: Request) {
+  const body = await request.json();
+  const email = body.email;
+  const token = body.token;
+  const password = body.password;
+
+  if (!token || !password) {
+    return jsonHelper({ error: "Missing token or password" }, 400);
+  }
+
+  // check password is valid
+  if (password.length < 7) {
+    return jsonHelper({ error: "Invalid password" }, 400);
+  }
+
+  // check token is valid;
+  const resetPasswordToken = await redis.get(`resetPassword:${email}`);
+
+  if (!resetPasswordToken || resetPasswordToken != token) {
+    return jsonHelper(
+      {
+        error: "Token expired or is invalid",
+      },
+      404,
+    );
+  }
+
+  const passwordHash = bcrypt.hash(password, SALT_ROUNDS);
+  // change the password
+  await pg`
+  update users
+  set password_hash = ${passwordHash}
+  where email = ${email}
+  `;
+
+  await redis.del(`resetPassword:${email}`);
+
+  return jsonHelper({
+    message: "Password successfully updated",
+  });
 }
