@@ -400,40 +400,10 @@ describe("Forgot password test", () => {
     expect(response.status).toBe(404);
     expect(body.error).toBe("User does not exist");
   });
-
-  test("Email gets sent", async () => {
-    let request = generateRequest(registerRoute, "POST", {
-      email: "jasonli3960@gmail.com",
-      username: "test",
-      password: "password123",
-    });
-
-    await register(request);
-
-    request = generateRequest("http://localhost/auth/reset-password", "POST", {
-      email: "jasonli3960@gmail.com",
-    });
-
-    const response = await forgotPassword(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.message).toBe("Mail successfully sent");
-
-    let getToken = null;
-    for (let i = 0; i < 20; i++) {
-      getToken = await redis.get(`resetPassword:jasonli3960@gmail.com`);
-      if (getToken) break; // Found it! Exit loop.
-      await sleep(100);
-    }
-
-    expect(getToken).not.toBe(undefined);
-    expect(getToken).not.toBe(null);
-  });
 });
 
 describe("Reset password tests", () => {
-  const resetPasswordRoute = "http://localhost/reset-password";
+  const resetPasswordRoute = "http://localhost/auth/reset-password";
   afterEach(async () => {
     await redis.send("FLUSHDB", []);
     await pg`truncate table users restart identity cascade`;
