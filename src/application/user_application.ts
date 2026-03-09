@@ -327,7 +327,7 @@ export async function resetPassword(request: Request) {
 
   // check password is valid
   if (password.length < 7) {
-    return jsonHelper({ error: "Invalid password" }, 400);
+    return jsonHelper({ error: "Invalid password" }, 401);
   }
 
   // check token is valid;
@@ -342,7 +342,7 @@ export async function resetPassword(request: Request) {
     );
   }
 
-  const passwordHash = bcrypt.hash(password, SALT_ROUNDS);
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   // change the password
   await pg`
   update users
