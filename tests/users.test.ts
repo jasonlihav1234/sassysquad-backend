@@ -12,6 +12,7 @@ import { afterEach, beforeEach, mock } from "node:test";
 import pg, { redis } from "../src/utils/db";
 import { createHash } from "node:crypto";
 import { verifyRefreshToken } from "../src/utils/jwt_config";
+import { sleep } from "bun";
 
 const generateRequest = (
   url: string,
@@ -419,9 +420,14 @@ describe("Forgot password test", () => {
     expect(response.status).toBe(200);
     expect(body.message).toBe("Mail successfully sent");
 
-    const getToken = await redis.get(
-      `resetPassword:testing1231nkgsekln12u34907n@gmail.com`,
-    );
+    let getToken = null;
+    for (let i = 0; i < 20; i++) {
+      getToken = await redis.get(
+        `resetPassword:testing1231nkgsekln12u34907n@gmail.com`,
+      );
+      if (getToken) break; // Found it! Exit loop.
+      await sleep(100);
+    }
 
     expect(getToken).not.toBe(undefined);
     expect(getToken).not.toBe(null);
