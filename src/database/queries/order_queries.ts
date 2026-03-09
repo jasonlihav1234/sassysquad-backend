@@ -1,5 +1,5 @@
-import { sql } from "../client";
 import { jsonHelper } from "../../utils/jwt_helpers";
+import pg from "../../utils/db";
 
 interface Item {
   quantity: number;
@@ -13,7 +13,7 @@ interface Item {
 export async function getOrderIdByName(
   orderName: string,
 ): Promise<string | null> {
-  const result = await sql`
+  const result = await pg`
     SELECT order_id 
     FROM orders 
     WHERE order_name = ${orderName}
@@ -73,88 +73,63 @@ export async function createOrderQuery(
    * ubl xml content - need this
    */
   const orderId = crypto.randomUUID();
-  let totalItemCost = 0;
-
-  // looping through and creating all the orderlines
-  for (const item of items) {
-    const response = await createOrderlineQuery(
-      orderId,
-      item.itemId,
-      item.quantity,
-      0,
-      item.priceAtPurchase,
-    );
-
-    if (response !== null) {
-      totalItemCost += response;
-    }
-  }
+  const totalItemCost = items.reduce((sum, item) => {
+    return sum + item.quantity * item.priceAtPurchase;
+  }, 0);
 
   const totalTaxCost = totalItemCost / 11; // GST
-  let paymentMethodCost = 0;
 
+  let paymentMethodCost = 0;
   switch (paymentMethodCode.toLowerCase()) {
     case "visa":
-      paymentMethodCost = totalItemCost * (0.58 / 100); // 0.58 for visa and 0.5 for mastercard
+      paymentMethodCost = totalItemCost * (0.58 / 100);
       break;
     case "mastercard":
       paymentMethodCost = totalItemCost * (0.5 / 100);
       break;
     default:
-      paymentMethodCost = totalItemCost * (1.4 / 100); // 1.4% default
+      paymentMethodCost = totalItemCost * (1.4 / 100);
       break;
   }
 
   const totalCost =
     totalItemCost + totalTaxCost + paymentMethodCost + accountingCost;
-  const status = "pending"; // maybe use stripe for changing this status?
-
+  const status = "pending";
   try {
-    await sql`
-    insert into orders (order_id, 
-                        order_name, 
-                        buyer_id, 
-                        seller_id, 
-                        issue_date, 
-                        document_currency_code, 
-                        pricing_currency_code, 
-                        tax_currency_code,
-                        requested_invoice_currency_code, 
-                        total_order_item_cost, 
-                        accounting_cost, 
-                        total_tax_cost,
-                        payment_method_cost,
-                        total_cost,
-                        payment_method_code, 
-                        destination_country_code, 
-                        status, 
-                        ubl_xml_content)
-    values (
-      ${orderId},
-      ${orderName},
-      ${buyerId},
-      ${sellerId},
-      ${new Date().toISOString()},
-      ${documentCurrencyCode},
-      ${pricingCurrencyCode},
-      ${taxCurrencyCode},
-      ${requestedInvoiceCurrencyCode},
-      ${totalItemCost},
-      ${accountingCost},
-      ${totalTaxCost},
-      ${paymentMethodCost},
-      ${totalCost},
-      ${paymentMethodCode},
-      ${destinationCountryCode},
-      ${status},
-      ${ublXMLContent}
-    )
+    await pg`
+      insert into orders (
+        order_id, order_name, buyer_id, seller_id, issue_date, 
+        document_currency_code, pricing_currency_code, tax_currency_code,
+        requested_invoice_currency_code, total_order_item_cost, accounting_cost, 
+        total_tax_cost, payment_method_cost, total_cost, payment_method_code, 
+        destination_country_code, status, ubl_xml_content
+      ) values (
+        ${orderId}, ${orderName}, ${buyerId}, ${sellerId}, ${new Date().toISOString()}, 
+        ${documentCurrencyCode}, ${pricingCurrencyCode}, ${taxCurrencyCode},
+        ${requestedInvoiceCurrencyCode}, ${totalItemCost}, ${accountingCost}, 
+        ${totalTaxCost}, ${paymentMethodCost}, ${totalCost}, ${paymentMethodCode}, 
+        ${destinationCountryCode}, ${status}, ${ublXMLContent}
+      )
     `;
+
+    await Promise.all(
+      items.map((item) =>
+        createOrderlineQuery(
+          orderId,
+          item.itemId,
+          item.quantity,
+          0,
+          item.priceAtPurchase,
+        ),
+      ),
+    );
 
     return jsonHelper({
       message: "Insertion successful",
+      orderId: orderId,
     });
   } catch (error) {
+    console.error("Order Creation Failed:", error);
     return jsonHelper(
       {
         error: error,
@@ -188,13 +163,14 @@ export async function createOrderlineQuery(
   const totalItemPrice = priceAtPurchase * quantity;
 
   try {
-    await sql`
+    await pg`
     insert into order_lines (line_id, order_id, item_id, quantity, tax_percent_per, tax_percent_total, price_at_purchase)
-    values (${lineId}, ${orderId}, ${itemId}, ${quantity}, ${0}, ${10}, ${totalItemPrice})
+    values (${lineId}, ${orderId}, ${itemId}, ${quantity}, 0, 10, ${priceAtPurchase})
     `;
 
     return totalItemPrice;
   } catch (error) {
+    console.log(error);
     return null;
   }
 }
@@ -205,7 +181,7 @@ export async function createOrderlineQuery(
 
 export async function getOrdersByUserId(userId: string) {
   try {
-    const response = await sql`select * from users where user_id = ${userId}`;
+    const response = await pg`select * from users where user_id = ${userId}`;
     return response;
   } catch (error) {
     console.log(error);
@@ -219,7 +195,7 @@ export async function getOrdersByUserId(userId: string) {
 
 export async function deleteOrdersById(orderId: string) {
   try {
-    await sql`delete from orders where order_id = ${orderId}`;
+    await pg`delete from orders where order_id = ${orderId}`;
 
     return jsonHelper({ message: "Order deleted" });
   } catch (error) {
@@ -253,17 +229,19 @@ export async function updateOrdersById(
   ublXMLContent: string,
   items: Array<Item>,
 ) {
-  const valuesToUpsert = items.map((item) => ({
-    order_id: orderId,
-    item_id: item.itemId,
-    quantity: item.quantity,
-    price_at_purchase: item.priceAtPurchase,
-    tax_percent_per: 0,
-    tax_percent_total: 10,
-  }));
+  const valuesToUpsert = await Promise.all(
+    items.map((item) => ({
+      order_id: orderId,
+      item_id: item.itemId,
+      quantity: item.quantity,
+      price_at_purchase: item.priceAtPurchase,
+      tax_percent_per: 0,
+      tax_percent_total: 10,
+    })),
+  );
 
-  await sql`
-  insert into order_lines ${sql(valuesToUpsert)}
+  await pg`
+  insert into order_lines ${pg(valuesToUpsert)}
   on conflict (order_id, item_id)
   do update set
     quantity = excluded.quantity
@@ -294,7 +272,7 @@ export async function updateOrdersById(
   const status = "pending"; // maybe use stripe for changing this status?
 
   try {
-    await sql`
+    await pg`
     update orders
     set
       order_name = ${orderName},
