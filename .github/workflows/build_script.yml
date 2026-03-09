@@ -54,6 +54,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           REFRESH_SECRET: ${{ secrets.REFRESH_SECRET }}
+          KV_URL: ${{ secrets.KV_URL }}
         run: bun test --timeout 10000
 
       - name: Upload analysis results to GitHub
