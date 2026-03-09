@@ -6,6 +6,7 @@ import {
   login,
   refresh,
   forgotPassword,
+  resetPassword,
 } from "../src/application/user_application";
 import { afterEach, beforeEach, mock } from "node:test";
 import pg, { redis } from "../src/utils/db";
@@ -423,5 +424,48 @@ describe("Forgot password test", () => {
 
     expect(getToken).not.toBe(undefined);
     expect(getToken).not.toBe(null);
+  });
+});
+
+describe("Reset password tests", () => {
+  const resetPasswordRoute = "http://localhost/reset-password";
+
+  test("No token passed in", async () => {
+    let request = generateRequest(resetPasswordRoute, "POST", {
+      email: "dawdaaad",
+      password: "dadanaad",
+    });
+
+    const response = await resetPassword(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Missing token or password");
+  });
+
+  test("No email passed in", async () => {
+    let request = generateRequest(resetPasswordRoute, "POST", {
+      token: "dawdaaad",
+      password: "dadanaad",
+    });
+
+    const response = await resetPassword(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Missing token or password");
+  });
+
+  test("No password passed in", async () => {
+    let request = generateRequest(resetPasswordRoute, "POST", {
+      email: "dawdaaad",
+      token: "dadanaad",
+    });
+
+    const response = await resetPassword(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Missing token or password");
   });
 });

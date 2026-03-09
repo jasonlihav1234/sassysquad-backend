@@ -321,7 +321,7 @@ export async function resetPassword(request: Request) {
   const token = body.token;
   const password = body.password;
 
-  if (!token || !password) {
+  if (!token || !password || !email) {
     return jsonHelper({ error: "Missing token or password" }, 400);
   }
 
