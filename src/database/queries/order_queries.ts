@@ -253,43 +253,26 @@ export async function updateOrdersById(
   ublXMLContent: string,
   items: Array<Item>,
 ) {
-  let totalItemCost = 0;
+  const valuesToUpsert = items.map((item) => ({
+    order_id: orderId,
+    item_id: item.itemId,
+    quantity: item.quantity,
+    price_at_purchase: item.priceAtPurchase,
+    tax_percent_per: 0,
+    tax_percent_total: 10,
+  }));
 
-  // looping through and creating all the orderlines if they don't exist
-  for (const item of items) {
-    // if the orderline has this order id and item id already exists, also quantity has to be the same for it to not change
-    const checkExists =
-      await sql`select * from order_lines where order_id = ${orderId} and item_id = ${item.itemId}`;
-    // shouldn't be able to change the price at purchase right doens't make sense
-    if (checkExists.length !== 0) {
-      // there should only be 1 order line here because each order line should have unique itemIds
-      if (checkExists[0].quantity === item.quantity) {
-        continue;
-      }
+  await sql`
+  insert into order_lines ${sql(valuesToUpsert)}
+  on conflict (order_id, item_id)
+  do update set
+    quantity = excluded.quantity
+  `;
 
-      // different quantity, update the quantity and price
-      await sql`
-      update order_lines
-      set quantity = ${item.quantity}
-      where order_id = ${orderId} and item_id = ${item.itemId}
-      `;
-
-      totalItemCost += item.quantity * item.priceAtPurchase;
-    } else {
-      // doesn't exist in the orderline, create it
-      const response = await createOrderlineQuery(
-        orderId,
-        item.itemId,
-        item.quantity,
-        0,
-        item.priceAtPurchase,
-      );
-
-      if (response !== null) {
-        totalItemCost += response;
-      }
-    }
-  }
+  const totalItemCost = items.reduce(
+    (sum, item) => sum + (item.quantity + item.priceAtPurchase),
+    0,
+  );
 
   const totalTaxCost = totalItemCost / 11; // GST
   let paymentMethodCost = 0;
