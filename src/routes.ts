@@ -1,5 +1,10 @@
 import { create } from "xmlbuilder2";
-import { register, login, refresh } from "./application/user_application";
+import {
+  register,
+  login,
+  refresh,
+  forgotPassword,
+} from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 
 export async function handleRequest(req: any, res: any) {
@@ -24,6 +29,10 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/auth/clean-tokens" && method === "GET") {
     return await deleteExpiredRefreshTokens();
+  }
+
+  if (url === "/auth/forgot-password" && method === "POST") {
+    return await forgotPassword(req);
   }
 
   // POST /orders

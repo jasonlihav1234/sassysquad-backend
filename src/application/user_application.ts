@@ -14,6 +14,8 @@ import {
   revokeRefreshTokenSession,
   revokeRefreshToken,
 } from "../utils/jwt_helpers";
+import nodemailer from "nodemailer";
+import path from "path";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -219,5 +221,78 @@ export async function refresh(request: Request) {
       },
       401,
     );
+  }
+}
+
+export async function forgotPassword(request: Request) {
+  const body = await request.json();
+
+  if (!body) {
+    return jsonHelper(
+      {
+        error: "Email not provided",
+      },
+      400,
+    );
+  }
+
+  // verify that email is valid, and that the email exists in the database
+  const recipentEmail = body.email;
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "jasonli3960@gmail.com",
+      pass: process.env.GOOGLE_APP_PASSWORD,
+    },
+  });
+  const imagePath = path.join(
+    import.meta.dirname,
+    "../utils/pictures/office_pic.jpg",
+  );
+
+  const mailData = {
+    from: '"SaasySquad" <jasonli3960@gmail.com>',
+    to: `${recipentEmail}`,
+    subject: "Password Reset - SaasySquad",
+    html: `
+<div style="background-color: #f0f4f8; padding: 40px 0; font-family: Arial, sans-serif;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #ddd;">
+      
+        <div style="padding: 30px 40px 10px 40px;">
+          <h1 style="font-size: 35px; font-weight: bold; color: #000; margin: 0;">Your password reset</h1>
+        </div>
+
+        <div style="padding: 25px 0;">
+          <img src="cid:office_pic" alt="Office Speaking Tings" style="width: 100%; display: block;">
+        </div>
+
+        <div style="padding: 20px 40px; color: #333; line-height: 1.6; font-size: 14px;">
+          <p>We received a request to <span style="background-color: #ffeeba;">reset</span> the <span style="background-color: #ffeeba;">password</span> associated with this email address.</p>
+          <p>If you made this request, please follow the instructions below.</p>
+          <p>If you did not request to have your <span style="background-color: #ffeeba;">password</span> <span style="background-color: #ffeeba;">reset</span> you can safely ignore this email. Be assured your account is safe.</p>
+          
+          <p style="margin-top: 20px; font-size: 13px; color: #666;">
+            If clicking doesn't seem to work, you can copy and paste the link into your browser's address bar.
+          </p>
+        </div>
+      </div>
+    </div>
+    `,
+    attachments: [
+      {
+        filename: "office_pic.jpg",
+        path: imagePath,
+        cid: "office_pic",
+      },
+    ],
+  };
+
+  try {
+    await transporter.sendMail(mailData);
+
+    return jsonHelper({ message: "Mail successfully sent" });
+  } catch (error) {
+    return jsonHelper({ error: "Mail failed to send" }, 500);
   }
 }
