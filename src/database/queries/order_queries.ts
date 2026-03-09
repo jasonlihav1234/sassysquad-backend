@@ -1,4 +1,11 @@
 import { sql } from "../client";
+import { jsonHelper } from "../../utils/jwt_helpers";
+
+interface Item {
+  quantity: number;
+  priceAtPurchase: number;
+  itemId: string;
+}
 
 /**
  * Fetches an orderID based on its name.
@@ -18,4 +25,176 @@ export async function getOrderIdByName(
   }
 
   return result[0].id;
+}
+
+/**
+ * Creates an order in the database
+ * items should follow - [
+ *  {
+ *    quantity,
+ *    price_at_purchase,
+ *    item_id,
+ *    tax_percent_per
+ *  }
+ * ]
+ */
+export async function createOrderQuery(
+  orderName: string,
+  buyerId: string,
+  sellerId: string,
+  documentCurrencyCode: string,
+  pricingCurrencyCode: string,
+  taxCurrencyCode: string,
+  requestedInvoiceCurrencyCode: string,
+  accountingCost: number,
+  paymentMethodCode: string,
+  destinationCountryCode: string,
+  ublXMLContent: string,
+  items: Array<Item>,
+) {
+  /**
+   * order id - make this
+   * order name - need this
+   * buyer id - need this
+   * seller id - need this
+   * issue_date - make this
+   * document currency code - need this
+   * pricing currency code - need this
+   * tax currency code - need this
+   * requested invoice currency code - need this
+   * total order item cost - make this
+   * accounting cost - need this
+   * total tax cost - make this
+   * payment method cost - make this
+   * total cost - make this
+   * payment method code - need this
+   * destination country code - need this
+   * status - make this
+   * ubl xml content - need this
+   */
+  const orderId = crypto.randomUUID();
+  let totalItemCost = 0;
+
+  // looping through and creating all the orderlines
+  for (const item of items) {
+    const response = await createOrderlineQuery(
+      orderId,
+      item.itemId,
+      item.quantity,
+      0,
+      item.priceAtPurchase,
+    );
+
+    if (response !== null) {
+      totalItemCost += response;
+    }
+  }
+
+  const totalTaxCost = totalItemCost / 11; // GST
+  let paymentMethodCost = 0;
+
+  switch (paymentMethodCode.toLowerCase()) {
+    case "visa":
+      paymentMethodCost = totalItemCost * (0.58 / 100); // 0.58 for visa and 0.5 for mastercard
+      break;
+    case "mastercard":
+      paymentMethodCost = totalItemCost * (0.5 / 100);
+      break;
+    default:
+      paymentMethodCost = totalItemCost * (1.4 / 100); // 1.4% default
+      break;
+  }
+
+  const totalCost =
+    totalItemCost + totalTaxCost + paymentMethodCost + accountingCost;
+  const status = "pending"; // maybe use stripe for changing this status?
+
+  try {
+    await sql`
+    insert into orders (order_id, 
+                        order_name, 
+                        buyer_id, 
+                        seller_id, 
+                        issue_date, 
+                        document_currency_code, 
+                        pricing_currency_code, 
+                        tax_currency_code,
+                        requested_invoice_currency_code, 
+                        total_order_item_cost, 
+                        accounting_cost, 
+                        total_tax_cost,
+                        payment_method_cost,
+                        total_cost,
+                        payment_method_code, 
+                        destination_country_code, 
+                        status, 
+                        ubl_xml_content)
+    values (
+      ${orderId},
+      ${orderName},
+      ${buyerId},
+      ${sellerId},
+      ${new Date().toISOString()},
+      ${documentCurrencyCode},
+      ${pricingCurrencyCode},
+      ${taxCurrencyCode},
+      ${requestedInvoiceCurrencyCode},
+      ${totalItemCost},
+      ${accountingCost},
+      ${totalTaxCost},
+      ${paymentMethodCost},
+      ${totalCost},
+      ${paymentMethodCode},
+      ${destinationCountryCode},
+      ${status},
+      ${ublXMLContent}
+    )
+    `;
+
+    return jsonHelper({
+      message: "Insertion successful",
+    });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: error,
+        error_msg: "Insertion failed",
+      },
+      500,
+    );
+  }
+}
+
+/**
+ * line_id - make this
+ * order_id - need
+ * item_id - need
+ * quantity - need
+ * tax_percent_per - need (why do we need this? this is assuming that tax is cumulative no?)
+ * tax_percent_total - calculate (prod just simulate gst for now)
+ * price_at_purchase - need
+ */
+export async function createOrderlineQuery(
+  orderId: string,
+  itemId: string,
+  quantity: number,
+  taxPercentPer: number = 0,
+  priceAtPurchase: number,
+) {
+  const lineId = crypto.randomUUID();
+  // make tax percent total gst
+  // return the total price of the items
+
+  const totalItemPrice = priceAtPurchase * quantity;
+
+  try {
+    await sql`
+    insert into order_lines (line_id, order_id, item_id, quantity, tax_percent_per, tax_percent_total, price_at_purchase)
+    values (${lineId}, ${orderId}, ${itemId}, ${quantity}, ${0}, ${10}, ${totalItemPrice})
+    `;
+
+    return totalItemPrice;
+  } catch (error) {
+    return null;
+  }
 }
