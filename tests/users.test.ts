@@ -3,8 +3,9 @@ import {
   generateUser,
   checkUser,
   register,
-  login,
   refresh,
+  login,
+  logout,
 } from "../src/application/user_application";
 import { afterEach, beforeEach, mock } from "node:test";
 import pg from "../src/utils/db";
@@ -18,11 +19,33 @@ const generateRequest = (
 ): Request => {
   return new Request(`${url}`, {
     method: givenMethod,
+    headers: {
+      "Content-type": "application/json",
+    },
+    body: JSON.stringify(givenBody),
+  });
+};
+
+const generateAuthenticatedRequest = (
+  url: string,
+  givenMethod: string,
+  givenBody: any,
+  token: any,
+): Request => {
+  return new Request(`${url}`, {
+    method: givenMethod,
+    headers: {
+      "Content-type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(givenBody),
   });
 };
 
 const registerRoute = "http://localhost/auth/register";
+const logoutRoute = "http://localhost/auth/logout";
+const refreshRoute = "http://localhost/auth/refresh";
+const loginRoute = "http://localhost/auth/login";
 
 describe("Register User", () => {
   const registerRoute = "http://localhost/auth/register";
@@ -356,5 +379,79 @@ describe("Refresh token test", () => {
         expect(refresh.revoked).toBe(true);
       }
     }
+  });
+});
+
+describe("Logout tests", () => {
+  afterEach(async () => {
+    await pg`truncate table users restart identity cascade`;
+    await pg`truncate table refresh_tokens restart identity cascade`;
+  });
+  const logoutRoute = "http://localhost/auth/logout";
+
+  test("User successfully logged out", async () => {
+    let request = generateRequest(registerRoute, "POST", {
+      email: "testing@gmail.com",
+      username: "test",
+      password: "password123",
+    });
+
+    await register(request);
+
+    request = generateRequest(loginRoute, "POST", {
+      email: "testing@gmail.com",
+      password: "password123",
+    });
+
+    const loginResponse = await login(request);
+    const loginBody = await loginResponse.json();
+
+    request = generateAuthenticatedRequest(
+      logoutRoute,
+      "POST",
+      {
+        refreshToken: loginBody.refreshToken,
+      },
+      loginBody.accessToken,
+    );
+
+    const logoutResponse = await logout(request);
+    const logoutBody = await logoutResponse.json();
+
+    expect(logoutResponse.status).toBe(200);
+    expect(logoutBody.message).toBe("User has been logged out");
+  });
+
+  test("User doesn't get logged out, success still returned", async () => {
+    let request = generateRequest(registerRoute, "POST", {
+      email: "testing@gmail.com",
+      username: "test",
+      password: "password123",
+    });
+
+    await register(request);
+
+    request = generateRequest(loginRoute, "POST", {
+      email: "testing@gmail.com",
+      password: "password123",
+    });
+
+    const loginResponse = await login(request);
+    const loginBody = await loginResponse.json();
+
+    request = generateAuthenticatedRequest(
+      logoutRoute,
+      "POST",
+      {
+        refreshToken: "dhbawkjdabdababdjwbd",
+      },
+      loginBody.accessToken,
+    );
+
+    const logoutResponse = await logout(request);
+    const logoutBody = await logoutResponse.json();
+
+    expect(logoutResponse.status).toBe(200);
+    expect(logoutBody.message).toBe("User has been logged out");
   });
 });
