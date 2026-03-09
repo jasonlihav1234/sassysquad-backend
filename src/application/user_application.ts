@@ -13,6 +13,9 @@ import {
   getRefreshToken,
   revokeRefreshTokenSession,
   revokeRefreshToken,
+  authHelper,
+  AuthReq,
+  revokeAllUserRefreshTokens,
 } from "../utils/jwt_helpers";
 
 export interface TokenPayload extends JWTPayload {
@@ -221,3 +224,32 @@ export async function refresh(request: Request) {
     );
   }
 }
+
+export const logout = authHelper(
+  async (request: AuthReq): Promise<Response> => {
+    try {
+      const body = await request.json();
+      const refreshToken = body.refreshToken;
+
+      if (refreshToken) {
+        const token = await verifyRefreshToken(refreshToken);
+        await revokeRefreshToken(token.jwt_id as string);
+      }
+
+      return jsonHelper({ message: "User has been logged out" });
+    } catch (error) {
+      // we return the same message here to prevent attackers from knowing which tokens are valid
+      return jsonHelper({ message: "User has been logged out" });
+    }
+  },
+);
+
+export const logoutAll = authHelper(async (req: AuthReq): Promise<Response> => {
+  if (!req.user) {
+    return jsonHelper({ error: "User is not authorised" }, 401);
+  }
+
+  await revokeAllUserRefreshTokens(req.user.subject_claim);
+
+  return jsonHelper({ message: "All sessions logged out" });
+});
