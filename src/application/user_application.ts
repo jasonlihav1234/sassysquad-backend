@@ -6,7 +6,7 @@ import {
 } from "../utils/jwt_config";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import bcrypt from "bcrypt";
-import pg from "../utils/db";
+import pg, { redis } from "../utils/db";
 import {
   jsonHelper,
   storeRefreshToken,
@@ -238,6 +238,17 @@ export async function forgotPassword(request: Request) {
 
   // verify that email is valid, and that the email exists in the database
   const recipentEmail = body.email;
+  // const checkEmail =
+  //   await pg`select * from users where email = ${recipentEmail}`;
+
+  // if (checkEmail.length === 0) {
+  //   return jsonHelper(
+  //     {
+  //       error: "User does not exist",
+  //     },
+  //     404,
+  //   );
+  // }
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -250,6 +261,12 @@ export async function forgotPassword(request: Request) {
     import.meta.dirname,
     "../utils/pictures/office_pic.jpg",
   );
+
+  const resetPasswordToken = crypto.randomUUID();
+  const key = `resetPassword:${recipentEmail}`;
+
+  await redis.set(key, resetPasswordToken);
+  await redis.expire(key, 600); // reset password token lasts 30 minutes
 
   const mailData = {
     from: '"SaasySquad" <jasonli3960@gmail.com>',
@@ -270,11 +287,11 @@ export async function forgotPassword(request: Request) {
         <div style="padding: 20px 40px; color: #333; line-height: 1.6; font-size: 14px;">
           <p>We received a request to <span style="background-color: #ffeeba;">reset</span> the <span style="background-color: #ffeeba;">password</span> associated with this email address.</p>
           <p>If you made this request, please follow the instructions below.</p>
-          <p>If you did not request to have your <span style="background-color: #ffeeba;">password</span> <span style="background-color: #ffeeba;">reset</span> you can safely ignore this email. Be assured your account is safe.</p>
           
-          <p style="margin-top: 20px; font-size: 13px; color: #666;">
-            If clicking doesn't seem to work, you can copy and paste the link into your browser's address bar.
-          </p>
+          <p style="margin-top: 25px;">Click the link below to go to the last step to <span style="background-color: #ffeeba;">reset</span> your <span style="background-color: #ffeeba;">password</span>: (need frontend for this part)</p>
+          <p>Testing reset password token: ${resetPasswordToken}</p>
+
+          <p>If you did not request to have your <span style="background-color: #ffeeba;">password</span> <span style="background-color: #ffeeba;">reset</span> you can safely ignore this email. Be assured your account is safe.</p>
         </div>
       </div>
     </div>
