@@ -18,6 +18,8 @@ import {
 } from "../utils/jwt_helpers";
 import nodemailer from "nodemailer";
 import path from "path";
+import { getUserBuyerOrders } from "../database/queries/user_queries";
+import { json } from "stream/consumers";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -361,10 +363,10 @@ export async function resetPassword(request: Request) {
   });
 }
 
-// For GET users/{uderId}/purchases
+// For GET users/{userId}/purchases
 
-export async function getUserPurchases(request: Request) {
-  const url = new URL(request.url);
+export const getUserPurchases = authHelper(async (req: AuthReq) => {
+  const url = new URL(req.url);
   const components = url.pathname.split("/").filter(Boolean);
 
   if (
@@ -374,4 +376,19 @@ export async function getUserPurchases(request: Request) {
   ) {
     return jsonHelper({ error: "Invalid purchases route path" }, 400);
   }
-}
+
+  const pathUserId = components[1];
+  const tokenUserId = req.user?.subject_claim;
+
+  if (!tokenUserId || tokenUserId !== pathUserId) {
+    return jsonHelper(
+      {
+        error: "User is not logged in or lacks authorization to access orders",
+      },
+      401
+    );
+  }
+
+  const orders = await getUserBuyerOrders(tokenUserId);
+  return jsonHelper({ orders }, 200);
+});
