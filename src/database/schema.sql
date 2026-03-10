@@ -62,5 +62,17 @@ CREATE TABLE order_lines (
     quantity INT NOT NULL,
     tax_percent_per DECIMAL NOT NULL,
     tax_percent_total DECIMAL NOT NULL,
-    price_at_purchase DECIMAL NOT NULL
+    price_at_purchase DECIMAL NOT NULL,
+    CONSTRAINT order_item UNIQUE (order_id, item_id)
+);
+
+CREATE TABLE refresh_tokens (
+  token_id UUID PRIMARY KEY,
+  user_id UUID NOT NULL,
+  token_hash TEXT UNIQUE NOT NULL,
+  expires DATE NOT NULL,
+  revoked BOOLEAN NOT NULL,
+  device_info TEXT,
+  created DATE NOT NULL,
+  session_id UUID NOT NULL
 );
