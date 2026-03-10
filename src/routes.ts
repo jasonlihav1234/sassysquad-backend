@@ -78,14 +78,14 @@ export async function handleRequest(req: any, res: any) {
     const { issueDate, buyer, seller, orderLines } = parsedBody || {};
 
     if (
-      !issueDate ||
-      typeof issueDate !== "string" ||
-      !buyer ||
-      typeof buyer !== "object" ||
-      !seller ||
-      typeof seller !== "object" ||
-      !Array.isArray(orderLines) ||
-      orderLines.length === 0
+    !issueDate ||
+    typeof issueDate !== "string" ||
+    !buyer ||
+    typeof buyer !== "string" ||
+    !seller ||
+    typeof seller !== "string" ||
+    !Array.isArray(orderLines) ||
+    orderLines.length === 0
     ) {
       return res.status(422).json({
         error: "VALIDATION_FAILED",
