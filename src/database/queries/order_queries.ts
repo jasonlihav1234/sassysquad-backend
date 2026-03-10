@@ -33,9 +33,9 @@ export async function getOrderIdByName(
  * items should follow - [
  *  {
  *    quantity,
- *    price_at_purchase,
- *    item_id,
- *    tax_percent_per
+ *    priceAtPurchase,
+ *    itemId,
+ *    taxPercentPer
  *  }
  * ]
  */
@@ -96,41 +96,69 @@ export async function createOrderQuery(
   const totalCost =
     totalItemCost + totalTaxCost + paymentMethodCost + accountingCost;
   const status = "pending";
-  try {
-    await pg`
-      insert into orders (
-        order_id, order_name, buyer_id, seller_id, issue_date, 
-        document_currency_code, pricing_currency_code, tax_currency_code,
-        requested_invoice_currency_code, total_order_item_cost, accounting_cost, 
-        total_tax_cost, payment_method_cost, total_cost, payment_method_code, 
-        destination_country_code, status, ubl_xml_content
-      ) values (
-        ${orderId}, ${orderName}, ${buyerId}, ${sellerId}, ${new Date().toISOString()}, 
-        ${documentCurrencyCode}, ${pricingCurrencyCode}, ${taxCurrencyCode},
-        ${requestedInvoiceCurrencyCode}, ${totalItemCost}, ${accountingCost}, 
-        ${totalTaxCost}, ${paymentMethodCost}, ${totalCost}, ${paymentMethodCode}, 
-        ${destinationCountryCode}, ${status}, ${ublXMLContent}
-      )
-    `;
 
-    await Promise.all(
-      items.map((item) =>
-        createOrderlineQuery(
-          orderId,
-          item.itemId,
-          item.quantity,
-          0,
-          item.priceAtPurchase,
-        ),
-      ),
-    );
+  try {
+    await pg.begin(async (sql) => {
+      // 2. Sort items by ID to prevent database deadlocks on concurrent orders
+      const sortedItems = [...items].sort((a, b) =>
+        a.itemId.localeCompare(b.itemId),
+      );
+
+      for (const item of sortedItems) {
+        const updateResult = await sql`
+          update items
+          set quantity_available = quantity_available - ${item.quantity}
+          where item_id = ${item.itemId} 
+            and quantity_available >= ${item.quantity}
+          returning item_id, quantity_available
+        `;
+
+        if (updateResult.length === 0) {
+          throw new Error(`Insufficient inventory for item ID: ${item.itemId}`);
+        }
+      }
+
+      await sql`
+        insert into orders (
+          order_id, order_name, buyer_id, seller_id, issue_date, 
+          document_currency_code, pricing_currency_code, tax_currency_code,
+          requested_invoice_currency_code, total_order_item_cost, accounting_cost, 
+          total_tax_cost, payment_method_cost, total_cost, payment_method_code, 
+          destination_country_code, status, ubl_xml_content
+        ) values (
+          ${orderId}, ${orderName}, ${buyerId}, ${sellerId}, ${new Date().toISOString()}, 
+          ${documentCurrencyCode}, ${pricingCurrencyCode}, ${taxCurrencyCode},
+          ${requestedInvoiceCurrencyCode}, ${totalItemCost}, ${accountingCost}, 
+          ${totalTaxCost}, ${paymentMethodCost}, ${totalCost}, ${paymentMethodCode}, 
+          ${destinationCountryCode}, ${status}, ${ublXMLContent}
+        )
+      `;
+
+      const orderLinesToInsert = items.map((item) => ({
+        order_id: orderId,
+        item_id: item.itemId,
+        quantity: item.quantity,
+        tax_percent_per: 0,
+        price_at_purchase: item.priceAtPurchase,
+      }));
+
+      await sql`
+        insert into order_lines ${sql(orderLinesToInsert)}
+      `;
+    });
 
     return jsonHelper({
       message: "Insertion successful",
       orderId: orderId,
     });
   } catch (error) {
-    console.error("Order Creation Failed:", error);
+    if (
+      error instanceof Error &&
+      error.message.includes("Insufficient inventory")
+    ) {
+      return jsonHelper({ error_msg: error.message }, 400);
+    }
+
     return jsonHelper(
       {
         error: error,
