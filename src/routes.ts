@@ -50,7 +50,7 @@ export async function handleRequest(req: any, res: any) {
     return await resetPassword(req);
   }
 
-    // POST /orders/validate
+  // POST /orders/validate
   if (url === "/orders/validate" && method === "POST") {
     const contentType =
       req.headers?.get?.("content-type") || req.headers?.["content-type"];
@@ -97,10 +97,12 @@ export async function handleRequest(req: any, res: any) {
       if (
         !line ||
         typeof line !== "object" ||
-        !line.itemName ||
-        typeof line.itemName !== "string" ||
+        !line.itemID ||
+        typeof line.itemID !== "string" ||
         typeof line.quantity !== "number" ||
-        line.quantity <= 0
+        line.quantity <= 0 ||
+        typeof line.priceAtPurchase !== "number" ||
+        line.priceAtPurchase < 0
       ) {
         return res.status(422).json({
           error: "VALIDATION_FAILED",
@@ -108,7 +110,7 @@ export async function handleRequest(req: any, res: any) {
         });
       }
     }
-
+    
     return res.status(200).json({
       message: "Order payload is valid",
     });
