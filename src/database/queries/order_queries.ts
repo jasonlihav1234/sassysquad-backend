@@ -336,7 +336,6 @@ export async function updateOrdersById(
 
       const totalTaxCost = totalItemCost / 11;
       let paymentMethodCost = 0;
-      console.log(totalItemCost);
       switch (paymentMethodCode.toLowerCase()) {
         case "visa":
           paymentMethodCost = totalItemCost * (0.58 / 100);
