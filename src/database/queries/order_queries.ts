@@ -1,11 +1,15 @@
 import { jsonHelper } from "../../utils/jwt_helpers";
 import pg from "../../utils/db";
-import { json } from "node:stream/consumers";
 
 interface Item {
   quantity: number;
   priceAtPurchase: number;
   itemId: string;
+}
+
+interface OrderLineUpdate {
+  item_id: string;
+  quantity: number;
 }
 
 /**
@@ -135,14 +139,16 @@ export async function createOrderQuery(
       `;
 
       const orderLinesToInsert = items.map((item) => ({
+        line_id: crypto.randomUUID(),
         order_id: orderId,
         item_id: item.itemId,
         quantity: item.quantity,
         tax_percent_per: 0,
+        tax_percent_total: 10,
         price_at_purchase: item.priceAtPurchase,
       }));
 
-      await sql`
+      const res = await sql`
         insert into order_lines ${sql(orderLinesToInsert)}
       `;
     });
@@ -259,78 +265,126 @@ export async function updateOrdersById(
   ublXMLContent: string,
   items: Array<Item>,
 ) {
-  const valuesToUpsert = await Promise.all(
-    items.map((item) => ({
-      line_id: crypto.randomUUID(),
-      order_id: orderId,
-      item_id: item.itemId,
-      quantity: item.quantity,
-      price_at_purchase: item.priceAtPurchase,
-      tax_percent_per: 0,
-      tax_percent_total: 10,
-    })),
-  );
-
-  await pg`
-  insert into order_lines ${pg(valuesToUpsert)}
-  on conflict (order_id, item_id)
-  do update set
-    quantity = excluded.quantity
-  `;
-
-  const totalItemCost = items.reduce(
-    (sum, item) => sum + (item.quantity + item.priceAtPurchase),
-    0,
-  );
-
-  const totalTaxCost = totalItemCost / 11; // GST
-  let paymentMethodCost = 0;
-
-  switch (paymentMethodCode.toLowerCase()) {
-    case "visa":
-      paymentMethodCost = totalItemCost * (0.58 / 100); // 0.58 for visa and 0.5 for mastercard
-      break;
-    case "mastercard":
-      paymentMethodCost = totalItemCost * (0.5 / 100);
-      break;
-    default:
-      paymentMethodCost = totalItemCost * (1.4 / 100); // 1.4% default
-      break;
-  }
-
-  const totalCost =
-    totalItemCost + totalTaxCost + paymentMethodCost + accountingCost;
-  const newStatus = status; // maybe use stripe for changing this status?
-  console.log(totalCost, orderId);
-
   try {
-    await pg`
-    update orders
-    set
-      order_name = ${orderName},
-      buyer_id = ${buyerId},
-      seller_id = ${sellerId},
-      document_currency_code = ${documentCurrencyCode},
-      pricing_currency_code = ${pricingCurrencyCode},
-      tax_currency_code = ${taxCurrencyCode},
-      requested_invoice_currency_code = ${requestedInvoiceCurrencyCode},
-      total_order_item_cost = ${totalItemCost},
-      accounting_cost = ${accountingCost},
-      total_tax_cost = ${totalTaxCost},
-      payment_method_cost = ${paymentMethodCost},
-      total_cost = ${totalCost},
-      payment_method_code = ${paymentMethodCode},
-      destination_country_code = ${destinationCountryCode},
-      status = ${newStatus},
-      ubl_xml_content = ${ublXMLContent}
-    where
-      order_id = ${orderId}
-    `;
+    // 1. Start a database transaction
+    return await pg.begin(async (sql) => {
+      // 2. Fetch the current quantities for this order to calculate the difference
+      const existingLines = await sql<OrderLineUpdate[]>`
+        select item_id, quantity 
+        from order_lines 
+        where order_id = ${orderId}
+      `;
 
-    return jsonHelper({
-      message: "Update successful",
+      const existingQuantityMap = new Map(
+        existingLines.map((line) => [line.item_id, line.quantity]),
+      );
+
+      const sortedItems = [...items].sort((a, b) =>
+        a.itemId.localeCompare(b.itemId),
+      );
+
+      for (const item of sortedItems) {
+        const oldQuantity = existingQuantityMap.get(item.itemId) || 0;
+        const difference = item.quantity - oldQuantity;
+
+        if (difference > 0) {
+          const updateResult = await sql`
+            update items
+            set quantity_available = quantity_available - ${difference}
+            where item_id = ${item.itemId} 
+              and quantity_available >= ${difference}
+            returning item_id
+          `;
+
+          if (updateResult.length === 0) {
+            throw new Error("Not enough quantity");
+          }
+        } else if (difference < 0) {
+          const amountToReturn = Math.abs(difference);
+          await sql`
+            update items
+            set quantity_available = quantity_available + ${amountToReturn}
+            where item_id = ${item.itemId}
+          `;
+        }
+      }
+
+      if (items.length > 0) {
+        const valuesToUpsert = items.map((item) => ({
+          line_id: crypto.randomUUID(),
+          order_id: orderId,
+          item_id: item.itemId,
+          quantity: item.quantity,
+          price_at_purchase: item.priceAtPurchase,
+          tax_percent_per: 0,
+          tax_percent_total: 10,
+        }));
+
+        await sql`
+          insert into order_lines ${sql(valuesToUpsert)}
+          on conflict (order_id, item_id)
+          do update set
+            quantity = excluded.quantity,
+            price_at_purchase = excluded.price_at_purchase
+        `;
+      }
+
+      const totalItemCost = items.reduce(
+        (sum, item) => sum + item.quantity * item.priceAtPurchase,
+        0,
+      );
+
+      const totalTaxCost = totalItemCost / 11;
+      let paymentMethodCost = 0;
+      console.log(totalItemCost);
+      switch (paymentMethodCode.toLowerCase()) {
+        case "visa":
+          paymentMethodCost = totalItemCost * (0.58 / 100);
+          break;
+        case "mastercard":
+          paymentMethodCost = totalItemCost * (0.5 / 100);
+          break;
+        default:
+          paymentMethodCost = totalItemCost * (1.4 / 100);
+          break;
+      }
+
+      const totalCost =
+        totalItemCost + totalTaxCost + paymentMethodCost + accountingCost;
+
+      // 7. Update Orders Table
+      await sql`
+        update orders
+        set
+          order_name = ${orderName},
+          buyer_id = ${buyerId},
+          seller_id = ${sellerId},
+          document_currency_code = ${documentCurrencyCode},
+          pricing_currency_code = ${pricingCurrencyCode},
+          tax_currency_code = ${taxCurrencyCode},
+          requested_invoice_currency_code = ${requestedInvoiceCurrencyCode},
+          total_order_item_cost = ${totalItemCost},
+          accounting_cost = ${accountingCost},
+          total_tax_cost = ${totalTaxCost},
+          payment_method_cost = ${paymentMethodCost},
+          total_cost = ${totalCost},
+          payment_method_code = ${paymentMethodCode},
+          destination_country_code = ${destinationCountryCode},
+          status = ${status},
+          ubl_xml_content = ${ublXMLContent}
+        where
+          order_id = ${orderId}
+      `;
+
+      return jsonHelper({
+        message: "Update successful",
+      });
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "Not enough quantity") {
+      return jsonHelper({ error: error.message }, 400);
+    }
+
     return jsonHelper(
       {
         error: error,
