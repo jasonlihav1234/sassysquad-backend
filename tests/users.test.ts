@@ -5,11 +5,14 @@ import {
   register,
   login,
   refresh,
+  forgotPassword,
+  resetPassword,
 } from "../src/application/user_application";
 import { afterEach, beforeEach, mock } from "node:test";
-import pg from "../src/utils/db";
+import pg, { redis } from "../src/utils/db";
 import { createHash } from "node:crypto";
 import { verifyRefreshToken } from "../src/utils/jwt_config";
+import { sleep } from "bun";
 
 const generateRequest = (
   url: string,
@@ -356,5 +359,164 @@ describe("Refresh token test", () => {
         expect(refresh.revoked).toBe(true);
       }
     }
+  });
+});
+
+describe("Forgot password test", () => {
+  beforeEach(async () => {
+    await redis.send("FLUSHDB", []);
+    await pg`truncate table users restart identity cascade`;
+    await pg`truncate table refresh_tokens restart identity cascade`;
+  });
+
+  test("Email is not provided", async () => {
+    let request = generateRequest(
+      "http://localhost/auth/reset-password",
+      "POST",
+      {
+        not_email: "Aklwdhakd",
+      },
+    );
+
+    const response = await forgotPassword(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Email not provided");
+  });
+
+  test("Email doesn't exist", async () => {
+    let request = generateRequest(
+      "http://localhost/auth/reset-password",
+      "POST",
+      {
+        email: "Aklwdhakd",
+      },
+    );
+
+    const response = await forgotPassword(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe("User does not exist");
+  });
+});
+
+describe("Reset password tests", () => {
+  const resetPasswordRoute = "http://localhost/auth/reset-password";
+  afterEach(async () => {
+    await redis.send("FLUSHDB", []);
+    await pg`truncate table users restart identity cascade`;
+    await pg`truncate table refresh_tokens restart identity cascade`;
+  });
+
+  test("No token passed in", async () => {
+    let request = generateRequest(resetPasswordRoute, "POST", {
+      email: "dawdaaad",
+      password: "dadanaad",
+    });
+
+    const response = await resetPassword(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Missing token or password");
+  });
+
+  test("No email passed in", async () => {
+    let request = generateRequest(resetPasswordRoute, "POST", {
+      token: "dawdaaad",
+      password: "dadanaad",
+    });
+
+    const response = await resetPassword(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Missing token or password");
+  });
+
+  test("No password passed in", async () => {
+    let request = generateRequest(resetPasswordRoute, "POST", {
+      email: "dawdaaad",
+      token: "dadanaad",
+    });
+
+    const response = await resetPassword(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Missing token or password");
+  });
+
+  test("Invalid password", async () => {
+    let request = generateRequest(resetPasswordRoute, "POST", {
+      email: "dawknda",
+      token: "dakwhdawkda",
+      password: "bob",
+    });
+
+    const response = await resetPassword(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body.error).toBe("Invalid password");
+  });
+
+  test("Invalid token", async () => {
+    let request = generateRequest(resetPasswordRoute, "POST", {
+      email: "dawknda",
+      token: "dakwhdawkda",
+      password: "bobadklnwdaklj1231",
+    });
+
+    const response = await resetPassword(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe("Token expired or is invalid");
+  });
+
+  test("Successful reset", async () => {
+    let request = generateRequest(registerRoute, "POST", {
+      email: "jasonli3960@gmail.com",
+      username: "test",
+      password: "password123",
+    });
+
+    await register(request);
+    const testingEmail = "jasonli3960@gmail.com";
+
+    request = generateRequest("http://localhost/auth/reset-password", "POST", {
+      email: "jasonli3960@gmail.com",
+    });
+
+    const response = await forgotPassword(request);
+    await response.json();
+
+    let getToken = await redis.get(`resetPassword:jasonli3960@gmail.com`);
+
+    request = generateRequest("http://localhost/auth/reset-password", "POST", {
+      email: "jasonli3960@gmail.com",
+      token: getToken,
+      password: "newpassword1234",
+    });
+
+    const query_1 =
+      await pg`select password_hash from users where email = ${testingEmail}`;
+    const resetResponse = await resetPassword(request);
+    const resetBody = await resetResponse.json();
+
+    expect(resetResponse.status).toBe(200);
+    expect(resetBody.message).toBe("Password successfully updated");
+
+    getToken = await redis.get(`resetPassword:jasonli3960@gmail.com`);
+
+    expect(getToken).toBe(null);
+
+    const query_2 =
+      await pg`select password_hash from users where email = ${testingEmail}`;
+
+    expect(query_1[0].password_hash).not.toBe(query_2[0].password_hash);
   });
 });
