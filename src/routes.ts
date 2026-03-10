@@ -50,6 +50,70 @@ export async function handleRequest(req: any, res: any) {
     return await resetPassword(req);
   }
 
+    // POST /orders/validate
+  if (url === "/orders/validate" && method === "POST") {
+    const contentType =
+      req.headers?.get?.("content-type") || req.headers?.["content-type"];
+
+    if (!contentType || !contentType.includes("application/json")) {
+      return res.status(415).json({
+        error: "UNSUPPORTED_TYPE",
+        message: "This content type is not supported",
+      });
+    }
+
+    let parsedBody = body;
+
+    try {
+      if (!parsedBody && req.json) {
+        parsedBody = await req.json();
+      }
+    } catch (error) {
+      return res.status(400).json({
+        error: "INVALID_INPUT",
+        message: "The request body is not valid",
+      });
+    }
+
+    const { issueDate, buyer, seller, orderLines } = parsedBody || {};
+
+    if (
+      !issueDate ||
+      typeof issueDate !== "string" ||
+      !buyer ||
+      typeof buyer !== "object" ||
+      !seller ||
+      typeof seller !== "object" ||
+      !Array.isArray(orderLines) ||
+      orderLines.length === 0
+    ) {
+      return res.status(422).json({
+        error: "VALIDATION_FAILED",
+        message: "The request body is missing mandatory fields",
+      });
+    }
+
+    for (const line of orderLines) {
+      if (
+        !line ||
+        typeof line !== "object" ||
+        !line.itemName ||
+        typeof line.itemName !== "string" ||
+        typeof line.quantity !== "number" ||
+        line.quantity <= 0
+      ) {
+        return res.status(422).json({
+          error: "VALIDATION_FAILED",
+          message: "The request body is missing mandatory fields",
+        });
+      }
+    }
+
+    return res.status(200).json({
+      message: "Order payload is valid",
+    });
+  }
+
   // POST /orders
   if (url === "/orders" && method === "POST") {
     const { userId, orderLines } = body || {};
