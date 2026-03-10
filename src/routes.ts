@@ -1,6 +1,6 @@
 import { create } from "xmlbuilder2";
 import { register, login, refresh } from "./application/user_application";
-import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
+import { jsonHelper, deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -91,6 +91,76 @@ export async function handleRequest(req: any, res: any) {
 
     res.setHeader("Content-Type", "application/xml");
     return res.status(201).send(xml);
+  }
+
+  // PUT /orders
+  if (method === "PUT" && /\/orders\/[^/]+/.test(url)) { // TODO: move to different file later? + check ID format correct
+    const { userId, orderLines } = body || {};
+    const orderId = url.split("/")[1];
+
+    if (!orderId) { // TODO: invalid orderid
+      return jsonHelper({ error: "Bad Request" }, 400);
+    }
+
+    if () { // TODO: invalid access token
+      return jsonHelper({ error: "Unauthorised" }, 401);
+    }
+
+    // search order by id
+
+    if () { //
+      return jsonHelper({ error: "Forbidden" }, 403);
+    }
+
+    if () {
+      return jsonHelper({ error: "Not Found" }, 404);
+    }
+
+    const updatedOrder = {
+      orderId,
+      userId,
+      orderLines,
+    };
+
+    const root = create({ version: "1.0" }).ele("Order", {
+      xmlns: "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
+      "xmlns:cac":
+        "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+      "xmlns:cbc":
+        "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+    });
+
+    root.ele("cbc:ID").txt(updatedOrder.orderId).up();
+
+    const buyerParty = root.ele("cac:BuyerCustomerParty").ele("cac:Party");
+    buyerParty.ele("cbc:CustomerAssignedAccountID").txt(updatedOrder.userId).up();
+    buyerParty.up().up();
+
+    for (let i = 0; i < orderLines.length; i++) {
+      const line = orderLines[i];
+
+      const orderLine = root.ele("cac:OrderLine");
+      orderLine
+        .ele("cbc:ID")
+        .txt(String(i + 1))
+        .up();
+      orderLine
+        .ele("cbc:Quantity")
+        .txt(String(line.quantity ?? 1))
+        .up();
+
+      const item = orderLine.ele("cac:Item");
+      item
+        .ele("cbc:Name")
+        .txt(line.itemName || "Unknown Item")
+        .up();
+      item.up();
+
+      orderLine.up();
+    }
+
+    const xml = root.end({ prettyPrint: true });
+    return res.status(200).send(xml);
   }
 
   // 404 if no roiutes match
