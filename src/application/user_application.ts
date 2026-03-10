@@ -13,6 +13,8 @@ import {
   getRefreshToken,
   revokeRefreshTokenSession,
   revokeRefreshToken,
+  authHelper,
+  type AuthReq,
 } from "../utils/jwt_helpers";
 import nodemailer from "nodemailer";
 import path from "path";
@@ -41,7 +43,7 @@ const SALT_ROUNDS = 10;
 export async function generateUser(
   email: string,
   username: string,
-  password: string,
+  password: string
 ): Promise<UserDetails> {
   const query = await pg`select * from users where email = ${email}`;
 
@@ -59,7 +61,9 @@ export async function generateUser(
   };
 
   await pg`insert into users (user_id, user_name, email, password_hash, created_at) 
-            values (${newUser.id}, ${username}, ${newUser.email}, ${newUser.password}, ${newUser.createdAt.toISOString()})`;
+            values (${newUser.id}, ${username}, ${newUser.email}, ${
+    newUser.password
+  }, ${newUser.createdAt.toISOString()})`;
 
   return newUser;
 }
@@ -67,7 +71,7 @@ export async function generateUser(
 // checks if password is correct
 export async function checkUser(
   email: string,
-  password: string,
+  password: string
 ): Promise<UserDetails | null> {
   const query = await pg`select * from users where email = ${email}`;
 
@@ -106,14 +110,14 @@ export async function register(request: Request) {
     if (!email || !password || !username) {
       return jsonHelper(
         { error: "Email, password, and username required" },
-        400,
+        400
       );
     }
 
     if (password.length < 7) {
       return jsonHelper(
         { error: "Password must be at least 7 characters long" },
-        400,
+        400
       );
     }
 
@@ -175,7 +179,7 @@ export async function refresh(request: Request) {
 
     const verifiedRefreshToken = await verifyRefreshToken(refreshToken);
     const storedRefreshToken = await getRefreshToken(
-      verifiedRefreshToken.jwt_id as string,
+      verifiedRefreshToken.jwt_id as string
     );
 
     if (!storedRefreshToken) {
@@ -194,18 +198,18 @@ export async function refresh(request: Request) {
     // generate new pair
     const newAccessToken = await createAccessToken(
       verifiedRefreshToken.subject_claim,
-      verifiedRefreshToken.email,
+      verifiedRefreshToken.email
     );
 
     const newRefreshToken = await createRefreshToken(
       verifiedRefreshToken.subject_claim,
-      verifiedRefreshToken.email,
+      verifiedRefreshToken.email
     );
     await storeRefreshToken(
       verifiedRefreshToken.subject_claim,
       storedRefreshToken.session_id,
       storedRefreshToken.device_info,
-      newRefreshToken.tokenId,
+      newRefreshToken.tokenId
     );
 
     return jsonHelper({
@@ -219,7 +223,7 @@ export async function refresh(request: Request) {
       {
         error: "Refresh token is invalid",
       },
-      401,
+      401
     );
   }
 }
@@ -232,7 +236,7 @@ export async function forgotPassword(request: Request) {
       {
         error: "Email not provided",
       },
-      400,
+      400
     );
   }
 
@@ -246,7 +250,7 @@ export async function forgotPassword(request: Request) {
       {
         error: "User does not exist",
       },
-      404,
+      404
     );
   }
 
@@ -259,7 +263,7 @@ export async function forgotPassword(request: Request) {
   });
   const imagePath = path.join(
     import.meta.dirname,
-    "../utils/pictures/office_pic.jpg",
+    "../utils/pictures/office_pic.jpg"
   );
 
   const resetPasswordToken = crypto.randomUUID();
@@ -338,7 +342,7 @@ export async function resetPassword(request: Request) {
       {
         error: "Token expired or is invalid",
       },
-      404,
+      404
     );
   }
 
@@ -355,4 +359,19 @@ export async function resetPassword(request: Request) {
   return jsonHelper({
     message: "Password successfully updated",
   });
+}
+
+// For GET users/{uderId}/purchases
+
+export async function getUserPurchases(request: Request) {
+  const url = new URL(request.url);
+  const components = url.pathname.split("/").filter(Boolean);
+
+  if (
+    components.length !== 3 ||
+    components[0] !== "users" ||
+    components[2] !== "purchases"
+  ) {
+    return jsonHelper({ error: "Invalid purchases route path" }, 400);
+  }
 }
