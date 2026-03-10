@@ -226,11 +226,13 @@ export async function updateOrdersById(
   accountingCost: number,
   paymentMethodCode: string,
   destinationCountryCode: string,
+  status: string,
   ublXMLContent: string,
   items: Array<Item>,
 ) {
   const valuesToUpsert = await Promise.all(
     items.map((item) => ({
+      line_id: crypto.randomUUID(),
       order_id: orderId,
       item_id: item.itemId,
       quantity: item.quantity,
@@ -269,7 +271,8 @@ export async function updateOrdersById(
 
   const totalCost =
     totalItemCost + totalTaxCost + paymentMethodCost + accountingCost;
-  const status = "pending"; // maybe use stripe for changing this status?
+  const newStatus = status; // maybe use stripe for changing this status?
+  console.log(totalCost, orderId);
 
   try {
     await pg`
@@ -281,7 +284,7 @@ export async function updateOrdersById(
       document_currency_code = ${documentCurrencyCode},
       pricing_currency_code = ${pricingCurrencyCode},
       tax_currency_code = ${taxCurrencyCode},
-      request_invoice_currency_code = ${requestedInvoiceCurrencyCode},
+      requested_invoice_currency_code = ${requestedInvoiceCurrencyCode},
       total_order_item_cost = ${totalItemCost},
       accounting_cost = ${accountingCost},
       total_tax_cost = ${totalTaxCost},
@@ -289,7 +292,7 @@ export async function updateOrdersById(
       total_cost = ${totalCost},
       payment_method_code = ${paymentMethodCode},
       destination_country_code = ${destinationCountryCode},
-      status = ${status},
+      status = ${newStatus},
       ubl_xml_content = ${ublXMLContent}
     where
       order_id = ${orderId}
