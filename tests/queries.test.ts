@@ -75,24 +75,8 @@ describe("Updating orders query tests", () => {
         },
       ],
     );
-
     const response = await pg`select * from orders`;
-    const res_2 = await pg`select * from order_lines`;
-
-    // orderId: string,
-    // orderName: string,
-    // buyerId: string,
-    // sellerId: string,
-    // documentCurrencyCode: string,
-    // pricingCurrencyCode: string,
-    // taxCurrencyCode: string,
-    // requestedInvoiceCurrencyCode: string,
-    // accountingCost: number,
-    // paymentMethodCode: string,
-    // destinationCountryCode: string,
-    // status: string,
-    // ublXMLContent: string,
-    // items: Array<Item>,
+    await pg`select * from order_lines`;
 
     const orderId = response[0].order_id;
     const order_name = response[0].order_name;
@@ -128,8 +112,7 @@ describe("Updating orders query tests", () => {
 
     // changing quantity
     expect(response.length).toBe(1);
-    console.log(paymentMethodCode);
-    await updateOrdersById(
+    const test = await updateOrdersById(
       orderId,
       order_name,
       buyerId,
@@ -145,10 +128,7 @@ describe("Updating orders query tests", () => {
       ublXMLContent,
       items,
     );
-
     const updateResponse = await pg`select * from orders`;
-    console.log(response);
-    console.log(updateResponse);
 
     expect(updateResponse.length).toBe(1);
     expect(updateResponse[0].total_cost).not.toBe(response[0].total_cost);
