@@ -52,3 +52,14 @@ export async function getUserSellerOrders(userId: string): Promise<Order[]> {
 
   return rows;
 }
+
+export async function checkUserId(userId: string): Promise<string | null> {
+  const row = await sql`
+  SELECT 1 
+  FROM users 
+  WHERE user_id = ${userId}
+  LIMIT 1
+  `;
+
+  return row;
+}

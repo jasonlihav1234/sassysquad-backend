@@ -18,7 +18,10 @@ import {
 } from "../utils/jwt_helpers";
 import nodemailer from "nodemailer";
 import path from "path";
-import { getUserBuyerOrders } from "../database/queries/user_queries";
+import {
+  getUserBuyerOrders,
+  checkUserId,
+} from "../database/queries/user_queries";
 import { json } from "stream/consumers";
 
 export interface TokenPayload extends JWTPayload {
@@ -377,6 +380,10 @@ export const getUserPurchases = authHelper(async (req: AuthReq) => {
     return jsonHelper({ error: "Invalid purchases route path" }, 400);
   }
 
+  if (!(await checkUserId(components[1]))) {
+    return jsonHelper({ error: "Username not found!" }, 404);
+  }
+
   const pathUserId = components[1];
   const tokenUserId = req.user?.subject_claim;
 
@@ -388,7 +395,16 @@ export const getUserPurchases = authHelper(async (req: AuthReq) => {
       401
     );
   }
-
-  const orders = await getUserBuyerOrders(tokenUserId);
-  return jsonHelper({ orders }, 200);
+  
+  try {
+    const orders = await getUserBuyerOrders(tokenUserId);
+    return jsonHelper({ orders }, 200);
+  } catch (err) {
+    return jsonHelper(
+      {
+        error: "Internal error, please try again later!",
+      },
+      500
+    );
+  }
 });
