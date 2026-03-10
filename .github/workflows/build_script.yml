@@ -54,7 +54,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           REFRESH_SECRET: ${{ secrets.REFRESH_SECRET }}
-        run: bun test --timeout 10000
+          KV_URL: ${{ secrets.KV_URL }}
+        run: bun test --timeout 20000
 
       - name: Upload analysis results to GitHub
         uses: github/codeql-action/upload-sarif@v4
