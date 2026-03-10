@@ -1,5 +1,6 @@
 import { jsonHelper } from "../../utils/jwt_helpers";
 import pg from "../../utils/db";
+import { json } from "node:stream/consumers";
 
 interface Item {
   quantity: number;
@@ -306,6 +307,123 @@ export async function updateOrdersById(
       {
         error: error,
         error_msg: "Update failed",
+      },
+      500,
+    );
+  }
+}
+
+/**
+ * Creates an item, make sure to prepend await since these are async functions
+ *
+ */
+export async function createItem(
+  seller_id: string,
+  item_name: string,
+  description: string | null,
+  price: number,
+  quantity_available: number,
+  image_url: string | null,
+) {
+  try {
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, description, price, quantity_available, image_url, created_at, last_updated)
+    values
+    (${crypto.randomUUID()}, ${seller_id}, ${item_name}, ${description}, ${price}, ${quantity_available}, ${image_url}, ${new Date()}, ${new Date()})
+    `;
+
+    return jsonHelper({
+      message: "Order created",
+    });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: "Order failed to create",
+      },
+      500,
+    );
+  }
+}
+
+/**
+ * Edits an item, make sure to prepend await since these are async functions
+ */
+export async function editItem(
+  item_id: string,
+  seller_id: string | null,
+  item_name: string | null,
+  description: string | null,
+  price: number | null,
+  quantity_available: number | null,
+  image_url: string | null,
+) {
+  const data = {
+    seller_id,
+    item_name,
+    description,
+    price,
+    quantity_available,
+    image_url,
+  };
+
+  // remove all values that are null
+  const updateData = Object.fromEntries(
+    Object.entries(data).filter(([_, value]) => value !== null),
+  );
+
+  if (Object.keys(updateData).length === 0) {
+    return jsonHelper({
+      message: "No values to update for items",
+    });
+  }
+
+  try {
+    await pg`
+    update items
+    set ${pg(updateData)}
+    where item_id = ${item_id}
+    `;
+
+    return jsonHelper({
+      message: "Item successfully updated",
+    });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: error,
+        message: "Item update failed",
+      },
+      500,
+    );
+  }
+}
+
+/**
+ * Deletes an item given an id
+ */
+export async function deleteItem(itemId: string) {
+  if (!itemId) {
+    return jsonHelper(
+      {
+        error: "No itemId provided",
+      },
+      400,
+    );
+  }
+
+  try {
+    await pg`
+    delete from items
+    where item_id = ${itemId}
+    `;
+
+    return jsonHelper({ message: "Item deleted" });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: error,
+        message: "Item failed to delete",
       },
       500,
     );
