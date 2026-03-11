@@ -1,13 +1,13 @@
-import { sql } from "../client";
+import pg from "../../utils/db";
 import type { Order } from "../../types/order";
 
 /**
  * Fetches an userID based on its name.
  */
 export async function getUserIdByName(
-  userName: string
+  userName: string,
 ): Promise<string | null> {
-  const result = await sql`
+  const result = await pg`
     SELECT user_id 
     FROM users 
     WHERE user_name = ${userName}
@@ -27,7 +27,7 @@ export async function getUserIdByName(
  */
 
 export async function getUserBuyerOrders(userId: string): Promise<Order[]> {
-  const rows = await sql`
+  const rows = await pg`
   SELECT *
   FROM ORDERS
   WHERE buyer_id = ${userId}
@@ -43,7 +43,7 @@ export async function getUserBuyerOrders(userId: string): Promise<Order[]> {
  */
 
 export async function getUserSellerOrders(userId: string): Promise<Order[]> {
-  const rows = await sql`
+  const rows = await pg`
   SELECT *
   FROM ORDERS
   WHERE seller_id = ${userId}
@@ -54,7 +54,7 @@ export async function getUserSellerOrders(userId: string): Promise<Order[]> {
 }
 
 export async function isUserIdValid(userId: string): Promise<Boolean> {
-  const row = await sql`
+  const row = await pg`
   SELECT 1 
   FROM users 
   WHERE user_id = ${userId}

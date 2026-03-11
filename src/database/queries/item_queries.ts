@@ -1,4 +1,4 @@
-import { sql } from "../client";
+import pg from "../../utils/db";
 
 /**
  * Fetches an itemID based on its name.
@@ -6,7 +6,7 @@ import { sql } from "../client";
 export async function getItemIdByName(
   itemName: string,
 ): Promise<string | null> {
-  const result = await sql`
+  const result = await pg`
     SELECT item_id 
     FROM items 
     WHERE item_name = ${itemName}
