@@ -71,7 +71,7 @@ export async function getAuthenticatedUserId(
   pathUserId?: string,
   unauthorizedMessage = "User is not logged on or lacks authorization to access orders"
 ) {
-  const authHeader = req.header?.authorization || req.header?.Authorization;
+  const authHeader = req.headers?.authorization || req.headers?.Authorization;
   if (!authHeader || !String(authHeader).startsWith("Bearer ")) {
     res.status(401).json({ error: unauthorizedMessage });
     return null;
