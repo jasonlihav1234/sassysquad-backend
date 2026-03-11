@@ -9,6 +9,7 @@ import {
   logoutAll,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
+import { handleUserRoutes } from "./routes/user_routes";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -181,6 +182,10 @@ export async function handleRequest(req: any, res: any) {
 
     res.setHeader("Content-Type", "application/xml");
     return res.status(201).send(xml);
+  }
+
+  if (url.startsWith("/users")) {
+    return handleUserRoutes(req, res);
   }
 
   // 404 if no roiutes match
