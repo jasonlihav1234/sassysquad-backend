@@ -137,6 +137,8 @@ export async function register(request: Request) {
       return jsonHelper({ error: "User with this email already exists" }, 409);
     }
 
+    console.log(error);
+
     return jsonHelper(
       { error: "Error occurred during registration", errorLog: error },
       500,
