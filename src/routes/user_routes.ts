@@ -7,4 +7,6 @@ export async function handleUserRoutes(req: any, res: any) {
     await getUserPurchases(req, res);
     return;
   }
+
+  res.status(404).json({ error: "Path not found" });
 }
