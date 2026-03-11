@@ -10,6 +10,7 @@ import {
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
+import { handleHealthRoutes } from "./routes/health_routes";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -79,14 +80,14 @@ export async function handleRequest(req: any, res: any) {
     const { issueDate, buyer, seller, orderLines } = parsedBody || {};
 
     if (
-    !issueDate ||
-    typeof issueDate !== "string" ||
-    !buyer ||
-    typeof buyer !== "string" ||
-    !seller ||
-    typeof seller !== "string" ||
-    !Array.isArray(orderLines) ||
-    orderLines.length === 0
+      !issueDate ||
+      typeof issueDate !== "string" ||
+      !buyer ||
+      typeof buyer !== "string" ||
+      !seller ||
+      typeof seller !== "string" ||
+      !Array.isArray(orderLines) ||
+      orderLines.length === 0
     ) {
       return res.status(422).json({
         error: "VALIDATION_FAILED",
@@ -111,7 +112,7 @@ export async function handleRequest(req: any, res: any) {
         });
       }
     }
-    
+
     return res.status(200).json({
       message: "Order payload is valid",
     });
@@ -186,6 +187,10 @@ export async function handleRequest(req: any, res: any) {
 
   if (url.startsWith("/users")) {
     return handleUserRoutes(req, res);
+  }
+
+  if (url.startsWith("/health")) {
+    return handleHealthRoutes(req, res);
   }
 
   // 404 if no roiutes match
