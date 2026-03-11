@@ -5,6 +5,8 @@ import {
   refresh,
   forgotPassword,
   resetPassword,
+  logout,
+  logoutAll,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
@@ -31,6 +33,14 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/auth/clean-tokens" && method === "GET") {
     return await deleteExpiredRefreshTokens();
+  }
+
+  if (url === "/auth/logout" && method === "POST") {
+    return await logout(req);
+  }
+
+  if (url === "/auth/logout-all" && method === "POST") {
+    return await logoutAll(req);
   }
 
   if (url === "/auth/forgot-password" && method === "POST") {

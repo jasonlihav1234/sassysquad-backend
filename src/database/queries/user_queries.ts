@@ -53,7 +53,7 @@ export async function getUserSellerOrders(userId: string): Promise<Order[]> {
   return rows;
 }
 
-export async function checkUserId(userId: string): Promise<string | null> {
+export async function isUserIdValid(userId: string): Promise<Boolean> {
   const row = await sql`
   SELECT 1 
   FROM users 
@@ -61,5 +61,5 @@ export async function checkUserId(userId: string): Promise<string | null> {
   LIMIT 1
   `;
 
-  return row;
+  return row.length > 0;
 }

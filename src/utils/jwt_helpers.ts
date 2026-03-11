@@ -184,7 +184,7 @@ export async function revokeAllUserRefreshTokens(
            set
             revoked = true
            where
-            userId = ${userId}`;
+            user_id = ${userId}`;
 }
 
 export async function getAllUserRefreshTokens(userId: string): Promise<any> {

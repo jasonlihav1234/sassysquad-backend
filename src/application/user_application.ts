@@ -4,7 +4,7 @@ import {
   createRefreshToken,
   verifyRefreshToken,
 } from "../utils/jwt_config";
-import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import { type JWTPayload } from "jose";
 import bcrypt from "bcrypt";
 import pg, { redis } from "../utils/db";
 import {
@@ -14,12 +14,15 @@ import {
   revokeRefreshTokenSession,
   revokeRefreshToken,
   getAuthenticatedUserId,
+  authHelper,
+  AuthReq,
+  revokeAllUserRefreshTokens,
 } from "../utils/jwt_helpers";
 import nodemailer from "nodemailer";
 import path from "path";
 import {
   getUserBuyerOrders,
-  checkUserId,
+  isUserIdValid,
 } from "../database/queries/user_queries";
 import { json } from "stream/consumers";
 
@@ -167,6 +170,7 @@ export async function login(request: Request) {
       expiresIn: 600,
     });
   } catch (error) {
+    console.log(error);
     return jsonHelper({ error: "Login failed" }, 500);
   }
 }
@@ -232,6 +236,30 @@ export async function refresh(request: Request) {
   }
 }
 
+export const logout = authHelper(
+  async (request: AuthReq): Promise<Response> => {
+    try {
+      const body = await request.json();
+      const refreshToken = body.refreshToken;
+
+      if (refreshToken) {
+        const token = await verifyRefreshToken(refreshToken);
+        await revokeRefreshToken(token.jwt_id as string);
+      }
+
+      return jsonHelper({ message: "User has been logged out" });
+    } catch (error) {
+      // we return the same message here to prevent attackers from knowing which tokens are valid
+      return jsonHelper({ message: "User has been logged out" });
+    }
+  }
+);
+
+export const logoutAll = authHelper(async (req: AuthReq): Promise<Response> => {
+  await revokeAllUserRefreshTokens(req.user!.subject_claim);
+
+  return jsonHelper({ message: "All sessions logged out" });
+});
 export async function forgotPassword(request: Request) {
   const body = await request.json();
 
@@ -385,9 +413,8 @@ export async function getUserPurchases(req: any, res: any) {
   const tokenUserId = await getAuthenticatedUserId(req, res, pathUserId);
   if (tokenUserId === null) return;
 
-  const userRows = await checkUserId(pathUserId);
-  const userExists = Array.isArray(userRows) ? userRows.length > 0 : !!userRows;
-  if (!userExists) {
+  const userRows = await isUserIdValid(pathUserId);
+  if (!userRows) {
     return res.status(404).json({ error: "User not found!" });
   }
 
