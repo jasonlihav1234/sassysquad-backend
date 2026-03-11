@@ -110,6 +110,7 @@ export async function checkUser(
 // expecting email and password passed in
 export async function register(request: Request) {
   try {
+    console.log(request);
     const body = await request.json();
     const email = body.email;
     const password = body.password;
