@@ -1,8 +1,9 @@
 import { verifyAccessToken, type TokenPayload } from "./jwt_config";
 import pg from "../utils/db";
 import { createHash } from "node:crypto";
+import { VercelRequest } from "@vercel/node";
 
-export interface AuthReq extends Request {
+export interface AuthReq extends VercelRequest {
   user?: TokenPayload; // user is optional, can be undefined or not present
 }
 
@@ -26,7 +27,7 @@ export function jsonHelper(data: object, status: number = 200): Response {
 
 // middleware func that validates JWT and attaches user to req
 async function authMiddleware(request: AuthReq): Promise<AuthReq | Response> {
-  const authHeader = request.headers.get("Authorization");
+  const authHeader = request.headers?.["authorization"];
 
   if (!authHeader) {
     return jsonHelper({ error: "Authorization is header missing" }, 401);
@@ -51,8 +52,8 @@ async function authMiddleware(request: AuthReq): Promise<AuthReq | Response> {
 // handler would be a passed callback into authHelper
 export function authHelper(
   passedFunc: (req: AuthReq) => Promise<any>,
-): (req: Request) => Promise<any> {
-  return async (request: Request): Promise<any> => {
+): (req: VercelRequest) => Promise<any> {
+  return async (request: VercelRequest): Promise<any> => {
     const result = await authMiddleware(request as AuthReq);
 
     if (result instanceof Response) {

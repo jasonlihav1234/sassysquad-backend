@@ -25,7 +25,7 @@ import {
   getUserSellerOrders,
   isUserIdValid,
 } from "../database/queries/user_queries";
-import { json } from "stream/consumers";
+import { VercelRequest } from "@vercel/node";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -108,10 +108,10 @@ export async function checkUser(
 }
 
 // expecting email and password passed in
-export async function register(request: Request) {
+export async function register(request: VercelRequest) {
   try {
-    console.log(request);
-    const body = await request.json();
+    // console.log(request);
+    const body = request.body;
     const email = body.email;
     const password = body.password;
     const username = body.username;
@@ -138,7 +138,7 @@ export async function register(request: Request) {
       return jsonHelper({ error: "User with this email already exists" }, 409);
     }
 
-    console.log(error);
+    // console.log(error);
 
     return jsonHelper(
       { error: "Error occurred during registration", errorLog: error },
@@ -147,9 +147,9 @@ export async function register(request: Request) {
   }
 }
 
-export async function login(request: Request) {
+export async function login(request: VercelRequest) {
   try {
-    const body = await request.json();
+    const body = request.body;
     const email = body.email;
     const password = body.password;
 
@@ -167,7 +167,7 @@ export async function login(request: Request) {
     const accessToken = await createAccessToken(user.id, user.email);
     const refreshToken = await createRefreshToken(user.id, user.email);
     const sessionId = crypto.randomUUID();
-    const device = request.headers.get("User-Agent") || "null";
+    const device = request.headers?.["user-agent"] || "null";
     await storeRefreshToken(user.id, sessionId, device, refreshToken.tokenId);
     // setting expiration to 10 minutes = 600 seconds
     return jsonHelper({
@@ -182,9 +182,9 @@ export async function login(request: Request) {
   }
 }
 
-export async function refresh(request: Request) {
+export async function refresh(request: VercelRequest) {
   try {
-    const body = await request.json();
+    const body = request.body;
     const refreshToken = body.refreshToken;
     const newTokenId = crypto.randomUUID();
 
@@ -246,7 +246,7 @@ export async function refresh(request: Request) {
 export const logout = authHelper(
   async (request: AuthReq): Promise<Response> => {
     try {
-      const body = await request.json();
+      const body = request.body;
       const refreshToken = body.refreshToken;
 
       if (refreshToken) {
@@ -358,8 +358,8 @@ export async function forgotPassword(request: Request) {
   }
 }
 
-export async function resetPassword(request: Request) {
-  const body = await request.json();
+export async function resetPassword(request: VercelRequest) {
+  const body = request.body;
   const email = body.email;
   const token = body.token;
   const password = body.password;
