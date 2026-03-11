@@ -20,7 +20,10 @@ export async function handleRequest(req: any, res: any) {
     });
   }
   if (url === "/auth/register" && method === "POST") {
-    return await register(req);
+    const response = await register(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/login" && method === "POST") {
@@ -79,14 +82,14 @@ export async function handleRequest(req: any, res: any) {
     const { issueDate, buyer, seller, orderLines } = parsedBody || {};
 
     if (
-    !issueDate ||
-    typeof issueDate !== "string" ||
-    !buyer ||
-    typeof buyer !== "string" ||
-    !seller ||
-    typeof seller !== "string" ||
-    !Array.isArray(orderLines) ||
-    orderLines.length === 0
+      !issueDate ||
+      typeof issueDate !== "string" ||
+      !buyer ||
+      typeof buyer !== "string" ||
+      !seller ||
+      typeof seller !== "string" ||
+      !Array.isArray(orderLines) ||
+      orderLines.length === 0
     ) {
       return res.status(422).json({
         error: "VALIDATION_FAILED",
@@ -111,7 +114,7 @@ export async function handleRequest(req: any, res: any) {
         });
       }
     }
-    
+
     return res.status(200).json({
       message: "Order payload is valid",
     });

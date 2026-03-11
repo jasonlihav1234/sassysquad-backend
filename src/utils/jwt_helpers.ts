@@ -25,9 +25,7 @@ export function jsonHelper(data: object, status: number = 200): Response {
 }
 
 // middleware func that validates JWT and attaches user to req
-export async function authMiddleware(
-  request: AuthReq
-): Promise<AuthReq | Response> {
+async function authMiddleware(request: AuthReq): Promise<AuthReq | Response> {
   const authHeader = request.headers.get("Authorization");
 
   if (!authHeader) {
@@ -52,7 +50,7 @@ export async function authMiddleware(
 
 // handler would be a passed callback into authHelper
 export function authHelper(
-  passedFunc: (req: AuthReq) => Promise<any>
+  passedFunc: (req: AuthReq) => Promise<any>,
 ): (req: Request) => Promise<any> {
   return async (request: Request): Promise<any> => {
     const result = await authMiddleware(request as AuthReq);
@@ -69,7 +67,7 @@ export async function getAuthenticatedUserId(
   req: any,
   res: any,
   pathUserId?: string,
-  unauthorizedMessage = "User is not logged on or lacks authorization to access orders"
+  unauthorizedMessage = "User is not logged on or lacks authorization to access orders",
 ) {
   const authHeader = req.headers?.authorization || req.headers?.Authorization;
   if (!authHeader || !String(authHeader).startsWith("Bearer ")) {
@@ -101,7 +99,7 @@ export async function storeRefreshToken(
   sessionId: string,
   deviceInfo: string,
   tokenId: string,
-  expiresInDays: number = 7
+  expiresInDays: number = 7,
 ): Promise<void> {
   const expires = new Date();
   expires.setDate(expires.getDate() + expiresInDays);
@@ -132,7 +130,7 @@ export async function storeRefreshToken(
 }
 
 export async function getRefreshToken(
-  tokenId: string
+  tokenId: string,
 ): Promise<TokenMetadata | null> {
   // get the token from the database
   const tokenHash = createHash("sha256").update(tokenId).digest("hex");
@@ -166,7 +164,7 @@ export async function revokeRefreshToken(tokenId: string): Promise<boolean> {
 }
 
 export async function revokeRefreshTokenSession(
-  sessionId: string
+  sessionId: string,
 ): Promise<void> {
   // get all tokens with this session id
   await pg`update refresh_tokens
@@ -177,7 +175,7 @@ export async function revokeRefreshTokenSession(
 }
 
 export async function revokeAllUserRefreshTokens(
-  userId: string
+  userId: string,
 ): Promise<void> {
   // sql statment which changes all userId == userId to true
   await pg`update refresh_tokens
