@@ -1,6 +1,6 @@
 import { create } from "xmlbuilder2";
 import { register, login, refresh } from "./application/user_application";
-import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
+import { jsonHelper, deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -91,6 +91,30 @@ export async function handleRequest(req: any, res: any) {
 
     res.setHeader("Content-Type", "application/xml");
     return res.status(201).send(xml);
+  }
+  
+  // DELETE /orders/{id}
+  if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
+    const { userId, orderLines } = body || {};
+    const orderId = url.split("/")[1];
+
+    if (!orderId) { // TODO: invalid orderid
+      return jsonHelper({ error: "Bad Request" }, 400);
+    }
+
+    // Lookup?
+
+    if (userId != order.userId) {
+      return jsonHelper({ error: "Forbidden" }, 403);
+    }
+
+    if (!order) {
+      return jsonHelper({ error: "Not Found" }, 404);
+    }
+
+    // delete?
+    
+    return res.status(204).send(xml);
   }
 
   // 404 if no roiutes match
