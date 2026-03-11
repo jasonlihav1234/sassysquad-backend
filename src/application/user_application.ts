@@ -22,6 +22,7 @@ import nodemailer from "nodemailer";
 import path from "path";
 import {
   getUserBuyerOrders,
+  getUserSellerOrders,
   isUserIdValid,
 } from "../database/queries/user_queries";
 import { json } from "stream/consumers";
@@ -431,6 +432,52 @@ export async function getUserPurchases(req: any, res: any) {
 
   try {
     const orders = await getUserBuyerOrders(tokenUserId);
+    res.status(200).json({ orders });
+  } catch {
+    res.status(500).json({
+      error: "Internal Server Error",
+    });
+  }
+}
+
+// For GET users/{userId}/sales
+
+export async function getUserSales(req: any, res: any) {
+  const pathname = req.url?.split("?")[0] ?? "";
+  const components = pathname.split("/").filter(Boolean);
+
+  // Defensive check if application function is called from elsewhere in code 
+  // other than route handler
+  if (
+    components.length !== 3 ||
+    components[0] !== "users" ||
+    components[2] !== "sales"
+  ) {
+    return res.status(400).json({ error: "Invalid sales route path!" });
+  }
+
+  const pathUserId = components[1];
+  const tokenUserId = await getAuthenticatedUserId(req, res, pathUserId);
+  if (tokenUserId === null) return;
+
+  const userRows = await isUserIdValid(pathUserId);
+  if (!userRows) {
+    return res.status(404).json({ error: "User not found!" });
+  }
+
+  const accept =
+    req.headers?.accept || req.headers?.Accept || "application/json";
+  const wantsJson =
+    String(accept).includes("application/json") || String(accept) === "*/*";
+  const wantsXml =
+    String(accept).includes("application/xml") ||
+    String(accept).includes("text/xml");
+  if (!wantsJson && !wantsXml) {
+    return res.status(406).json({ error: "Unsupported formatting type" });
+  }
+
+  try {
+    const orders = await getUserSellerOrders(tokenUserId);
     res.status(200).json({ orders });
   } catch {
     res.status(500).json({
