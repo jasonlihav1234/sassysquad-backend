@@ -377,35 +377,30 @@ export async function getUserPurchases(req: any, res: any) {
     components[0] !== "users" ||
     components[2] !== "purchases"
   ) {
-    return jsonHelper({ error: "Invalid purchases route path" }, 400);
+    return res.status(400).json("Invalid purchases route path!");
   }
 
   const pathUserId = components[1];
   // Helper in jwt_helpers
   const tokenUserId = await getAuthenticatedUserId(req, res, pathUserId);
+  if (tokenUserId === null) return;
 
-  if (!(await checkUserId(components[1]))) {
-    return jsonHelper({ error: "Username not found!" }, 404);
-  }
-
-  if (!tokenUserId || tokenUserId !== pathUserId) {
-    return jsonHelper(
-      {
-        error: "User is not logged in or lacks authorization to access orders",
-      },
-      401
-    );
+  const userRows = await checkUserId(pathUserId);
+  const userExists = Array.isArray(userRows) ? userRows.length > 0 : !!userRows;
+  if (userExists) {
+    return res.status(404).json("User not found!");
+    return;
   }
 
   const accept =
-    req.header?.accept || req.headers?.Accept || "application/json";
+    req.headers?.accept || req.headers?.Accept || "application/json";
   const wantsJson =
     String(accept).includes("application/json") || String(accept) === "*/*";
   const wantsXml =
     String(accept).includes("application/xml") ||
     String(accept).includes("text/xml");
   if (!wantsJson && !wantsXml) {
-    res.status(406).json({ error: "Unsupported formatting type" });
+    return res.status(406).json({ error: "Unsupported formatting type" });
   }
 
   try {
