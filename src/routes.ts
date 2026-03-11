@@ -27,31 +27,52 @@ export async function handleRequest(req: any, res: any) {
   }
 
   if (url === "/auth/login" && method === "POST") {
-    return await login(req);
+    const response = await login(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/refresh" && method === "POST") {
-    return await refresh(req);
+    const response = await refresh(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/clean-tokens" && method === "GET") {
-    return await deleteExpiredRefreshTokens();
+    await deleteExpiredRefreshTokens();
+    return res.status(200).json({
+      message: "Deleted refresh tokens",
+    });
   }
 
   if (url === "/auth/logout" && method === "POST") {
-    return await logout(req);
+    const response = await logout(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/logout-all" && method === "POST") {
-    return await logoutAll(req);
+    const response = await logoutAll(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/forgot-password" && method === "POST") {
-    return await forgotPassword(req);
+    const response = await forgotPassword(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/reset-password" && method === "POST") {
-    return await resetPassword(req);
+    const response = await resetPassword(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   // POST /orders/validate
