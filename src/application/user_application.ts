@@ -13,8 +13,7 @@ import {
   getRefreshToken,
   revokeRefreshTokenSession,
   revokeRefreshToken,
-  authHelper,
-  type AuthReq,
+  getAuthenticatedUserId,
 } from "../utils/jwt_helpers";
 import nodemailer from "nodemailer";
 import path from "path";
@@ -368,9 +367,10 @@ export async function resetPassword(request: Request) {
 
 // For GET users/{userId}/purchases
 
-export const getUserPurchases = authHelper(async (req: AuthReq) => {
-  const url = new URL(req.url);
-  const components = url.pathname.split("/").filter(Boolean);
+export async function getUserPurchases(req: any, res: any) {
+  // Example: /users/abc-123/purchases?page=1&limit=10
+  const pathname = req.url?.split("?")[0] ?? "";
+  const components = pathname.split("/").filter(Boolean);
 
   if (
     components.length !== 3 ||
@@ -380,12 +380,12 @@ export const getUserPurchases = authHelper(async (req: AuthReq) => {
     return jsonHelper({ error: "Invalid purchases route path" }, 400);
   }
 
+  const pathUserId = components[1];
+  const tokenUserId = await getAuthenticatedUserId(req, res, pathUserId);
+
   if (!(await checkUserId(components[1]))) {
     return jsonHelper({ error: "Username not found!" }, 404);
   }
-
-  const pathUserId = components[1];
-  const tokenUserId = req.user?.subject_claim;
 
   if (!tokenUserId || tokenUserId !== pathUserId) {
     return jsonHelper(
@@ -395,16 +395,24 @@ export const getUserPurchases = authHelper(async (req: AuthReq) => {
       401
     );
   }
-  
+
+  const accept =
+    req.header?.accept || req.headers?.Accept || "application/json";
+  const wantsJson =
+    String(accept).includes("application/json") || String(accept) === "*/*";
+  const wantsXml =
+    String(accept).includes("application/xml") ||
+    String(accept).includes("text/xml");
+  if (!wantsJson && !wantsXml) {
+    res.status(406).json({ error: "Unsupported formatting type" });
+  }
+
   try {
     const orders = await getUserBuyerOrders(tokenUserId);
-    return jsonHelper({ orders }, 200);
-  } catch (err) {
-    return jsonHelper(
-      {
-        error: "Internal error, please try again later!",
-      },
-      500
-    );
+    res.status(200).json({ orders });
+  } catch {
+    res.status(500).json({
+      error: "Internal Server Error",
+    });
   }
-});
+}
