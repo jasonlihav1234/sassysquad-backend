@@ -381,6 +381,7 @@ export async function getUserPurchases(req: any, res: any) {
   }
 
   const pathUserId = components[1];
+  // Helper in jwt_helpers
   const tokenUserId = await getAuthenticatedUserId(req, res, pathUserId);
 
   if (!(await checkUserId(components[1]))) {
