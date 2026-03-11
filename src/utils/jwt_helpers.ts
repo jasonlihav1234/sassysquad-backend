@@ -27,7 +27,9 @@ export function jsonHelper(data: object, status: number = 200): Response {
 
 // middleware func that validates JWT and attaches user to req
 async function authMiddleware(request: AuthReq): Promise<AuthReq | Response> {
-  const authHeader = request.headers?.["authorization"];
+  console.log(request);
+  const headers = new Headers(request.headers as Record<string, string>);
+  const authHeader = headers.get("Authorization");
 
   if (!authHeader) {
     return jsonHelper({ error: "Authorization is header missing" }, 401);
