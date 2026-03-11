@@ -53,7 +53,7 @@ export async function getUserSellerOrders(userId: string): Promise<Order[]> {
   return rows;
 }
 
-export async function isUserIdValid(userId: string): Promise<Boolean> {
+export async function isUserIdValid(userId: string): Promise<boolean> {
   const row = await pg`
   SELECT 1 
   FROM users 
