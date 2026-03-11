@@ -1,10 +1,15 @@
-import { getUserPurchases } from "../application/user_application";
+import { getUserPurchases, getUserSales } from "../application/user_application";
 
 export async function handleUserRoutes(req: any, res: any) {
   const { method, url } = req;
 
   if (method === "GET" && url.match(/^\/users\/[^/]+\/purchases$/)) {
     await getUserPurchases(req, res);
+    return;
+  }
+
+  if (method === "GET" && url.match(/^\/users\/[^/]+\/sales$/)) {
+    await getUserSales(req, res);
     return;
   }
 
