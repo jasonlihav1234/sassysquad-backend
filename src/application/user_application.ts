@@ -377,7 +377,7 @@ export async function getUserPurchases(req: any, res: any) {
     components[0] !== "users" ||
     components[2] !== "purchases"
   ) {
-    return res.status(400).json("Invalid purchases route path!");
+    return res.status(400).json({ error: "Invalid purchases route path!" });
   }
 
   const pathUserId = components[1];
@@ -387,9 +387,8 @@ export async function getUserPurchases(req: any, res: any) {
 
   const userRows = await checkUserId(pathUserId);
   const userExists = Array.isArray(userRows) ? userRows.length > 0 : !!userRows;
-  if (userExists) {
-    return res.status(404).json("User not found!");
-    return;
+  if (!userExists) {
+    return res.status(404).json({ error: "User not found!" });
   }
 
   const accept =
