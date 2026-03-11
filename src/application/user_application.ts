@@ -6,14 +6,19 @@ import {
 } from "../utils/jwt_config";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import bcrypt from "bcrypt";
-import pg from "../utils/db";
+import pg, { redis } from "../utils/db";
 import {
   jsonHelper,
   storeRefreshToken,
   getRefreshToken,
   revokeRefreshTokenSession,
   revokeRefreshToken,
+  authHelper,
+  AuthReq,
+  revokeAllUserRefreshTokens,
 } from "../utils/jwt_helpers";
+import nodemailer from "nodemailer";
+import path from "path";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -157,6 +162,7 @@ export async function login(request: Request) {
       expiresIn: 600,
     });
   } catch (error) {
+    console.log(error);
     return jsonHelper({ error: "Login failed" }, 500);
   }
 }
@@ -220,4 +226,161 @@ export async function refresh(request: Request) {
       401,
     );
   }
+}
+
+export const logout = authHelper(
+  async (request: AuthReq): Promise<Response> => {
+    try {
+      const body = await request.json();
+      const refreshToken = body.refreshToken;
+
+      if (refreshToken) {
+        const token = await verifyRefreshToken(refreshToken);
+        await revokeRefreshToken(token.jwt_id as string);
+      }
+
+      return jsonHelper({ message: "User has been logged out" });
+    } catch (error) {
+      // we return the same message here to prevent attackers from knowing which tokens are valid
+      return jsonHelper({ message: "User has been logged out" });
+    }
+  },
+);
+
+export const logoutAll = authHelper(async (req: AuthReq): Promise<Response> => {
+  await revokeAllUserRefreshTokens(req.user!.subject_claim);
+
+  return jsonHelper({ message: "All sessions logged out" });
+});
+export async function forgotPassword(request: Request) {
+  const body = await request.json();
+
+  if (!body.email) {
+    return jsonHelper(
+      {
+        error: "Email not provided",
+      },
+      400,
+    );
+  }
+
+  // verify that email is valid, and that the email exists in the database
+  const recipentEmail = body.email;
+  const checkEmail =
+    await pg`select * from users where email = ${recipentEmail}`;
+
+  if (checkEmail.length === 0) {
+    return jsonHelper(
+      {
+        error: "User does not exist",
+      },
+      404,
+    );
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "jasonli3960@gmail.com",
+      pass: process.env.GOOGLE_APP_PASSWORD,
+    },
+  });
+  const imagePath = path.join(
+    import.meta.dirname,
+    "../utils/pictures/office_pic.jpg",
+  );
+
+  const resetPasswordToken = crypto.randomUUID();
+  const key = `resetPassword:${recipentEmail}`;
+
+  // conflicting keys
+  await redis.set(key, resetPasswordToken);
+  await redis.expire(key, 600); // reset password token lasts 30 minutes
+
+  const mailData = {
+    from: '"SaasySquad" <jasonli3960@gmail.com>',
+    to: `${recipentEmail}`,
+    subject: "Password Reset - SaasySquad",
+    html: `
+<div style="background-color: #f0f4f8; padding: 40px 0; font-family: Arial, sans-serif;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #ddd;">
+      
+        <div style="padding: 30px 40px 10px 40px;">
+          <h1 style="font-size: 35px; font-weight: bold; color: #000; margin: 0;">Your password reset</h1>
+        </div>
+
+        <div style="padding: 25px 0;">
+          <img src="cid:office_pic" alt="Office Speaking Tings" style="width: 100%; display: block;">
+        </div>
+
+        <div style="padding: 20px 40px; color: #333; line-height: 1.6; font-size: 14px;">
+          <p>We received a request to <span style="background-color: #ffeeba;">reset</span> the <span style="background-color: #ffeeba;">password</span> associated with this email address.</p>
+          <p>If you made this request, please follow the instructions below.</p>
+
+          <p style="margin-top: 25px;">Click the link below to go to the last step to <span style="background-color: #ffeeba;">reset</span> your <span style="background-color: #ffeeba;">password</span>: (need frontend for this part)</p>
+          <p>Testing reset password token: ${resetPasswordToken}</p>
+
+          <p>If you did not request to have your <span style="background-color: #ffeeba;">password</span> <span style="background-color: #ffeeba;">reset</span> you can safely ignore this email. Be assured your account is safe.</p>
+        </div>
+      </div>
+    </div>
+    `,
+    attachments: [
+      {
+        filename: "office_pic.jpg",
+        path: imagePath,
+        cid: "office_pic",
+      },
+    ],
+  };
+
+  try {
+    await transporter.sendMail(mailData);
+
+    return jsonHelper({ message: "Mail successfully sent" });
+  } catch (error) {
+    return jsonHelper({ error: "Mail failed to send" }, 500);
+  }
+}
+
+export async function resetPassword(request: Request) {
+  const body = await request.json();
+  const email = body.email;
+  const token = body.token;
+  const password = body.password;
+
+  if (!token || !password || !email) {
+    return jsonHelper({ error: "Missing token or password" }, 400);
+  }
+
+  // check password is valid
+  if (password.length < 7) {
+    return jsonHelper({ error: "Invalid password" }, 401);
+  }
+
+  // check token is valid;
+  const resetPasswordToken = await redis.get(`resetPassword:${email}`);
+
+  if (!resetPasswordToken || resetPasswordToken != token) {
+    return jsonHelper(
+      {
+        error: "Token expired or is invalid",
+      },
+      404,
+    );
+  }
+
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  // change the password
+  await pg`
+  update users
+  set password_hash = ${passwordHash}
+  where email = ${email}
+  `;
+
+  await redis.del(`resetPassword:${email}`);
+
+  return jsonHelper({
+    message: "Password successfully updated",
+  });
 }
