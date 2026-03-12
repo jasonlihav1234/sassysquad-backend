@@ -21,6 +21,19 @@ export async function getItemIdByName(
   return result[0].id;
 }
 
+/**
+ * Get items given an item ID
+ */
+export async function getItemByItemId(itemId: string) {
+  const result = await pg`
+  select *
+  from items
+  where item_id = ${itemId}
+  `;
+
+  return result;
+}
+
 /*
  * Gets all items
  */

@@ -2,57 +2,54 @@ import {
   jsonHelper,
   authHelper,
   revokeRefreshToken,
-  AuthReq
+  AuthReq,
 } from "../utils/jwt_helpers";
-import {
-  verifyRefreshToken,
-} from "../utils/jwt_config";
+import { verifyRefreshToken } from "../utils/jwt_config";
 import {
   getAllItems,
-  getItemsUser
+  getItemByItemId,
+  getItemsUser,
 } from "../database/queries/item_queries";
+import { VercelRequest } from "@vercel/node";
 
 // look into responses
-export const getItems = authHelper(
+export const getItemsById = authHelper(
   async (req: AuthReq): Promise<Response> => {
     try {
-      const body = await req.json();
-      const refreshToken = body.refreshToken;
+      // should follow /items/{id}, refresh token soould be passed by header
+      const itemId = req.query.item_id as string | undefined;
+      const userId = req.user!.subject_claim; // i know req won't be undefined
 
-      if (refreshToken) {
-        const token = await verifyRefreshToken(refreshToken);
-        await revokeRefreshToken(token.jwt_id as string);
-      } else {
-        return jsonHelper({
-          message: "No refresh token passed in"
-        }, 400);
-      }
-     
       let items = null;
 
-      if (!body.userId) { // want all items
-        items = await getAllItems();
+      if (itemId) {
+        // want all items
+        items = await getItemByItemId(itemId);
       } else {
-        items = await getItemsUser(
-          body.userId
-        );
+        items = await getItemsUser(userId);
       }
 
-      if (items === null) {
-        return jsonHelper({
-          message: "No items found"
-        }, 404);
+      if (items === null || (Array.isArray(items) && items.length === 0)) {
+        return jsonHelper(
+          {
+            message: "No items found",
+          },
+          404,
+        );
       }
 
       return jsonHelper({
         message: "Items found",
-        items: items
+        items: items,
       });
     } catch (error) {
-      return jsonHelper({
-        message: "Items fetch failed",
-        error: error
-      }, 500);
+      return jsonHelper(
+        {
+          message: "Items fetch failed",
+          error: error,
+        },
+        500,
+      );
     }
-  }
+  },
 );
