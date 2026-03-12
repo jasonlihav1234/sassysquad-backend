@@ -83,7 +83,7 @@ export async function updateItemQuery(
       quantity_available = coalesce(${quantity_available}, quantity_available),
       image_url = coalesce(${image_url}, image_url),
       last_updated = ${new Date().toISOString()}
-    where id = ${itemId}
+    where item_id = ${itemId}
     returning *
     `;
 

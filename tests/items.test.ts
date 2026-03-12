@@ -20,6 +20,7 @@ import {
   getItemsById,
   getAllItems,
   getItemByUserId,
+  updateItem,
 } from "../src/application/item_application";
 import { generateAuthenticatedRequest, generateRequest } from "./users.test";
 
@@ -276,5 +277,94 @@ describe("Getting items tests", () => {
     expect(getResponse.status).toBe(404);
     expect(getBody.message).toBe("No items found");
     expect(getBody.items).toBe(undefined);
+  });
+});
+
+describe("Update item tests", () => {
+  test("No item ID was provided", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/items/${itemId1}`,
+      "PATCH",
+      {
+        itemName: "New_name",
+      },
+      accessToken,
+    );
+
+    const response = await updateItem(request2);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe("No item ID provided");
+  });
+
+  test("No items were provided", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/items/${itemId1}`,
+      "PATCH",
+      {
+        itemId: "ajwdbakjdbadajdbjkdb",
+      },
+      accessToken,
+    );
+
+    const response = await updateItem(request2);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("No items provided");
+  });
+
+  test("Item get successfully updated", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/items/${itemId1}`,
+      "PATCH",
+      {
+        itemId: itemId1,
+        itemName: "new_name_2",
+        description: "?XD",
+        price: 100,
+        quantity_available: 1000,
+        image_url: "fake image url",
+      },
+      accessToken,
+    );
+
+    const response = await updateItem(request2);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Item successfully updated");
+
+    const query = await pg`select * from items where item_id = ${itemId1}`;
+    const item = query[0];
+
+    expect(item.seller_id).toBe(sellerId);
+    expect(item.item_name).toBe("new_name_2");
+    expect(item.description).toBe("?XD");
+    expect(Number(item.price)).toBe(100);
+    expect(Number(item.quantity_available)).toBe(1000);
+    expect(item.image_url).toBe("fake image url");
   });
 });
