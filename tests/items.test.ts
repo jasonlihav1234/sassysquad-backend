@@ -91,6 +91,66 @@ afterAll(async () => {
 });
 
 describe("Getting items tests", () => {
+  beforeAll(async () => {
+    // register users
+    await pg`delete from refresh_tokens`;
+    await pg`delete from items`;
+    await pg`delete from users`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+
+    const registerReq2 = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli8909@gmail.com",
+        username: "test2",
+        password: "testing123",
+      },
+    );
+
+    const userRes = await register(registerReq);
+    const userRes2 = await register(registerReq2);
+    sellerId = (await userRes.json()).user;
+    sellerId2 = (await userRes2.json()).user;
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId1}, ${sellerId}, ${"test_item"}, ${9.5}, ${20})
+    `;
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId2}, ${sellerId2}, ${"test_item2"}, ${2.5}, ${10})
+    `;
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId3}, ${sellerId}, ${"test_item3"}, ${10.5}, ${25})
+    `;
+  });
+
+  afterAll(async () => {
+    // delete all registered users
+    await pg`delete from refresh_tokens`;
+    await pg`delete from items`;
+    await pg`delete from users`;
+  });
+
   test("Getting item by item id", async () => {
     const test = await pg`select * from users`;
     const request = generateRequest("http://localhost/auth/login", "POST", {
@@ -281,6 +341,66 @@ describe("Getting items tests", () => {
 });
 
 describe("Update item tests", () => {
+  beforeAll(async () => {
+    // register users
+    await pg`delete from refresh_tokens`;
+    await pg`delete from items`;
+    await pg`delete from users`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+
+    const registerReq2 = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli8909@gmail.com",
+        username: "test2",
+        password: "testing123",
+      },
+    );
+
+    const userRes = await register(registerReq);
+    const userRes2 = await register(registerReq2);
+    sellerId = (await userRes.json()).user;
+    sellerId2 = (await userRes2.json()).user;
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId1}, ${sellerId}, ${"test_item"}, ${9.5}, ${20})
+    `;
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId2}, ${sellerId2}, ${"test_item2"}, ${2.5}, ${10})
+    `;
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId3}, ${sellerId}, ${"test_item3"}, ${10.5}, ${25})
+    `;
+  });
+
+  afterAll(async () => {
+    // delete all registered users
+    await pg`delete from refresh_tokens`;
+    await pg`delete from items`;
+    await pg`delete from users`;
+  });
+
   test("No items were provided", async () => {
     const request = generateRequest("http://localhost/auth/login", "POST", {
       email: "jasonli1234@gmail.com",
@@ -326,7 +446,7 @@ describe("Update item tests", () => {
       },
       accessToken,
     );
-
+    console.log(await pg`select * from items`);
     const response = await updateItem(request2);
     const body = await response.json();
 
