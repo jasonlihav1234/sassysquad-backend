@@ -1,6 +1,5 @@
-import { sql } from "../client";
-import pg from "../../utils/db";
 import { jsonHelper } from "../../utils/jwt_helpers";
+import pg from "../../utils/db";
 
 /**
  * Fetches an itemID based on its name.
@@ -8,7 +7,7 @@ import { jsonHelper } from "../../utils/jwt_helpers";
 export async function getItemIdByName(
   itemName: string,
 ): Promise<string | null> {
-  const result = await sql`
+  const result = await pg`
     SELECT item_id 
     FROM items 
     WHERE item_name = ${itemName}
@@ -21,7 +20,6 @@ export async function getItemIdByName(
 
   return result[0].id;
 }
-
 
 /**
  * Get items given an item ID
@@ -65,8 +63,8 @@ export async function getItemsUserQuery(userId: string) {
 }
 
 /*
- * Updates an item according to provided inputs 
-*/
+ * Updates an item according to provided inputs
+ */
 export async function updateItemQuery(
   itemId: string,
   sellerId: string | null,
@@ -91,7 +89,7 @@ export async function updateItemQuery(
     returning *
     `;
 
-    return jsonHelper({ message: "Item updated", response : response});
+    return jsonHelper({ message: "Item updated", response: response });
   } catch (error) {
     return jsonHelper({ message: "Update failed", error: error }, 500);
   }
