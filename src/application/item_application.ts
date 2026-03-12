@@ -47,7 +47,7 @@ export const getItemsById = authHelper(
 export const getItemByUserId = authHelper(
   async (req: AuthReq): Promise<Response> => {
     try {
-      const userId = req.user!.subject_claim; // I know that req.user won't be undefined
+      const userId = req.url?.split("/").at(4) as string; // I know that req.user won't be undefined
       const response = await getItemsUserQuery(userId);
 
       if (response.length === 0) {
@@ -64,6 +64,7 @@ export const getItemByUserId = authHelper(
         items: response,
       });
     } catch (error) {
+      console.log(error);
       return jsonHelper(
         { message: "Getting items by user id failed", error: error },
         500,

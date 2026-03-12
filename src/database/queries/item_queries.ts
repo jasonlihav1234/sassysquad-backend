@@ -55,7 +55,7 @@ export async function getAllItemsQuery() {
  */
 export async function getItemsUserQuery(userId: string) {
   try {
-    const items = await pg`select * from items where user_id = ${userId}`;
+    const items = await pg`select * from items where seller_id = ${userId}`;
 
     return items;
   } catch (error) {
