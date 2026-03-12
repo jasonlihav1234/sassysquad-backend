@@ -4,7 +4,7 @@ import {
   createRefreshToken,
   verifyRefreshToken,
 } from "../utils/jwt_config";
-import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import { type JWTPayload } from "jose";
 import bcrypt from "bcrypt";
 import pg, { redis } from "../utils/db";
 import {
@@ -13,12 +13,19 @@ import {
   getRefreshToken,
   revokeRefreshTokenSession,
   revokeRefreshToken,
+  getAuthenticatedUserId,
   authHelper,
   AuthReq,
   revokeAllUserRefreshTokens,
 } from "../utils/jwt_helpers";
 import nodemailer from "nodemailer";
 import path from "path";
+import {
+  getUserBuyerOrders,
+  getUserSellerOrders,
+  isUserIdValid,
+} from "../database/queries/user_queries";
+import { json } from "stream/consumers";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -44,7 +51,7 @@ const SALT_ROUNDS = 10;
 export async function generateUser(
   email: string,
   username: string,
-  password: string,
+  password: string
 ): Promise<UserDetails> {
   const query = await pg`select * from users where email = ${email}`;
 
@@ -62,7 +69,9 @@ export async function generateUser(
   };
 
   await pg`insert into users (user_id, user_name, email, password_hash, created_at) 
-            values (${newUser.id}, ${username}, ${newUser.email}, ${newUser.password}, ${newUser.createdAt.toISOString()})`;
+            values (${newUser.id}, ${username}, ${newUser.email}, ${
+    newUser.password
+  }, ${newUser.createdAt.toISOString()})`;
 
   return newUser;
 }
@@ -70,7 +79,7 @@ export async function generateUser(
 // checks if password is correct
 export async function checkUser(
   email: string,
-  password: string,
+  password: string
 ): Promise<UserDetails | null> {
   const query = await pg`select * from users where email = ${email}`;
 
@@ -109,14 +118,14 @@ export async function register(request: Request) {
     if (!email || !password || !username) {
       return jsonHelper(
         { error: "Email, password, and username required" },
-        400,
+        400
       );
     }
 
     if (password.length < 7) {
       return jsonHelper(
         { error: "Password must be at least 7 characters long" },
-        400,
+        400
       );
     }
 
@@ -179,7 +188,7 @@ export async function refresh(request: Request) {
 
     const verifiedRefreshToken = await verifyRefreshToken(refreshToken);
     const storedRefreshToken = await getRefreshToken(
-      verifiedRefreshToken.jwt_id as string,
+      verifiedRefreshToken.jwt_id as string
     );
 
     if (!storedRefreshToken) {
@@ -198,18 +207,18 @@ export async function refresh(request: Request) {
     // generate new pair
     const newAccessToken = await createAccessToken(
       verifiedRefreshToken.subject_claim,
-      verifiedRefreshToken.email,
+      verifiedRefreshToken.email
     );
 
     const newRefreshToken = await createRefreshToken(
       verifiedRefreshToken.subject_claim,
-      verifiedRefreshToken.email,
+      verifiedRefreshToken.email
     );
     await storeRefreshToken(
       verifiedRefreshToken.subject_claim,
       storedRefreshToken.session_id,
       storedRefreshToken.device_info,
-      newRefreshToken.tokenId,
+      newRefreshToken.tokenId
     );
 
     return jsonHelper({
@@ -223,7 +232,7 @@ export async function refresh(request: Request) {
       {
         error: "Refresh token is invalid",
       },
-      401,
+      401
     );
   }
 }
@@ -244,7 +253,7 @@ export const logout = authHelper(
       // we return the same message here to prevent attackers from knowing which tokens are valid
       return jsonHelper({ message: "User has been logged out" });
     }
-  },
+  }
 );
 
 export const logoutAll = authHelper(async (req: AuthReq): Promise<Response> => {
@@ -260,7 +269,7 @@ export async function forgotPassword(request: Request) {
       {
         error: "Email not provided",
       },
-      400,
+      400
     );
   }
 
@@ -274,7 +283,7 @@ export async function forgotPassword(request: Request) {
       {
         error: "User does not exist",
       },
-      404,
+      404
     );
   }
 
@@ -287,7 +296,7 @@ export async function forgotPassword(request: Request) {
   });
   const imagePath = path.join(
     import.meta.dirname,
-    "../utils/pictures/office_pic.jpg",
+    "../utils/pictures/office_pic.jpg"
   );
 
   const resetPasswordToken = crypto.randomUUID();
@@ -366,7 +375,7 @@ export async function resetPassword(request: Request) {
       {
         error: "Token expired or is invalid",
       },
-      404,
+      404
     );
   }
 
@@ -383,4 +392,96 @@ export async function resetPassword(request: Request) {
   return jsonHelper({
     message: "Password successfully updated",
   });
+}
+
+// For GET users/{userId}/purchases
+
+export async function getUserPurchases(req: any, res: any) {
+  // Example: /users/abc-123/purchases?page=1&limit=10
+  const pathname = req.url?.split("?")[0] ?? "";
+  const components = pathname.split("/").filter(Boolean);
+
+  if (
+    components.length !== 3 ||
+    components[0] !== "users" ||
+    components[2] !== "purchases"
+  ) {
+    return res.status(400).json({ error: "Invalid purchases route path!" });
+  }
+
+  const pathUserId = components[1];
+  // Helper in jwt_helpers
+  const tokenUserId = await getAuthenticatedUserId(req, res, pathUserId);
+  if (tokenUserId === null) return;
+
+  const userRows = await isUserIdValid(pathUserId);
+  if (!userRows) {
+    return res.status(404).json({ error: "User not found!" });
+  }
+
+  const accept =
+    req.headers?.accept || req.headers?.Accept || "application/json";
+  const wantsJson =
+    String(accept).includes("application/json") || String(accept) === "*/*";
+  const wantsXml =
+    String(accept).includes("application/xml") ||
+    String(accept).includes("text/xml");
+  if (!wantsJson && !wantsXml) {
+    return res.status(406).json({ error: "Unsupported formatting type" });
+  }
+
+  try {
+    const orders = await getUserBuyerOrders(tokenUserId);
+    res.status(200).json({ orders });
+  } catch {
+    res.status(500).json({
+      error: "Internal Server Error",
+    });
+  }
+}
+
+// For GET users/{userId}/sales
+
+export async function getUserSales(req: any, res: any) {
+  const pathname = req.url?.split("?")[0] ?? "";
+  const components = pathname.split("/").filter(Boolean);
+
+  // Defensive check if application function is called from elsewhere in code 
+  // other than route handler
+  if (
+    components.length !== 3 ||
+    components[0] !== "users" ||
+    components[2] !== "sales"
+  ) {
+    return res.status(400).json({ error: "Invalid sales route path!" });
+  }
+
+  const pathUserId = components[1];
+  const tokenUserId = await getAuthenticatedUserId(req, res, pathUserId);
+  if (tokenUserId === null) return;
+
+  const userRows = await isUserIdValid(pathUserId);
+  if (!userRows) {
+    return res.status(404).json({ error: "User not found!" });
+  }
+
+  const accept =
+    req.headers?.accept || req.headers?.Accept || "application/json";
+  const wantsJson =
+    String(accept).includes("application/json") || String(accept) === "*/*";
+  const wantsXml =
+    String(accept).includes("application/xml") ||
+    String(accept).includes("text/xml");
+  if (!wantsJson && !wantsXml) {
+    return res.status(406).json({ error: "Unsupported formatting type" });
+  }
+
+  try {
+    const orders = await getUserSellerOrders(tokenUserId);
+    res.status(200).json({ orders });
+  } catch {
+    res.status(500).json({
+      error: "Internal Server Error",
+    });
+  }
 }

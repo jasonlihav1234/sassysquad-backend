@@ -8,7 +8,10 @@ import {
   logout,
   logoutAll,
 } from "./application/user_application";
-import { jsonHelper, deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
+import { getAuthenticatedUserId, deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
+import { handleUserRoutes } from "./routes/user_routes";
+import { getOrderById } from "./database/queries/order_queries";
+import { isUserIdValid } from "./database/queries/user_queries";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -48,6 +51,72 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/auth/reset-password" && method === "POST") {
     return await resetPassword(req);
+  }
+
+  // POST /orders/validate
+  if (url === "/orders/validate" && method === "POST") {
+    const contentType =
+      req.headers?.get?.("content-type") || req.headers?.["content-type"];
+
+    if (!contentType || !contentType.includes("application/json")) {
+      return res.status(415).json({
+        error: "UNSUPPORTED_TYPE",
+        message: "This content type is not supported",
+      });
+    }
+
+    let parsedBody = body;
+
+    try {
+      if (!parsedBody && req.json) {
+        parsedBody = await req.json();
+      }
+    } catch (error) {
+      return res.status(400).json({
+        error: "INVALID_INPUT",
+        message: "The request body is not valid",
+      });
+    }
+
+    const { issueDate, buyer, seller, orderLines } = parsedBody || {};
+
+    if (
+    !issueDate ||
+    typeof issueDate !== "string" ||
+    !buyer ||
+    typeof buyer !== "string" ||
+    !seller ||
+    typeof seller !== "string" ||
+    !Array.isArray(orderLines) ||
+    orderLines.length === 0
+    ) {
+      return res.status(422).json({
+        error: "VALIDATION_FAILED",
+        message: "The request body is missing mandatory fields",
+      });
+    }
+
+    for (const line of orderLines) {
+      if (
+        !line ||
+        typeof line !== "object" ||
+        !line.itemID ||
+        typeof line.itemID !== "string" ||
+        typeof line.quantity !== "number" ||
+        line.quantity <= 0 ||
+        typeof line.priceAtPurchase !== "number" ||
+        line.priceAtPurchase < 0
+      ) {
+        return res.status(422).json({
+          error: "VALIDATION_FAILED",
+          message: "The request body is missing mandatory fields",
+        });
+      }
+    }
+    
+    return res.status(200).json({
+      message: "Order payload is valid",
+    });
   }
 
   // POST /orders
@@ -123,21 +192,21 @@ export async function handleRequest(req: any, res: any) {
     const orderId = url.split("/")[1];
 
     if (!orderId) { // TODO: invalid orderid
-      return jsonHelper({ error: "Bad Request" }, 400);
+      return res.status(400).json({ error: "Bad Request" });
     }
 
-    if () { // TODO: invalid access token
-      return jsonHelper({ error: "Unauthorised" }, 401);
+    // if () { // TODO: invalid access token
+    //   return res.status(401).json({ error: "Unauthorised" });
+    // }
+
+    const order = await getOrderById(orderId);
+
+    if (userId !== order.buyerId) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
-    // search order by id
-
-    if () { //
-      return jsonHelper({ error: "Forbidden" }, 403);
-    }
-
-    if () {
-      return jsonHelper({ error: "Not Found" }, 404);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found!" });
     }
 
     const updatedOrder = {
@@ -185,6 +254,10 @@ export async function handleRequest(req: any, res: any) {
 
     const xml = root.end({ prettyPrint: true });
     return res.status(200).send(xml);
+  }
+
+  if (url.startsWith("/users")) {
+    return handleUserRoutes(req, res);
   }
 
   // 404 if no roiutes match
