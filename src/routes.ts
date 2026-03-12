@@ -11,6 +11,7 @@ import {
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
+import { deleteItem } from "./application/item_application";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -74,6 +75,13 @@ export async function handleRequest(req: any, res: any) {
 
     const body = await response.json();
     return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+    const response = await deleteItem(req);
+
+    const body = await response.json();
+    return res.tatus(response.status).json(body);
   }
 
   // POST /orders/validate
