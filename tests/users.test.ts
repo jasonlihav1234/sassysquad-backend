@@ -17,7 +17,7 @@ import { verifyRefreshToken } from "../src/utils/jwt_config";
 import { getMaxListeners } from "node:cluster";
 import { sleep } from "bun";
 
-const generateRequest = (
+export const generateRequest = (
   url: string,
   givenMethod: string,
   givenBody: any,
@@ -33,7 +33,7 @@ const generateRequest = (
   };
 };
 
-const generateAuthenticatedRequest = (
+export const generateAuthenticatedRequest = (
   url: string,
   givenMethod: string,
   givenBody: any,
