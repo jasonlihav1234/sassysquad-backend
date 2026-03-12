@@ -109,22 +109,13 @@ export const getAllItems = authHelper(
 export const updateItem = authHelper(
   async (req: AuthReq): Promise<Response> => {
     try {
-      const itemId = req.url?.split("/").at(2);
+      const itemId = req.url?.split("/").at(2) as string;
       const body = req.body;
-
-      if (!itemId) {
-        return jsonHelper(
-          {
-            message: "No item ID provided",
-          },
-          400,
-        );
-      }
 
       // need to have at least 1 field
       if (Object.keys(body).length < 2) {
         return jsonHelper({
-          message: "No items provided",
+          message: "No item fields to update provided",
         });
       }
 
