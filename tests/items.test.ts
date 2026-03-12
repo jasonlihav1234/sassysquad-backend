@@ -139,6 +139,29 @@ describe("Getting items tests", () => {
     expect(getBody.items).toBe(undefined);
   });
 
+  test("Getting item with invalid item UUID", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `http://localhost/items/${"kjawbdkan"}`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const getResponse = await getItemsById(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(500);
+    expect(getBody.message).toBe("Items fetch failed");
+    expect(getBody.items).toBe(undefined);
+  });
+
   test("Getting item by user ID", async () => {
     const request = generateRequest("http://localhost/auth/login", "POST", {
       email: "jasonli1234@gmail.com",
@@ -182,6 +205,29 @@ describe("Getting items tests", () => {
 
     expect(getResponse.status).toBe(404);
     expect(getBody.message).toBe("No items found");
+    expect(getBody.items).toBe(undefined);
+  });
+
+  test("Getting item with invalid user UUID", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `http://localhost/users/${"alkwndakldnad"}/items`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const getResponse = await getItemByUserId(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(500);
+    expect(getBody.message).toBe("Getting items by user id failed");
     expect(getBody.items).toBe(undefined);
   });
 
