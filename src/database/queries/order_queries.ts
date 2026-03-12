@@ -16,7 +16,7 @@ interface OrderLineUpdate {
  * Fetches an orderID based on its name, make sure to prepend await since these are async functions
  */
 export async function getOrderIdByName(
-  orderName: string
+  orderName: string,
 ): Promise<string | null> {
   const result = await pg`
     SELECT order_id 
@@ -55,7 +55,7 @@ export async function createOrderQuery(
   paymentMethodCode: string,
   destinationCountryCode: string,
   ublXMLContent: string,
-  items: Array<Item>
+  items: Array<Item>,
 ) {
   /**
    * order id - make this
@@ -105,7 +105,7 @@ export async function createOrderQuery(
     await pg.begin(async (sql) => {
       // 2. Sort items by ID to prevent database deadlocks on concurrent orders
       const sortedItems = [...items].sort((a, b) =>
-        a.itemId.localeCompare(b.itemId)
+        a.itemId.localeCompare(b.itemId),
       );
 
       for (const item of sortedItems) {
@@ -170,7 +170,7 @@ export async function createOrderQuery(
         error: error,
         error_msg: "Insertion failed",
       },
-      500
+      500,
     );
   }
 }
@@ -189,7 +189,7 @@ export async function createOrderlineQuery(
   itemId: string,
   quantity: number,
   taxPercentPer: number = 0,
-  priceAtPurchase: number
+  priceAtPurchase: number,
 ) {
   const lineId = crypto.randomUUID();
   // make tax percent total gst
@@ -239,7 +239,7 @@ export async function deleteOrdersById(orderId: string) {
         error: error,
         message: "Order deletion failed",
       },
-      500
+      500,
     );
   }
 }
@@ -263,7 +263,7 @@ export async function updateOrdersById(
   destinationCountryCode: string,
   status: string,
   ublXMLContent: string,
-  items: Array<Item>
+  items: Array<Item>,
 ) {
   try {
     // 1. Start a database transaction
@@ -276,11 +276,11 @@ export async function updateOrdersById(
       `;
 
       const existingQuantityMap = new Map(
-        existingLines.map((line) => [line.item_id, line.quantity])
+        existingLines.map((line) => [line.item_id, line.quantity]),
       );
 
       const sortedItems = [...items].sort((a, b) =>
-        a.itemId.localeCompare(b.itemId)
+        a.itemId.localeCompare(b.itemId),
       );
 
       for (const item of sortedItems) {
@@ -331,7 +331,7 @@ export async function updateOrdersById(
 
       const totalItemCost = items.reduce(
         (sum, item) => sum + item.quantity * item.priceAtPurchase,
-        0
+        0,
       );
 
       const totalTaxCost = totalItemCost / 11;
@@ -389,7 +389,7 @@ export async function updateOrdersById(
         error: error,
         error_msg: "Update failed",
       },
-      500
+      500,
     );
   }
 }
@@ -404,7 +404,7 @@ export async function createItem(
   description: string | null,
   price: number,
   quantity_available: number,
-  image_url: string | null
+  image_url: string | null,
 ) {
   try {
     await pg`
@@ -422,91 +422,7 @@ export async function createItem(
       {
         error: "Order failed to create",
       },
-      500
-    );
-  }
-}
-
-/**
- * Edits an item, make sure to prepend await since these are async functions
- */
-export async function editItem(
-  item_id: string,
-  seller_id: string | null,
-  item_name: string | null,
-  description: string | null,
-  price: number | null,
-  quantity_available: number | null,
-  image_url: string | null
-) {
-  const data = {
-    seller_id,
-    item_name,
-    description,
-    price,
-    quantity_available,
-    image_url,
-  };
-
-  // remove all values that are null
-  const updateData = Object.fromEntries(
-    Object.entries(data).filter(([_, value]) => value !== null)
-  );
-
-  if (Object.keys(updateData).length === 0) {
-    return jsonHelper({
-      message: "No values to update for items",
-    });
-  }
-
-  try {
-    await pg`
-    update items
-    set ${pg(updateData)}
-    where item_id = ${item_id}
-    `;
-
-    return jsonHelper({
-      message: "Item successfully updated",
-    });
-  } catch (error) {
-    return jsonHelper(
-      {
-        error: error,
-        message: "Item update failed",
-      },
-      500
-    );
-  }
-}
-
-/**
- * Deletes an item given an id
- */
-export async function deleteItem(itemId: string) {
-  if (!itemId) {
-    return jsonHelper(
-      {
-        error: "No itemId provided",
-      },
-      400
-    );
-  }
-
-  try {
-    await pg`
-    delete from items
-    where item_id = ${itemId}
-    `;
-
-    return jsonHelper({ message: "Item deleted" });
-  } catch (error) {
-    return jsonHelper(
-      {
-        error: error,
-        message: "Item failed to delete",
-      },
-      500
+      500,
     );
   }
 }
