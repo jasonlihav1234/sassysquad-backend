@@ -78,6 +78,15 @@ export const getAllItems = authHelper(
     try {
       const response = await getAllItemsQuery();
 
+      if (response.length === 0) {
+        return jsonHelper(
+          {
+            message: "No items found",
+          },
+          404,
+        );
+      }
+
       return jsonHelper({
         message: "Items successfully fetched",
         items: response,

@@ -1,4 +1,4 @@
-import { expect, test, describe, spyOn } from "bun:test";
+import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
 import {
   generateUser,
   checkUser,
@@ -50,6 +50,12 @@ export const generateAuthenticatedRequest = (
     json: async () => givenBody,
   };
 };
+
+beforeAll(async () => {
+  await pg`delete from refresh_tokens`;
+  await pg`delete from items`;
+  await pg`delete from users`;
+});
 
 const registerRoute = "http://localhost/auth/register";
 const logoutRoute = "http://localhost/auth/logout";

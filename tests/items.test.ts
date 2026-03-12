@@ -31,6 +31,10 @@ let sellerId2: string | null = null;
 
 beforeAll(async () => {
   // register users
+  await pg`delete from refresh_tokens`;
+  await pg`delete from items`;
+  await pg`delete from users`;
+
   const registerReq = generateRequest(
     "http://localhost/auth/register",
     "POST",
@@ -80,12 +84,14 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // delete all registered users
+  await pg`delete from refresh_tokens`;
   await pg`delete from items`;
   await pg`delete from users`;
 });
 
-describe("Getting items by ID test", () => {
+describe("Getting items tests", () => {
   test("Getting item by item id", async () => {
+    const test = await pg`select * from users`;
     const request = generateRequest("http://localhost/auth/login", "POST", {
       email: "jasonli1234@gmail.com",
       password: "testing123",
@@ -140,7 +146,7 @@ describe("Getting items by ID test", () => {
     });
     const loginReq = await login(request);
     const accessToken = (await loginReq.json()).accessToken;
-    // console.log(sellerId);
+
     const request2 = generateAuthenticatedRequest(
       `http://localhost/users/${sellerId}/items`,
       "GET",
@@ -154,5 +160,75 @@ describe("Getting items by ID test", () => {
     expect(getResponse.status).toBe(200);
     expect(getBody.message).toBe("Items found");
     expect(getBody.items.length).toBe(2);
+  });
+
+  test("Getting non-existing item by user ID", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `http://localhost/users/${crypto.randomUUID()}/items`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const getResponse = await getItemByUserId(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(404);
+    expect(getBody.message).toBe("No items found");
+    expect(getBody.items).toBe(undefined);
+  });
+
+  test("Getting all items that exist", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `http://localhost/items`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const getResponse = await getAllItems(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(200);
+    expect(getBody.message).toBe("Items successfully fetched");
+    expect(getBody.items.length).toBe(3);
+  });
+
+  test("Getting all items, no items exist", async () => {
+    await pg`delete from items`;
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `http://localhost/items`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const getResponse = await getAllItems(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(404);
+    expect(getBody.message).toBe("No items found");
+    expect(getBody.items).toBe(undefined);
   });
 });
