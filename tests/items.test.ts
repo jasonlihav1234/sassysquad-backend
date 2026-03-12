@@ -16,12 +16,18 @@ import { createHash } from "node:crypto";
 import { verifyRefreshToken } from "../src/utils/jwt_config";
 import { getMaxListeners } from "node:cluster";
 import { sleep } from "bun";
-import { getItemsById, getAllItems } from "../src/application/item_application";
+import {
+  getItemsById,
+  getAllItems,
+  getItemByUserId,
+} from "../src/application/item_application";
 import { generateAuthenticatedRequest, generateRequest } from "./users.test";
 
 const itemId1 = "537d8f9c-bd93-484a-b14c-ce1853456a15";
 const itemId2 = "99c1a581-510a-4467-91b5-112b78362f03";
 const itemId3 = "ff44b3f7-0f88-413e-b359-bb6750fb0001";
+let sellerId: string | null = null;
+let sellerId2: string | null = null;
 
 beforeAll(async () => {
   // register users
@@ -47,8 +53,8 @@ beforeAll(async () => {
 
   const userRes = await register(registerReq);
   const userRes2 = await register(registerReq2);
-  const sellerId = (await userRes.json()).user;
-  const sellerId2 = (await userRes2.json()).user;
+  sellerId = (await userRes.json()).user;
+  sellerId2 = (await userRes2.json()).user;
 
   await pg`
   insert into items
@@ -102,5 +108,51 @@ describe("Getting items by ID test", () => {
     expect(getBody.items.length).toBe(1);
     expect(getBody.items[0].item_name).toBe("test_item");
     expect(getBody.items[0].quantity_available).toBe(20);
+  });
+
+  test("Getting item that does not exist", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `http://localhost/items/${crypto.randomUUID()}`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const getResponse = await getItemsById(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(404);
+    expect(getBody.message).toBe("No items found");
+    expect(getBody.items).toBe(undefined);
+  });
+
+  test("Getting item by user ID", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+    // console.log(sellerId);
+    const request2 = generateAuthenticatedRequest(
+      `http://localhost/users/${sellerId}/items`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const getResponse = await getItemByUserId(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(200);
+    expect(getBody.message).toBe("Items found");
+    expect(getBody.items.length).toBe(2);
   });
 });
