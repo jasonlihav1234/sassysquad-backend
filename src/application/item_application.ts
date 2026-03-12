@@ -6,11 +6,10 @@ import {
 } from "../utils/jwt_helpers";
 import { verifyRefreshToken } from "../utils/jwt_config";
 import {
-  getAllItems,
-  getItemByItemId,
-  getItemsUser,
+  getAllItemsQuery,
+  getItemByItemIdQuery,
+  getItemsUserQuery,
 } from "../database/queries/item_queries";
-import { VercelRequest } from "@vercel/node";
 
 // look into responses
 export const getItemsById = authHelper(
@@ -24,9 +23,9 @@ export const getItemsById = authHelper(
 
       if (itemId) {
         // want all items
-        items = await getItemByItemId(itemId);
+        items = await getItemByItemIdQuery(itemId);
       } else {
-        items = await getItemsUser(userId);
+        items = await getItemsUserQuery(userId);
       }
 
       if (items === null || (Array.isArray(items) && items.length === 0)) {
@@ -46,6 +45,27 @@ export const getItemsById = authHelper(
       return jsonHelper(
         {
           message: "Items fetch failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const getAllItems = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const response = await getAllItemsQuery();
+
+      return jsonHelper({
+        message: "Items successfully fetched",
+        items: response,
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Getting all items failed to fetch",
           error: error,
         },
         500,

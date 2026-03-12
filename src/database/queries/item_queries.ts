@@ -24,7 +24,7 @@ export async function getItemIdByName(
 /**
  * Get items given an item ID
  */
-export async function getItemByItemId(itemId: string) {
+export async function getItemByItemIdQuery(itemId: string) {
   const result = await pg`
   select *
   from items
@@ -37,7 +37,7 @@ export async function getItemByItemId(itemId: string) {
 /*
  * Gets all items
  */
-export async function getAllItems() {
+export async function getAllItemsQuery() {
   try {
     const items = await pg`select * from items`;
 
@@ -50,7 +50,7 @@ export async function getAllItems() {
 /*
  * Gets all items given a userId
  */
-export async function getItemsUser(userId: string) {
+export async function getItemsUserQuery(userId: string) {
   try {
     const items = await pg`select * from items where user_id = ${userId}`;
 
