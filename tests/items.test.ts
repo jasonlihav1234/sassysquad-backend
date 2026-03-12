@@ -367,4 +367,31 @@ describe("Update item tests", () => {
     expect(Number(item.quantity_available)).toBe(1000);
     expect(item.image_url).toBe("fake image url");
   });
+
+  test("Item name too long fails test", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/items/${itemId1}`,
+      "PATCH",
+      {
+        itemId: itemId1,
+        itemName:
+          "mocbmlmdnjxrmvkeghfamouvotvnkunpltyoiskwdeocqrrknbgvcnozkfholefrmhjamwnqdekmnunpodpcvuwqbdqpbntwanvvhglrggqdgppekoqmewfdxlqxhzjvidfbzvwpdvvvrahfvwthfdyquvfmpvcebwqjffychklevonvxivsnhjrqmynttnztumdfxhzycuxisledsejhqraysczxubzxnenocctgrlemdmusbwbvojmznhvfyyz",
+      },
+      accessToken,
+    );
+
+    const response = await updateItem(request2);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Update item failed");
+    expect(body.error).not.toBe(undefined);
+  });
 });

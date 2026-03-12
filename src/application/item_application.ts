@@ -146,6 +146,7 @@ export const updateItem = authHelper(
       return jsonHelper(
         {
           message: "Update item failed",
+          error: error,
         },
         500,
       );
