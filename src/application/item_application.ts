@@ -16,7 +16,7 @@ export const getItemsById = authHelper(
   async (req: AuthReq): Promise<Response> => {
     try {
       // should follow /items/{id}, refresh token soould be passed by header
-      const itemId = req.query.item_id as string;
+      const itemId = req.url?.split("/").pop() as string;
       const items = await getItemByItemIdQuery(itemId);
 
       if (items.length === 0) {
