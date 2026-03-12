@@ -111,7 +111,7 @@ export const updateItem = authHelper(
     try {
       const body = req.body;
 
-      if (!body || !body.item_id) {
+      if (!body || !body.itemId) {
         return jsonHelper(
           {
             message: "No item ID provided",
@@ -130,13 +130,17 @@ export const updateItem = authHelper(
       // map each field into null if undefined
       const response = await updateItemQuery(
         body.itemId,
-        body.sellerId ?? null,
         body.itemName ?? null,
         body.description ?? null,
         body.price ?? null,
         body.quantity_available ?? null,
         body.image_url ?? null,
       );
+
+      return jsonHelper({
+        message: "Item/s successfully updated",
+        response: response,
+      });
     } catch (error) {
       return jsonHelper(
         {

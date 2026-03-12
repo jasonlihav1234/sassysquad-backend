@@ -67,7 +67,6 @@ export async function getItemsUserQuery(userId: string) {
  */
 export async function updateItemQuery(
   itemId: string,
-  sellerId: string | null,
   itemName: string | null,
   description: string | null,
   price: number | null,
@@ -78,19 +77,19 @@ export async function updateItemQuery(
     const response = await pg`
     update items
     set
-      seller_id = coalesce(${sellerId}, seller_id),
       item_name = coalesce(${itemName}, item_name),
       description = coalesce(${description}, description),
-      price = coalesce(${price}, price).
+      price = coalesce(${price}, price),
       quantity_available = coalesce(${quantity_available}, quantity_available),
-      image_url = coalesce(${image_url}, image_url)
+      image_url = coalesce(${image_url}, image_url),
       last_updated = ${new Date().toISOString()}
     where id = ${itemId}
     returning *
     `;
 
-    return jsonHelper({ message: "Item updated", response: response });
+    return response;
   } catch (error) {
-    return jsonHelper({ message: "Update failed", error: error }, 500);
+    console.log(error);
+    throw error;
   }
 }
