@@ -171,7 +171,7 @@ describe("Getting items tests", () => {
     const accessToken = (await loginReq.json()).accessToken;
 
     const request2 = generateAuthenticatedRequest(
-      `http://localhost/users/${sellerId}/items`,
+      `/users/${sellerId}/items`,
       "GET",
       {},
       accessToken,
@@ -194,7 +194,7 @@ describe("Getting items tests", () => {
     const accessToken = (await loginReq.json()).accessToken;
 
     const request2 = generateAuthenticatedRequest(
-      `http://localhost/users/${crypto.randomUUID()}/items`,
+      `/users/${crypto.randomUUID()}/items`,
       "GET",
       {},
       accessToken,
