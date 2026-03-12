@@ -16,19 +16,10 @@ export const getItemsById = authHelper(
   async (req: AuthReq): Promise<Response> => {
     try {
       // should follow /items/{id}, refresh token soould be passed by header
-      const itemId = req.query.item_id as string | undefined;
-      const userId = req.user!.subject_claim; // i know req won't be undefined
+      const itemId = req.query.item_id as string;
+      const items = await getItemByItemIdQuery(itemId);
 
-      let items = null;
-
-      if (itemId) {
-        // want all items
-        items = await getItemByItemIdQuery(itemId);
-      } else {
-        items = await getItemsUserQuery(userId);
-      }
-
-      if (items === null || (Array.isArray(items) && items.length === 0)) {
+      if (items.length === 0) {
         return jsonHelper(
           {
             message: "No items found",
@@ -47,6 +38,34 @@ export const getItemsById = authHelper(
           message: "Items fetch failed",
           error: error,
         },
+        500,
+      );
+    }
+  },
+);
+
+export const getItemByUserId = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const userId = req.user!.subject_claim; // I know that req.user won't be undefined
+      const response = await getItemsUserQuery(userId);
+
+      if (response.length === 0) {
+        return jsonHelper(
+          {
+            message: "No items found",
+          },
+          404,
+        );
+      }
+
+      return jsonHelper({
+        message: "Items found",
+        items: response,
+      });
+    } catch (error) {
+      return jsonHelper(
+        { message: "Getting items by user id failed", error: error },
         500,
       );
     }
