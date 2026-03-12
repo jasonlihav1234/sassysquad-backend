@@ -96,16 +96,14 @@ export async function updateItemQuery(
 
 /*
  * Deletes an item given an item id
-*/
-export async function deleteItemFromId(
-  itemId: string
-) {
+ */
+export async function deleteItemFromIdQuery(itemId: string) {
   try {
     const response = await pg`delete from items where item_id = ${itemId}`;
 
     return response;
   } catch (error) {
-    return jsonHelper({ error: error }, 500);
+    console.log(error);
+    throw error;
   }
 }
-

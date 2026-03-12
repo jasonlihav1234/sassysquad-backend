@@ -10,6 +10,7 @@ import {
   getItemByItemIdQuery,
   getItemsUserQuery,
   updateItemQuery,
+  deleteItemFromIdQuery,
 } from "../database/queries/item_queries";
 
 // look into responses
@@ -147,27 +148,24 @@ export const updateItem = authHelper(
 
 // delete item
 export const deleteItem = authHelper(
-  async(req: AuthReq, res: Response): Promise<Response> => {
+  async (req: AuthReq): Promise<Response> => {
     try {
       // need to extract the item id from the param not the body
-      const body = await req.json();
-
-      if (!body.itemId) {
-        return jsonHelper({
-          message: "Item ID missing"
-        }, 400);
-      }
-
-      const response = await deleteItemFromId(body.itemId);
+      const itemId = req.url?.split("/").at(2) as string;
+      const response = await deleteItemFromIdQuery(itemId);
 
       return jsonHelper({
         message: "Item deleted",
-        response: response
+        response: response,
       });
     } catch (error) {
-      return jsonHelper({
-        message: "Deleting item failed"
-      }, 500);
+      return jsonHelper(
+        {
+          message: "Deleting item failed",
+          error: error,
+        },
+        500,
+      );
     }
-  }
+  },
 );
