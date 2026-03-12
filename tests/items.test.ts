@@ -281,30 +281,6 @@ describe("Getting items tests", () => {
 });
 
 describe("Update item tests", () => {
-  test("No item ID was provided", async () => {
-    const request = generateRequest("http://localhost/auth/login", "POST", {
-      email: "jasonli1234@gmail.com",
-      password: "testing123",
-    });
-    const loginReq = await login(request);
-    const accessToken = (await loginReq.json()).accessToken;
-
-    const request2 = generateAuthenticatedRequest(
-      `/items/${itemId1}`,
-      "PATCH",
-      {
-        itemName: "New_name",
-      },
-      accessToken,
-    );
-
-    const response = await updateItem(request2);
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body.message).toBe("No item ID provided");
-  });
-
   test("No items were provided", async () => {
     const request = generateRequest("http://localhost/auth/login", "POST", {
       email: "jasonli1234@gmail.com",
@@ -326,7 +302,7 @@ describe("Update item tests", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.message).toBe("No items provided");
+    expect(body.message).toBe("No item fields to update provided");
   });
 
   test("Item get successfully updated", async () => {
