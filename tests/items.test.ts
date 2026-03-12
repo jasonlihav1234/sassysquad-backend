@@ -217,7 +217,7 @@ describe("Getting items tests", () => {
     const accessToken = (await loginReq.json()).accessToken;
 
     const request2 = generateAuthenticatedRequest(
-      `http://localhost/users/${"alkwndakldnad"}/items`,
+      `/users/${"alkwndakldnad"}/items`,
       "GET",
       {},
       accessToken,
