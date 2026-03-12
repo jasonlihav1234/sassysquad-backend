@@ -1,5 +1,5 @@
-import pg from "../../utils/db";
 import { jsonHelper } from "../../utils/jwt_helpers";
+import pg from "../../utils/db";
 
 /**
  * Fetches an itemID based on its name.
@@ -7,7 +7,7 @@ import { jsonHelper } from "../../utils/jwt_helpers";
 export async function getItemIdByName(
   itemName: string,
 ): Promise<string | null> {
-  const result = await sql`
+  const result = await pg`
     SELECT item_id 
     FROM items 
     WHERE item_name = ${itemName}
@@ -21,41 +21,52 @@ export async function getItemIdByName(
   return result[0].id;
 }
 
+/**
+ * Get items given an item ID
+ */
+export async function getItemByItemIdQuery(itemId: string) {
+  try {
+    const result = await pg`
+    select *
+    from items
+    where item_id = ${itemId}
+    `;
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+}
 
 /*
  * Gets all items
-*/
-export async function getAllItems() {
+ */
+export async function getAllItemsQuery() {
   try {
-    const items = await pg`select * from items`;
-
-    return jsonHelper({ message: "Fetch all items succeeded", payload: items });
+    return await pg`select * from items`;
   } catch (error) {
-    return jsonHelper({ message: "Fetch failed", error: error}, 500);
+    throw error;
   }
 }
 
 /*
  * Gets all items given a userId
-*/
-export async function getItemsUser(
-  userId: string
-) {
+ */
+export async function getItemsUserQuery(userId: string) {
   try {
-    const items = await pg`select * from items where user_id = ${userId}`;
+    const items = await pg`select * from items where seller_id = ${userId}`;
 
-    return jsonHelper({ message: "Fetch items succeeded", payload: items});
+    return items;
   } catch (error) {
-    return jsonHelper({ message: "Fetch failed", error: error}, 500);
+    throw error;
   }
 }
 
 /*
- * Updates an item according to provided inputs 
-*/
+ * Updates an item according to provided inputs
+ */
 export async function updateItemQuery(
   itemId: string,
-  sellerId: string | null,
   itemName: string | null,
   description: string | null,
   price: number | null,
@@ -66,20 +77,20 @@ export async function updateItemQuery(
     const response = await pg`
     update items
     set
-      seller_id = coalesce(${sellerId}, seller_id),
       item_name = coalesce(${itemName}, item_name),
       description = coalesce(${description}, description),
-      price = coalesce(${price}, price).
+      price = coalesce(${price}, price),
       quantity_available = coalesce(${quantity_available}, quantity_available),
-      image_url = coalesce(${image_url}, image_url)
+      image_url = coalesce(${image_url}, image_url),
       last_updated = ${new Date().toISOString()}
-    where id = ${itemId}
+    where item_id = ${itemId}
     returning *
     `;
 
-    return jsonHelper({ message: "Item updated", response : response});
+    return response;
   } catch (error) {
-    return jsonHelper({ message: "Update failed", error: error }, 500);
+    console.log(error);
+    throw error;
   }
 }
 
