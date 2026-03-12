@@ -21,6 +21,7 @@ import {
   getAllItems,
   getItemByUserId,
   updateItem,
+  deleteItem,
 } from "../src/application/item_application";
 import { generateAuthenticatedRequest, generateRequest } from "./users.test";
 
@@ -489,5 +490,115 @@ describe("Update item tests", () => {
     expect(response.status).toBe(500);
     expect(body.message).toBe("Update item failed");
     expect(body.error).not.toBe(undefined);
+  });
+});
+
+describe("Deleting item tests", () => {
+  beforeAll(async () => {
+    // register users
+    await pg`delete from refresh_tokens`;
+    await pg`delete from items`;
+    await pg`delete from users`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+
+    const registerReq2 = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli8909@gmail.com",
+        username: "test2",
+        password: "testing123",
+      },
+    );
+
+    const userRes = await register(registerReq);
+    const userRes2 = await register(registerReq2);
+    sellerId = (await userRes.json()).user;
+    sellerId2 = (await userRes2.json()).user;
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId1}, ${sellerId}, ${"test_item"}, ${9.5}, ${20})
+    `;
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId2}, ${sellerId2}, ${"test_item2"}, ${2.5}, ${10})
+    `;
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId3}, ${sellerId}, ${"test_item3"}, ${10.5}, ${25})
+    `;
+  });
+
+  afterAll(async () => {
+    // delete all registered users
+    await pg`delete from refresh_tokens`;
+    await pg`delete from items`;
+    await pg`delete from users`;
+  });
+
+  test("Entry does not exist", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/items/${"aoiwhndaidhan"}`,
+      "DELETE",
+      {},
+      accessToken,
+    );
+
+    const response = await deleteItem(request2);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Deleting item failed");
+  });
+
+  test("Deleting an item succedded", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/items/${itemId1}`,
+      "DELETE",
+      {},
+      accessToken,
+    );
+
+    const response = await deleteItem(request2);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Item deleted");
+    expect(body.response).not.toBe(undefined);
+
+    const query = await pg`select * from items`;
+    expect(query.length).toBe(2);
   });
 });
