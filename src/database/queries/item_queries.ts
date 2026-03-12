@@ -23,31 +23,44 @@ export async function getItemIdByName(
 }
 
 
+/**
+ * Get items given an item ID
+ */
+export async function getItemByItemIdQuery(itemId: string) {
+  try {
+    const result = await pg`
+    select *
+    from items
+    where item_id = ${itemId}
+    `;
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+}
+
 /*
  * Gets all items
-*/
-export async function getAllItems() {
+ */
+export async function getAllItemsQuery() {
   try {
-    const items = await pg`select * from items`;
-
-    return jsonHelper({ message: "Fetch all items succeeded", payload: items });
+    return await pg`select * from items`;
   } catch (error) {
-    return jsonHelper({ message: "Fetch failed", error: error}, 500);
+    throw error;
   }
 }
 
 /*
  * Gets all items given a userId
-*/
-export async function getItemsUser(
-  userId: string
-) {
+ */
+export async function getItemsUserQuery(userId: string) {
   try {
-    const items = await pg`select * from items where user_id = ${userId}`;
+    const items = await pg`select * from items where seller_id = ${userId}`;
 
-    return jsonHelper({ message: "Fetch items succeeded", payload: items});
+    return items;
   } catch (error) {
-    return jsonHelper({ message: "Fetch failed", error: error}, 500);
+    throw error;
   }
 }
 
