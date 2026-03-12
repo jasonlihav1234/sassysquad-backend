@@ -1,4 +1,4 @@
-import { sql } from "./client";
+import pg from "../utils/db";
 import fs from "node:fs";
 
 async function deploy() {
@@ -10,7 +10,7 @@ async function deploy() {
 
     console.log("Establishing connection...");
 
-    await sql.unsafe(instructions);
+    await pg.unsafe(instructions);
 
     console.log("Database is now ready.");
   } catch (error) {
@@ -21,7 +21,7 @@ async function deploy() {
     }
   } finally {
     console.log("Closing connection");
-    await sql.close();
+    await pg.close();
   }
 }
 

@@ -9,6 +9,9 @@ import {
   logoutAll,
 } from "./application/user_application";
 import { jsonHelper, deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
+import { handleUserRoutes } from "./routes/user_routes";
+import { getOrderById, deleteOrdersById } from "./database/queries/order_queries";
+import { handleHealthRoutes } from "./routes/health_routes";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -19,35 +22,125 @@ export async function handleRequest(req: any, res: any) {
     });
   }
   if (url === "/auth/register" && method === "POST") {
-    return await register(req);
+    const response = await register(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/login" && method === "POST") {
-    return await login(req);
+    const response = await login(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/refresh" && method === "POST") {
-    return await refresh(req);
+    const response = await refresh(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/clean-tokens" && method === "GET") {
-    return await deleteExpiredRefreshTokens();
+    await deleteExpiredRefreshTokens();
+    return res.status(200).json({
+      message: "Deleted refresh tokens",
+    });
   }
 
   if (url === "/auth/logout" && method === "POST") {
-    return await logout(req);
+    const response = await logout(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/logout-all" && method === "POST") {
-    return await logoutAll(req);
+    const response = await logoutAll(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/forgot-password" && method === "POST") {
-    return await forgotPassword(req);
+    const response = await forgotPassword(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/reset-password" && method === "POST") {
-    return await resetPassword(req);
+    const response = await resetPassword(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  // POST /orders/validate
+  if (url === "/orders/validate" && method === "POST") {
+    const contentType =
+      req.headers?.get?.("content-type") || req.headers?.["content-type"];
+
+    if (!contentType || !contentType.includes("application/json")) {
+      return res.status(415).json({
+        error: "UNSUPPORTED_TYPE",
+        message: "This content type is not supported",
+      });
+    }
+
+    let parsedBody = body;
+
+    try {
+      if (!parsedBody && req.json) {
+        parsedBody = await req.json();
+      }
+    } catch (error) {
+      return res.status(400).json({
+        error: "INVALID_INPUT",
+        message: "The request body is not valid",
+      });
+    }
+
+    const { issueDate, buyer, seller, orderLines } = parsedBody || {};
+
+    if (
+      !issueDate ||
+      typeof issueDate !== "string" ||
+      !buyer ||
+      typeof buyer !== "string" ||
+      !seller ||
+      typeof seller !== "string" ||
+      !Array.isArray(orderLines) ||
+      orderLines.length === 0
+    ) {
+      return res.status(422).json({
+        error: "VALIDATION_FAILED",
+        message: "The request body is missing mandatory fields",
+      });
+    }
+
+    for (const line of orderLines) {
+      if (
+        !line ||
+        typeof line !== "object" ||
+        !line.itemID ||
+        typeof line.itemID !== "string" ||
+        typeof line.quantity !== "number" ||
+        line.quantity <= 0 ||
+        typeof line.priceAtPurchase !== "number" ||
+        line.priceAtPurchase < 0
+      ) {
+        return res.status(422).json({
+          error: "VALIDATION_FAILED",
+          message: "The request body is missing mandatory fields",
+        });
+      }
+    }
+
+    return res.status(200).json({
+      message: "Order payload is valid",
+    });
   }
 
   // POST /orders
@@ -113,8 +206,7 @@ export async function handleRequest(req: any, res: any) {
 
     const xml = root.end({ prettyPrint: true });
 
-    res.setHeader("Content-Type", "application/xml");
-    return res.status(201).send(xml);
+    return res.status(201);
   }
   
   // DELETE /orders/{id}
@@ -122,23 +214,32 @@ export async function handleRequest(req: any, res: any) {
     const { userId, orderLines } = body || {};
     const orderId = url.split("/")[1];
 
-    if (!orderId) { // TODO: invalid orderid
-      return jsonHelper({ error: "Bad Request" }, 400);
+    if (!orderId) {
+      return res.status(400).json({ error: "Bad Request" });
     }
 
-    // Lookup?
+    const order = await getOrderById(orderId);
 
-    if (userId != order.userId) {
-      return jsonHelper({ error: "Forbidden" }, 403);
+    if (userId !== order.buyerId) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
     if (!order) {
-      return jsonHelper({ error: "Not Found" }, 404);
+      return res.status(404).json({ error: "Order not found!" });
     }
 
-    // delete?
+    deleteOrdersById(orderId);
     
-    return res.status(204).send(xml);
+    const xml = root.end({ prettyPrint: true });
+    return res.status(200).send(xml);
+  }
+
+  if (url.startsWith("/users")) {
+    return handleUserRoutes(req, res);
+  }
+
+  if (url.startsWith("/health")) {
+    return handleHealthRoutes(req, res);
   }
 
   // 404 if no roiutes match
