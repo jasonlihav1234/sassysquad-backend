@@ -7,6 +7,7 @@ import { jsonHelper } from "../../utils/jwt_helpers";
 export async function getItemIdByName(
   itemName: string,
 ): Promise<string | null> {
+  // add try catch here and throw
   const result = await pg`
     SELECT item_id 
     FROM items 
@@ -25,13 +26,17 @@ export async function getItemIdByName(
  * Get items given an item ID
  */
 export async function getItemByItemIdQuery(itemId: string) {
-  const result = await pg`
-  select *
-  from items
-  where item_id = ${itemId}
-  `;
+  try {
+    const result = await pg`
+    select *
+    from items
+    where item_id = ${itemId}
+    `;
 
-  return result;
+    return result;
+  } catch (error) {
+    throw error;
+  }
 }
 
 /*
@@ -39,11 +44,9 @@ export async function getItemByItemIdQuery(itemId: string) {
  */
 export async function getAllItemsQuery() {
   try {
-    const items = await pg`select * from items`;
-
-    return jsonHelper({ message: "Fetch all items succeeded", payload: items });
+    return await pg`select * from items`;
   } catch (error) {
-    return jsonHelper({ message: "Fetch failed", error: error }, 500);
+    throw error;
   }
 }
 
@@ -54,8 +57,8 @@ export async function getItemsUserQuery(userId: string) {
   try {
     const items = await pg`select * from items where user_id = ${userId}`;
 
-    return jsonHelper({ message: "Fetch items succeeded", payload: items });
+    return items;
   } catch (error) {
-    return jsonHelper({ message: "Fetch failed", error: error }, 500);
+    throw error;
   }
 }
