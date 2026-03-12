@@ -11,7 +11,7 @@ import {
 import { getAuthenticatedUserId, deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
 import { getOrderById } from "./database/queries/order_queries";
-import { isUserIdValid } from "./database/queries/user_queries";
+import { handleHealthRoutes } from "./routes/health_routes";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -22,35 +22,59 @@ export async function handleRequest(req: any, res: any) {
     });
   }
   if (url === "/auth/register" && method === "POST") {
-    return await register(req);
+    const response = await register(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/login" && method === "POST") {
-    return await login(req);
+    const response = await login(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/refresh" && method === "POST") {
-    return await refresh(req);
+    const response = await refresh(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/clean-tokens" && method === "GET") {
-    return await deleteExpiredRefreshTokens();
+    await deleteExpiredRefreshTokens();
+    return res.status(200).json({
+      message: "Deleted refresh tokens",
+    });
   }
 
   if (url === "/auth/logout" && method === "POST") {
-    return await logout(req);
+    const response = await logout(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/logout-all" && method === "POST") {
-    return await logoutAll(req);
+    const response = await logoutAll(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/forgot-password" && method === "POST") {
-    return await forgotPassword(req);
+    const response = await forgotPassword(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/auth/reset-password" && method === "POST") {
-    return await resetPassword(req);
+    const response = await resetPassword(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   // POST /orders/validate
@@ -81,14 +105,14 @@ export async function handleRequest(req: any, res: any) {
     const { issueDate, buyer, seller, orderLines } = parsedBody || {};
 
     if (
-    !issueDate ||
-    typeof issueDate !== "string" ||
-    !buyer ||
-    typeof buyer !== "string" ||
-    !seller ||
-    typeof seller !== "string" ||
-    !Array.isArray(orderLines) ||
-    orderLines.length === 0
+      !issueDate ||
+      typeof issueDate !== "string" ||
+      !buyer ||
+      typeof buyer !== "string" ||
+      !seller ||
+      typeof seller !== "string" ||
+      !Array.isArray(orderLines) ||
+      orderLines.length === 0
     ) {
       return res.status(422).json({
         error: "VALIDATION_FAILED",
@@ -113,7 +137,7 @@ export async function handleRequest(req: any, res: any) {
         });
       }
     }
-    
+
     return res.status(200).json({
       message: "Order payload is valid",
     });
@@ -258,6 +282,10 @@ export async function handleRequest(req: any, res: any) {
 
   if (url.startsWith("/users")) {
     return handleUserRoutes(req, res);
+  }
+
+  if (url.startsWith("/health")) {
+    return handleHealthRoutes(req, res);
   }
 
   // 404 if no roiutes match

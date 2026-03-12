@@ -21,14 +21,16 @@ const generateRequest = (
   url: string,
   givenMethod: string,
   givenBody: any,
-): Request => {
-  return new Request(`${url}`, {
+): any => {
+  return {
+    url: url,
     method: givenMethod,
     headers: {
-      "Content-type": "application/json",
+      "content-type": "application/json",
     },
-    body: JSON.stringify(givenBody),
-  });
+    body: givenBody,
+    json: async () => givenBody,
+  };
 };
 
 const generateAuthenticatedRequest = (
@@ -36,15 +38,17 @@ const generateAuthenticatedRequest = (
   givenMethod: string,
   givenBody: any,
   token: any,
-): Request => {
-  return new Request(`${url}`, {
+): any => {
+  return {
+    url: url,
     method: givenMethod,
     headers: {
-      "Content-type": "application/json",
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(givenBody),
-  });
+    body: givenBody,
+    json: async () => givenBody,
+  };
 };
 
 const registerRoute = "http://localhost/auth/register";
@@ -169,12 +173,9 @@ describe("Login User", () => {
   });
 
   test("User does not exist", async () => {
-    const request = new Request(loginRoute, {
-      method: "POST",
-      body: JSON.stringify({
-        email: "testing@gmail.com",
-        password: "abc1234",
-      }),
+    const request = generateRequest(loginRoute, "POST", {
+      email: "testing@gmail.com",
+      password: "abc1234",
     });
 
     const response = await login(request);
@@ -381,7 +382,6 @@ describe("Refresh token test", () => {
     }
   });
 });
-
 
 describe("Forgot password test", () => {
   beforeEach(async () => {

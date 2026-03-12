@@ -25,7 +25,7 @@ import {
   getUserSellerOrders,
   isUserIdValid,
 } from "../database/queries/user_queries";
-import { json } from "stream/consumers";
+import { VercelRequest } from "@vercel/node";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -51,7 +51,7 @@ const SALT_ROUNDS = 10;
 export async function generateUser(
   email: string,
   username: string,
-  password: string
+  password: string,
 ): Promise<UserDetails> {
   const query = await pg`select * from users where email = ${email}`;
 
@@ -70,8 +70,8 @@ export async function generateUser(
 
   await pg`insert into users (user_id, user_name, email, password_hash, created_at) 
             values (${newUser.id}, ${username}, ${newUser.email}, ${
-    newUser.password
-  }, ${newUser.createdAt.toISOString()})`;
+              newUser.password
+            }, ${newUser.createdAt.toISOString()})`;
 
   return newUser;
 }
@@ -79,7 +79,7 @@ export async function generateUser(
 // checks if password is correct
 export async function checkUser(
   email: string,
-  password: string
+  password: string,
 ): Promise<UserDetails | null> {
   const query = await pg`select * from users where email = ${email}`;
 
@@ -108,9 +108,10 @@ export async function checkUser(
 }
 
 // expecting email and password passed in
-export async function register(request: Request) {
+export async function register(request: VercelRequest) {
   try {
-    const body = await request.json();
+    // console.log(request);
+    const body = request.body;
     const email = body.email;
     const password = body.password;
     const username = body.username;
@@ -118,14 +119,14 @@ export async function register(request: Request) {
     if (!email || !password || !username) {
       return jsonHelper(
         { error: "Email, password, and username required" },
-        400
+        400,
       );
     }
 
     if (password.length < 7) {
       return jsonHelper(
         { error: "Password must be at least 7 characters long" },
-        400
+        400,
       );
     }
 
@@ -137,13 +138,18 @@ export async function register(request: Request) {
       return jsonHelper({ error: "User with this email already exists" }, 409);
     }
 
-    return jsonHelper({ error: "Error occurred during registration" }, 500);
+    // console.log(error);
+
+    return jsonHelper(
+      { error: "Error occurred during registration", errorLog: error },
+      500,
+    );
   }
 }
 
-export async function login(request: Request) {
+export async function login(request: VercelRequest) {
   try {
-    const body = await request.json();
+    const body = request.body;
     const email = body.email;
     const password = body.password;
 
@@ -161,7 +167,7 @@ export async function login(request: Request) {
     const accessToken = await createAccessToken(user.id, user.email);
     const refreshToken = await createRefreshToken(user.id, user.email);
     const sessionId = crypto.randomUUID();
-    const device = request.headers.get("User-Agent") || "null";
+    const device = request.headers?.["user-agent"] || "null";
     await storeRefreshToken(user.id, sessionId, device, refreshToken.tokenId);
     // setting expiration to 10 minutes = 600 seconds
     return jsonHelper({
@@ -176,9 +182,9 @@ export async function login(request: Request) {
   }
 }
 
-export async function refresh(request: Request) {
+export async function refresh(request: VercelRequest) {
   try {
-    const body = await request.json();
+    const body = request.body;
     const refreshToken = body.refreshToken;
     const newTokenId = crypto.randomUUID();
 
@@ -188,7 +194,7 @@ export async function refresh(request: Request) {
 
     const verifiedRefreshToken = await verifyRefreshToken(refreshToken);
     const storedRefreshToken = await getRefreshToken(
-      verifiedRefreshToken.jwt_id as string
+      verifiedRefreshToken.jwt_id as string,
     );
 
     if (!storedRefreshToken) {
@@ -207,18 +213,18 @@ export async function refresh(request: Request) {
     // generate new pair
     const newAccessToken = await createAccessToken(
       verifiedRefreshToken.subject_claim,
-      verifiedRefreshToken.email
+      verifiedRefreshToken.email,
     );
 
     const newRefreshToken = await createRefreshToken(
       verifiedRefreshToken.subject_claim,
-      verifiedRefreshToken.email
+      verifiedRefreshToken.email,
     );
     await storeRefreshToken(
       verifiedRefreshToken.subject_claim,
       storedRefreshToken.session_id,
       storedRefreshToken.device_info,
-      newRefreshToken.tokenId
+      newRefreshToken.tokenId,
     );
 
     return jsonHelper({
@@ -232,7 +238,7 @@ export async function refresh(request: Request) {
       {
         error: "Refresh token is invalid",
       },
-      401
+      401,
     );
   }
 }
@@ -240,7 +246,7 @@ export async function refresh(request: Request) {
 export const logout = authHelper(
   async (request: AuthReq): Promise<Response> => {
     try {
-      const body = await request.json();
+      const body = request.body;
       const refreshToken = body.refreshToken;
 
       if (refreshToken) {
@@ -253,7 +259,7 @@ export const logout = authHelper(
       // we return the same message here to prevent attackers from knowing which tokens are valid
       return jsonHelper({ message: "User has been logged out" });
     }
-  }
+  },
 );
 
 export const logoutAll = authHelper(async (req: AuthReq): Promise<Response> => {
@@ -269,7 +275,7 @@ export async function forgotPassword(request: Request) {
       {
         error: "Email not provided",
       },
-      400
+      400,
     );
   }
 
@@ -283,7 +289,7 @@ export async function forgotPassword(request: Request) {
       {
         error: "User does not exist",
       },
-      404
+      404,
     );
   }
 
@@ -296,7 +302,7 @@ export async function forgotPassword(request: Request) {
   });
   const imagePath = path.join(
     import.meta.dirname,
-    "../utils/pictures/office_pic.jpg"
+    "../utils/pictures/office_pic.jpg",
   );
 
   const resetPasswordToken = crypto.randomUUID();
@@ -352,8 +358,8 @@ export async function forgotPassword(request: Request) {
   }
 }
 
-export async function resetPassword(request: Request) {
-  const body = await request.json();
+export async function resetPassword(request: VercelRequest) {
+  const body = request.body;
   const email = body.email;
   const token = body.token;
   const password = body.password;
@@ -375,7 +381,7 @@ export async function resetPassword(request: Request) {
       {
         error: "Token expired or is invalid",
       },
-      404
+      404,
     );
   }
 
@@ -446,7 +452,7 @@ export async function getUserSales(req: any, res: any) {
   const pathname = req.url?.split("?")[0] ?? "";
   const components = pathname.split("/").filter(Boolean);
 
-  // Defensive check if application function is called from elsewhere in code 
+  // Defensive check if application function is called from elsewhere in code
   // other than route handler
   if (
     components.length !== 3 ||
