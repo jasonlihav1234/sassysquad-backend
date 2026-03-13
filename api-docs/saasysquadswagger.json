@@ -259,43 +259,43 @@
           "200": {
             "description": "Refresh token successfully exchanged",
             "schema": {
-              "200": {
-                "type": "object",
-                "properties": {
-                  "code": {
-                    "type": "integer",
-                    "format": "int32"
-                  },
-                  "accessToken": {
-                    "type": "string"
-                  },
-                  "refreshToken": {
-                    "type": "string"
-                  },
-                  "tokenType": {
-                    "type": "string"
-                  },
-                  "expiresIn": {
-                    "type": "integer",
-                    "format": "int32"
-                  }
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "accessToken": {
+                  "type": "string"
+                },
+                "refreshToken": {
+                  "type": "string"
+                },
+                "tokenType": {
+                  "type": "string"
+                },
+                "expiresIn": {
+                  "type": "integer",
+                  "format": "int32"
                 }
-              },
-              "400": {
-                "type": "object",
-                "properties": {
-                  "error": {
-                    "type": "string"
-                  }
-                }
-              },
-              "401": {
-                "type": "object",
-                "properties": {
-                  "error": {
-                    "type": "string"
-                  }
-                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refresh token was not provided",
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string"
+              }
+            }
+          },
+          "401": {
+            "description": "Refresh token does not exist, or token has been revoked, or token is invalid",
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string"
               }
             }
           }
