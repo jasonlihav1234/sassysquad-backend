@@ -10,6 +10,7 @@ import {
   getItemByItemIdQuery,
   getItemsUserQuery,
   updateItemQuery,
+  deleteItemFromIdQuery,
 } from "../database/queries/item_queries";
 import { updateProfileQuery } from "../database/queries/user_queries";
 
@@ -138,6 +139,30 @@ export const updateItem = authHelper(
       return jsonHelper(
         {
           message: "Update item failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+// delete item
+export const deleteItem = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      // need to extract the item id from the param not the body
+      const itemId = req.url?.split("/").at(2) as string;
+      const response = await deleteItemFromIdQuery(itemId);
+
+      return jsonHelper({
+        message: "Item deleted",
+        response: response,
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Deleting item failed",
           error: error,
         },
         500,

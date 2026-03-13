@@ -94,3 +94,17 @@ export async function updateItemQuery(
     throw error;
   }
 }
+
+/*
+ * Deletes an item given an item id
+ */
+export async function deleteItemFromIdQuery(itemId: string) {
+  try {
+    const response = await pg`delete from items where item_id = ${itemId}`;
+
+    return response;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
