@@ -1,7 +1,9 @@
 import Stripe from "stripe";
 import { VercelRequest } from "@vercel/node";
-import { jsonHelper } from "../utils/jwt_helpers";
+import { authHelper, jsonHelper } from "../utils/jwt_helpers";
 import { url } from "node:inspector";
+import pg, { redis } from "../utils/db";
+import { AuthReq } from "../utils/jwt_helpers";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -21,27 +23,68 @@ async function fulfillCheckout(sessionId: string) {
   }
 }
 
-export async function createCheckoutSession(req: VercelRequest) {
-  const session = await stripe.checkout.sessions.create({
-    ui_mode: "embedded",
-    customer_email: "...",
-    submit_type: "pay",
-    billing_address_collection: "auto",
-    shipping_address_collection: {
-      allowed_countries: ["AU"],
-    },
-    line_items: [
-      // need some way to pass in the line items here
-    ],
-    mode: "payment",
-    return_url: `http://https://sassysquad-backend.vercel.app/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
-    automatic_tax: { enabled: true },
-  });
+export const createCheckoutSession = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const userId = req.user?.subject_claim;
+    const key = `cart:${userId}`;
 
-  return jsonHelper({
-    clientSecret: session.client_secret,
-  });
-}
+    // get the cart from the redis cache, need to save quantity and get info about item
+    const itemIds = await redis.hkeys(key);
+
+    if (itemIds.length === 0) {
+      return jsonHelper({
+        message: "Cart is empty",
+      });
+    }
+
+    const getItems = await pg`select * from items where item_id in ${itemIds}`;
+
+    if (getItems.length === 0) {
+      return jsonHelper({
+        message: "No items found",
+      });
+    }
+
+    const lineItems = [];
+    for (const item of getItems) {
+      const getQuantity = await redis.hget(key, item.item_id);
+
+      const newObject = {
+        price_data: {
+          currency: "aud",
+          product_data: {
+            name: item.item_name,
+            images: [item.image_url],
+            tax_code: "txcd_99999999",
+            description: item.description,
+          },
+          unit_amount: Number(item.price) * 100,
+        },
+        quantity: Number(getQuantity),
+      };
+
+      lineItems.push(newObject);
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      ui_mode: "embedded",
+      customer_email: "...",
+      submit_type: "pay",
+      billing_address_collection: "auto",
+      shipping_address_collection: {
+        allowed_countries: ["AU"],
+      },
+      line_items: lineItems,
+      mode: "payment",
+      return_url: `http://https://sassysquad-backend.vercel.app/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
+      automatic_tax: { enabled: true },
+    });
+
+    return jsonHelper({
+      clientSecret: session.client_secret,
+    });
+  },
+);
 
 export async function checkCheckoutSessionStatus(req: VercelRequest) {
   const queryId = req.query.session_id;
