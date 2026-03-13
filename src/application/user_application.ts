@@ -267,8 +267,8 @@ export const logoutAll = authHelper(async (req: AuthReq): Promise<Response> => {
 
   return jsonHelper({ message: "All sessions logged out" });
 });
-export async function forgotPassword(request: Request) {
-  const body = await request.json();
+export async function forgotPassword(request: VercelRequest) {
+  const body = await request.body;
 
   if (!body.email) {
     return jsonHelper(
