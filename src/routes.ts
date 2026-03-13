@@ -15,6 +15,7 @@ import {
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
+import { updateItem } from "./application/item_application";
 import { addItemToCart } from "./application/order_application";
 import {
   getAllItems,
@@ -82,6 +83,13 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/auth/reset-password" && method === "POST") {
     const response = await resetPassword(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
+    const response = await updateItem(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
