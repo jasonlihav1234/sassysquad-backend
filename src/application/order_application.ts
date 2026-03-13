@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { VercelRequest } from "@vercel/node";
 import { jsonHelper } from "../utils/jwt_helpers";
+import { url } from "node:inspector";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -19,7 +20,7 @@ async function fulfillCheckout(sessionId: string) {
   }
 }
 
-async function createCheckoutSession(req: VercelRequest) {
+export async function createCheckoutSession(req: VercelRequest) {
   const session = await stripe.checkout.sessions.create({
     ui_mode: "embedded",
     customer_email: "...",
@@ -38,5 +39,26 @@ async function createCheckoutSession(req: VercelRequest) {
 
   return jsonHelper({
     clientSecret: session.client_secret,
+  });
+}
+
+export async function checkCheckoutSessionStatus(req: VercelRequest) {
+  const queryId = req.query.session_id;
+  const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
+
+  if (!sessionId) {
+    return jsonHelper(
+      {
+        message: "Session cannot be found",
+      },
+      404,
+    );
+  }
+
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+  return jsonHelper({
+    status: session.status,
+    customer_email: session.customer_details?.email ?? "No email provided",
   });
 }
