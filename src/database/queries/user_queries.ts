@@ -132,3 +132,25 @@ export async function updateProfileQuery(
     );
   }
 }
+
+export async function getUserById(userId: string) {
+  try {
+    const response = await pg`select * from users where user_id = ${userId}`;
+
+    return response;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
+export async function removeUserById(userId: string) {
+  try {
+    const response = await pg`delete from users where user_id = ${userId}`;
+
+    return response;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}

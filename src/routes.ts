@@ -8,6 +8,9 @@ import {
   logout,
   logoutAll,
   getUserSessions,
+  getUserDetailsById,
+  getMyProfileDetails,
+  deleteUser,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
@@ -247,6 +250,27 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/auth/sessions" && method === "GET") {
     const response = await getUserSessions(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "GET") {
+    const response = await getUserDetailsById(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/profile" && method === "GET") {
+    const response = await getMyProfileDetails(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+    const response = await deleteUser(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
