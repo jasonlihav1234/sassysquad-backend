@@ -41,7 +41,7 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-  if (url === "/auth/clean-tokens" && method === "GET") {
+  if (url === "/auth/clean-tokens" && method === "DELETE") {
     await deleteExpiredRefreshTokens();
     return res.status(200).json({
       message: "Deleted refresh tokens",

@@ -543,6 +543,33 @@
           }
         }
       }
+    },
+    "/auth/clean-tokens": {
+      "delete": {
+        "tags": ["user"],
+        "summary": "Deletes expired refresh tokens stored in the database",
+        "description": "",
+        "operationId": "clean-tokens",
+        "produces": ["application/json"],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Deleted any expired tokens",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
