@@ -11,7 +11,10 @@ import {
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
-import { addItemToCart } from "./application/order_application";
+import {
+  addItemToCart,
+  deleteItemFromCart,
+} from "./application/order_application";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -79,6 +82,16 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/cart/items" && method === "POST") {
     const response = await addItemToCart(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (
+    (url === "/cart" || url.match(/^\/cart\/items\/[a-zA-Z0-9_-]+$/)) &&
+    method === "DELETE"
+  ) {
+    const response = await deleteItemFromCart(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
