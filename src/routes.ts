@@ -183,7 +183,7 @@ export async function handleRequest(req: any, res: any) {
       },
 
       "cac:OrderLine": newOrder.orderLines.map((line, index) => ({
-        "cbc:ID": String(index + 1),
+        "cbc:ID": crypto.randomUUID(),
         "cbc:Quantity": String(line.quantity),
         "cac:Item": {
           "cbc:Name": line.itemName || "Unknown Item",
