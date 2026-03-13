@@ -62,3 +62,61 @@ export async function checkCheckoutSessionStatus(req: VercelRequest) {
     customer_email: session.customer_details?.email ?? "No email provided",
   });
 }
+
+export async function serverWebhook(req: VercelRequest) {
+  const body = req.body;
+  const signature = req.headers["stripe-signature"];
+
+  if (!body) {
+    return jsonHelper(
+      {
+        error: "No body provided",
+      },
+      400,
+    );
+  } else if (!signature) {
+    return jsonHelper(
+      {
+        error: "No signature provided",
+      },
+      400,
+    );
+  }
+
+  let event = null;
+
+  try {
+    event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
+  } catch (error) {
+    return jsonHelper(
+      {
+        message: "Webhook error",
+        error: error,
+      },
+      400,
+    );
+  }
+
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded"
+  ) {
+    try {
+      await fulfillCheckout(event.data.object.id);
+
+      return jsonHelper({
+        message: "Checkout successfully fulfilled",
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Checkout failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  }
+
+  return jsonHelper({ error: "Event type invalid" }, 400);
+}
