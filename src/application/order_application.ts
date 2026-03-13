@@ -107,3 +107,43 @@ export const deleteItemFromCart = authHelper(
     }
   },
 );
+
+// in a cart you can only change the quantity of an item
+export const updateCartItem = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const itemId = req.url?.split("/").at(3) as string;
+    const userId = req.user?.subject_claim;
+    const body = req.body;
+
+    // body will have updated fields
+    if (body.length === 0) {
+      return jsonHelper(
+        {
+          message: "Quantity not provided to update cart items",
+        },
+        400,
+      );
+    }
+
+    try {
+      const quantity = body.quantity;
+      const key = `cart:${userId}`;
+      await redis.hset(`cart:${userId}`, itemId, quantity);
+      await redis.expire(key, 86400);
+
+      return jsonHelper({
+        message: "Item successfully updated",
+      });
+    } catch (error) {
+      console.log(error);
+
+      return jsonHelper(
+        {
+          message: "Item failed to update",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);

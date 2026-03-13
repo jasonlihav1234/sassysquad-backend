@@ -14,6 +14,7 @@ import { handleHealthRoutes } from "./routes/health_routes";
 import {
   addItemToCart,
   deleteItemFromCart,
+  updateCartItem,
 } from "./application/order_application";
 
 export async function handleRequest(req: any, res: any) {
@@ -92,6 +93,13 @@ export async function handleRequest(req: any, res: any) {
     method === "DELETE"
   ) {
     const response = await deleteItemFromCart(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/cart\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
+    const response = await updateCartItem(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
