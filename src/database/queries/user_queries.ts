@@ -1,5 +1,13 @@
 import pg from "../../utils/db";
 import type { Order } from "../../types/order";
+import { jsonHelper } from "../../utils/jwt_helpers";
+import bcrypt from "bcrypt";
+
+interface UpdateUserPayload {
+  user_name?: string | null;
+  email?: string | null;
+  password?: string;
+}
 
 /**
  * Fetches an userID based on its name.
@@ -62,4 +70,87 @@ export async function isUserIdValid(userId: string): Promise<boolean> {
   `;
 
   return row.length > 0;
+}
+
+export async function updateProfileQuery(
+  user_id: string,
+  update: UpdateUserPayload,
+) {
+  try {
+    const [existingUser] = await pg`
+      select * from users where user_id = ${user_id}
+    `;
+
+    if (!existingUser) {
+      return jsonHelper({ error: "User not found" }, 404);
+    }
+
+    const desiredState: Record<string, any> = {
+      user_name: update.user_name,
+      email: update.email,
+    };
+
+    if (update.password) {
+      const saltRounds = 10;
+
+      desiredState.password_hash = await bcrypt.hash(
+        update.password,
+        saltRounds,
+      );
+    }
+
+    const updatesToApply: Record<string, any> = {};
+
+    for (const [column, newValue] of Object.entries(desiredState)) {
+      if (newValue === undefined) {
+        continue;
+      }
+
+      if (existingUser[column] !== newValue) {
+        updatesToApply[column] = newValue;
+      }
+    }
+
+    if (Object.keys(updatesToApply).length > 0) {
+      await pg`
+        update users
+        set ${pg(updatesToApply)}
+        where user_id = ${user_id}
+      `;
+    }
+
+    return jsonHelper({
+      message: "Profile updated successfully",
+    });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: error,
+        message: "Failed to update profile",
+      },
+      500,
+    );
+  }
+}
+
+export async function getUserById(userId: string) {
+  try {
+    const response = await pg`select * from users where user_id = ${userId}`;
+
+    return response;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
+export async function removeUserById(userId: string) {
+  try {
+    const response = await pg`delete from users where user_id = ${userId}`;
+
+    return response;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
 }

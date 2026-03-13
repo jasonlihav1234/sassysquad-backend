@@ -12,6 +12,22 @@ interface OrderLineUpdate {
   quantity: number;
 }
 
+interface OrderUpdatePayload {
+  orderName?: string | null;
+  buyerId?: string | null;
+  sellerId?: string | null;
+  documentCurrencyCode?: string | null;
+  pricingCurrencyCode?: string | null;
+  taxCurrencyCode?: string | null;
+  requestedInvoiceCurrencyCode?: string | null;
+  accountingCost?: number;
+  paymentMethodCode?: string;
+  destinationCountryCode?: string | null;
+  status?: string;
+  ublXMLContent?: string | null;
+  items?: Array<Item>;
+}
+
 /**
  * Fetches an orderID based on its name, make sure to prepend await since these are async functions
  */
@@ -248,132 +264,162 @@ export async function deleteOrdersById(orderId: string) {
  * Updating an order, make sure to prepend await since these are async functions, think about deleting an item - it can't be done if there are open orders for it
  * for the items - have to always provide every item in an order, even if you are not adding or removing an item
  * please provide the previous values of the order if they are not changed
+ *
+ * Use like this: await updateOrdersById(orderId, { ... - this would be any field you want to be changed in the interface})
  */
 export async function updateOrdersById(
   orderId: string,
-  orderName: string,
-  buyerId: string,
-  sellerId: string,
-  documentCurrencyCode: string,
-  pricingCurrencyCode: string,
-  taxCurrencyCode: string,
-  requestedInvoiceCurrencyCode: string,
-  accountingCost: number,
-  paymentMethodCode: string,
-  destinationCountryCode: string,
-  status: string,
-  ublXMLContent: string,
-  items: Array<Item>,
+  updates: OrderUpdatePayload,
 ) {
   try {
-    // 1. Start a database transaction
     return await pg.begin(async (sql) => {
-      // 2. Fetch the current quantities for this order to calculate the difference
-      const existingLines = await pg<OrderLineUpdate[]>`
-        select item_id, quantity 
-        from order_lines 
-        where order_id = ${orderId}
+      const [existingOrder] = await sql`
+        select * from orders where order_id = ${orderId}
       `;
 
-      const existingQuantityMap = new Map(
-        existingLines.map((line) => [line.item_id, line.quantity]),
-      );
+      if (!existingOrder) {
+        throw new Error("Order not found");
+      }
 
-      const sortedItems = [...items].sort((a, b) =>
-        a.itemId.localeCompare(b.itemId),
-      );
+      let currentTotalItemCost =
+        Number(existingOrder.total_order_item_cost) || 0;
 
-      for (const item of sortedItems) {
-        const oldQuantity = existingQuantityMap.get(item.itemId) || 0;
-        const difference = item.quantity - oldQuantity;
+      if (updates.items) {
+        const existingLines = await sql<OrderLineUpdate[]>`
+          select item_id, quantity 
+          from order_lines 
+          where order_id = ${orderId}
+        `;
 
-        if (difference > 0) {
-          const updateResult = await pg`
-            update items
-            set quantity_available = quantity_available - ${difference}
-            where item_id = ${item.itemId} 
-              and quantity_available >= ${difference}
-            returning item_id
-          `;
+        const existingQuantityMap = new Map(
+          existingLines.map((line) => [line.item_id, line.quantity]),
+        );
 
-          if (updateResult.length === 0) {
-            throw new Error("Not enough quantity");
+        const sortedItems = [...updates.items].sort((a, b) =>
+          a.itemId.localeCompare(b.itemId),
+        );
+
+        for (const item of sortedItems) {
+          const oldQuantity = existingQuantityMap.get(item.itemId) || 0;
+          const difference = item.quantity - oldQuantity;
+
+          if (difference > 0) {
+            const updateResult = await sql`
+              update items
+              set quantity_available = quantity_available - ${difference}
+              where item_id = ${item.itemId} 
+                and quantity_available >= ${difference}
+              returning item_id
+            `;
+
+            if (updateResult.length === 0) {
+              throw new Error("Not enough quantity");
+            }
+          } else if (difference < 0) {
+            const amountToReturn = Math.abs(difference);
+            await sql`
+              update items
+              set quantity_available = quantity_available + ${amountToReturn}
+              where item_id = ${item.itemId}
+            `;
           }
-        } else if (difference < 0) {
-          const amountToReturn = Math.abs(difference);
-          await pg`
-            update items
-            set quantity_available = quantity_available + ${amountToReturn}
-            where item_id = ${item.itemId}
+        }
+
+        if (updates.items.length > 0) {
+          const valuesToUpsert = updates.items.map((item) => ({
+            line_id: crypto.randomUUID(),
+            order_id: orderId,
+            item_id: item.itemId,
+            quantity: item.quantity,
+            price_at_purchase: item.priceAtPurchase,
+            tax_percent_per: 0,
+            tax_percent_total: 10,
+          }));
+
+          await sql`
+            insert into order_lines ${sql(valuesToUpsert)}
+            on conflict (order_id, item_id)
+            do update set
+              quantity = excluded.quantity,
+              price_at_purchase = excluded.price_at_purchase
           `;
         }
+
+        currentTotalItemCost = updates.items.reduce(
+          (sum, item) => sum + item.quantity * item.priceAtPurchase,
+          0,
+        );
       }
 
-      if (items.length > 0) {
-        const valuesToUpsert = items.map((item) => ({
-          line_id: crypto.randomUUID(),
-          order_id: orderId,
-          item_id: item.itemId,
-          quantity: item.quantity,
-          price_at_purchase: item.priceAtPurchase,
-          tax_percent_per: 0,
-          tax_percent_total: 10,
-        }));
+      const currentAccountingCost =
+        updates.accountingCost !== undefined
+          ? updates.accountingCost
+          : Number(existingOrder.accounting_cost) || 0;
 
-        await pg`
-          insert into order_lines ${sql(valuesToUpsert)}
-          on conflict (order_id, item_id)
-          do update set
-            quantity = excluded.quantity,
-            price_at_purchase = excluded.price_at_purchase
-        `;
-      }
+      const currentPaymentMethodCode =
+        updates.paymentMethodCode !== undefined
+          ? updates.paymentMethodCode
+          : existingOrder.payment_method_code;
 
-      const totalItemCost = items.reduce(
-        (sum, item) => sum + item.quantity * item.priceAtPurchase,
-        0,
-      );
-
-      const totalTaxCost = totalItemCost / 11;
+      const totalTaxCost = currentTotalItemCost / 11;
       let paymentMethodCost = 0;
-      switch (paymentMethodCode.toLowerCase()) {
+
+      switch (currentPaymentMethodCode?.toLowerCase()) {
         case "visa":
-          paymentMethodCost = totalItemCost * (0.58 / 100);
+          paymentMethodCost = currentTotalItemCost * (0.58 / 100);
           break;
         case "mastercard":
-          paymentMethodCost = totalItemCost * (0.5 / 100);
+          paymentMethodCost = currentTotalItemCost * (0.5 / 100);
           break;
         default:
-          paymentMethodCost = totalItemCost * (1.4 / 100);
+          paymentMethodCost = currentTotalItemCost * (1.4 / 100);
           break;
       }
 
       const totalCost =
-        totalItemCost + totalTaxCost + paymentMethodCost + accountingCost;
+        currentTotalItemCost +
+        totalTaxCost +
+        paymentMethodCost +
+        currentAccountingCost;
 
-      // 7. Update Orders Table
-      await pg`
-        update orders
-        set
-          order_name = ${orderName},
-          buyer_id = ${buyerId},
-          seller_id = ${sellerId},
-          document_currency_code = ${documentCurrencyCode},
-          pricing_currency_code = ${pricingCurrencyCode},
-          tax_currency_code = ${taxCurrencyCode},
-          requested_invoice_currency_code = ${requestedInvoiceCurrencyCode},
-          total_order_item_cost = ${totalItemCost},
-          accounting_cost = ${accountingCost},
-          total_tax_cost = ${totalTaxCost},
-          payment_method_cost = ${paymentMethodCost},
-          total_cost = ${totalCost},
-          payment_method_code = ${paymentMethodCode},
-          destination_country_code = ${destinationCountryCode},
-          status = ${status},
-          ubl_xml_content = ${ublXMLContent}
-        where
-          order_id = ${orderId}
-      `;
+      const desiredState: Record<string, any> = {
+        order_name: updates.orderName,
+        buyer_id: updates.buyerId,
+        seller_id: updates.sellerId,
+        document_currency_code: updates.documentCurrencyCode,
+        pricing_currency_code: updates.pricingCurrencyCode,
+        tax_currency_code: updates.taxCurrencyCode,
+        requested_invoice_currency_code: updates.requestedInvoiceCurrencyCode,
+        accounting_cost: updates.accountingCost,
+        payment_method_code: updates.paymentMethodCode,
+        destination_country_code: updates.destinationCountryCode,
+        status: updates.status,
+        ubl_xml_content: updates.ublXMLContent,
+        total_order_item_cost: currentTotalItemCost,
+        total_tax_cost: totalTaxCost,
+        payment_method_cost: paymentMethodCost,
+        total_cost: totalCost,
+      };
+
+      const updatesToApply: Record<string, any> = {};
+
+      for (const [column, newValue] of Object.entries(desiredState)) {
+        if (newValue === undefined) {
+          continue;
+        }
+
+        if (existingOrder[column] != newValue) {
+          updatesToApply[column] = newValue;
+        }
+      }
+
+      if (Object.keys(updatesToApply).length > 0) {
+        await sql`
+          update orders
+          set ${sql(updatesToApply)}
+          where order_id = ${orderId}
+        `;
+      }
 
       return jsonHelper({
         message: "Update successful",
@@ -421,6 +467,90 @@ export async function createItem(
     return jsonHelper(
       {
         error: "Order failed to create",
+      },
+      500,
+    );
+  }
+}
+
+/**
+ * Edits an item, make sure to prepend await since these are async functions
+ */
+export async function editItem(
+  item_id: string,
+  seller_id: string | null,
+  item_name: string | null,
+  description: string | null,
+  price: number | null,
+  quantity_available: number | null,
+  image_url: string | null,
+) {
+  const data = {
+    seller_id,
+    item_name,
+    description,
+    price,
+    quantity_available,
+    image_url,
+  };
+
+  // remove all values that are null
+  const updateData = Object.fromEntries(
+    Object.entries(data).filter(([_, value]) => value !== null),
+  );
+
+  if (Object.keys(updateData).length === 0) {
+    return jsonHelper({
+      message: "No values to update for items",
+    });
+  }
+
+  try {
+    await pg`
+    update items
+    set ${pg(updateData)}
+    where item_id = ${item_id}
+    `;
+
+    return jsonHelper({
+      message: "Item successfully updated",
+    });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: error,
+        message: "Item update failed",
+      },
+      500,
+    );
+  }
+}
+
+/**
+ * Deletes an item given an id
+ */
+export async function deleteItem(itemId: string) {
+  if (!itemId) {
+    return jsonHelper(
+      {
+        error: "No itemId provided",
+      },
+      400,
+    );
+  }
+
+  try {
+    await pg`
+    delete from items
+    where item_id = ${itemId}
+    `;
+
+    return jsonHelper({ message: "Item deleted" });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: error,
+        message: "Item failed to delete",
       },
       500,
     );
