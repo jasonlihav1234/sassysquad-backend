@@ -15,7 +15,7 @@
   ],
   "schemas": ["https", "http"],
   "paths": {
-    "/auth/regiter": {
+    "/auth/register": {
       "post": {
         "tags": ["user"],
         "summary": "Registers a user",
@@ -51,7 +51,24 @@
         ],
         "responses": {
           "201": {
-            "description": "User has been successfully registered"
+            "description": "User has been successfully registered",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "user": {
+                  "description": "User ID of the registered user",
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
           },
           "400": {
             "description": "Email, password, and user not supplied or password is less than 7 characters"
