@@ -8,6 +8,10 @@ window.onload = function () {
         url: "./swagger.json",
         name: "Local file test",
       },
+      {
+        url: "./saasysquadswagger.json",
+        name: "Sengg2021 swagger"
+      }
     ],
     dom_id: "#swagger-ui",
     deepLinking: true,
