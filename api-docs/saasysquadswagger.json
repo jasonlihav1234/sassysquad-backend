@@ -128,7 +128,7 @@
     },
     "/auth/login": {
       "post": {
-        "tags": ["login"],
+        "tags": ["user"],
         "summary": "Logs in a user",
         "description": "",
         "operationId": "login",
@@ -232,7 +232,7 @@
     },
     "/auth/refresh": {
       "post": {
-        "tags": ["refresh"],
+        "tags": ["user"],
         "summary": "Refreshes a refresh token",
         "description": "",
         "operationId": "refresh",
@@ -304,7 +304,7 @@
     },
     "/auth/logout": {
       "post": {
-        "tags": ["logout"],
+        "tags": ["user"],
         "summary": "Logs out a user",
         "description": "",
         "operationId": "logout",
@@ -349,7 +349,7 @@
     },
     "/auth/logout-all": {
       "post": {
-        "tags": ["logout-all"],
+        "tags": ["user"],
         "summary": "Logs out all devices from a user",
         "description": "",
         "operationId": "logout-all",
@@ -435,6 +435,99 @@
           },
           "500": {
             "description": "General error for failed email sending",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": ["user"],
+        "summary": "Resets the password of a user",
+        "description": "",
+        "operationId": "reset-password",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Email of the user, token which was sent to reset password, and new password",
+            "required": true,
+            "properties": {
+              "email": {
+                "type": "string",
+                "example": "testing@gmail.com"
+              },
+              "token": {
+                "type": "string"
+              },
+              "password": {
+                "type": "string",
+                "example": "new_password1234"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Password successfully reset",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing token or password",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "New password is invalid",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Token has already expired or is invalid",
             "schema": {
               "type": "object",
               "properties": {
