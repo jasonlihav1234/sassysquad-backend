@@ -1,4 +1,4 @@
-import { expect, test, describe, spyOn } from "bun:test";
+import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
 import {
   generateUser,
   checkUser,
@@ -17,7 +17,7 @@ import { verifyRefreshToken } from "../src/utils/jwt_config";
 import { getMaxListeners } from "node:cluster";
 import { sleep } from "bun";
 
-const generateRequest = (
+export const generateRequest = (
   url: string,
   givenMethod: string,
   givenBody: any,
@@ -33,7 +33,7 @@ const generateRequest = (
   };
 };
 
-const generateAuthenticatedRequest = (
+export const generateAuthenticatedRequest = (
   url: string,
   givenMethod: string,
   givenBody: any,
@@ -50,6 +50,12 @@ const generateAuthenticatedRequest = (
     json: async () => givenBody,
   };
 };
+
+beforeAll(async () => {
+  await pg`delete from refresh_tokens`;
+  await pg`delete from items`;
+  await pg`delete from users`;
+});
 
 const registerRoute = "http://localhost/auth/register";
 const logoutRoute = "http://localhost/auth/logout";

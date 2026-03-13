@@ -16,7 +16,7 @@ interface OrderLineUpdate {
  * Fetches an orderID based on its name, make sure to prepend await since these are async functions
  */
 export async function getOrderIdByName(
-  orderName: string
+  orderName: string,
 ): Promise<string | null> {
   const result = await pg`
     SELECT order_id 
@@ -55,7 +55,7 @@ export async function createOrderQuery(
   paymentMethodCode: string,
   destinationCountryCode: string,
   ublXMLContent: string,
-  items: Array<Item>
+  items: Array<Item>,
 ) {
   /**
    * order id - make this
@@ -105,7 +105,7 @@ export async function createOrderQuery(
     await pg.begin(async (sql) => {
       // 2. Sort items by ID to prevent database deadlocks on concurrent orders
       const sortedItems = [...items].sort((a, b) =>
-        a.itemId.localeCompare(b.itemId)
+        a.itemId.localeCompare(b.itemId),
       );
 
       for (const item of sortedItems) {
@@ -170,7 +170,7 @@ export async function createOrderQuery(
         error: error,
         error_msg: "Insertion failed",
       },
-      500
+      500,
     );
   }
 }
@@ -189,7 +189,7 @@ export async function createOrderlineQuery(
   itemId: string,
   quantity: number,
   taxPercentPer: number = 0,
-  priceAtPurchase: number
+  priceAtPurchase: number,
 ) {
   const lineId = crypto.randomUUID();
   // make tax percent total gst
@@ -239,7 +239,7 @@ export async function deleteOrdersById(orderId: string) {
         error: error,
         message: "Order deletion failed",
       },
-      500
+      500,
     );
   }
 }
@@ -263,24 +263,32 @@ export async function updateOrdersById(
   destinationCountryCode: string,
   status: string,
   ublXMLContent: string,
-  items: Array<Item>
+  items: Array<Item>,
 ) {
   try {
     // 1. Start a database transaction
     return await pg.begin(async (sql) => {
       // 2. Fetch the current quantities for this order to calculate the difference
-      const existingLines = await pg<OrderLineUpdate[]>`
-        select item_id, quantity 
-        from order_lines 
+      const [existingOrder] = await sql`
+        select * from orders where order_id = ${orderId}
+      `;
+
+      if (!existingOrder) {
+        throw new Error("Order does not exist");
+      }
+
+      const existingLines = await sql<OrderLineUpdate[]>`
+        select item_id, quantity
+        from order_lines
         where order_id = ${orderId}
       `;
 
       const existingQuantityMap = new Map(
-        existingLines.map((line) => [line.item_id, line.quantity])
+        existingLines.map((line) => [line.item_id, line.quantity]),
       );
 
       const sortedItems = [...items].sort((a, b) =>
-        a.itemId.localeCompare(b.itemId)
+        a.itemId.localeCompare(b.itemId),
       );
 
       for (const item of sortedItems) {
@@ -288,7 +296,7 @@ export async function updateOrdersById(
         const difference = item.quantity - oldQuantity;
 
         if (difference > 0) {
-          const updateResult = await pg`
+          const updateResult = await sql`
             update items
             set quantity_available = quantity_available - ${difference}
             where item_id = ${item.itemId} 
@@ -301,7 +309,7 @@ export async function updateOrdersById(
           }
         } else if (difference < 0) {
           const amountToReturn = Math.abs(difference);
-          await pg`
+          await sql`
             update items
             set quantity_available = quantity_available + ${amountToReturn}
             where item_id = ${item.itemId}
@@ -320,7 +328,7 @@ export async function updateOrdersById(
           tax_percent_total: 10,
         }));
 
-        await pg`
+        await sql`
           insert into order_lines ${sql(valuesToUpsert)}
           on conflict (order_id, item_id)
           do update set
@@ -331,7 +339,7 @@ export async function updateOrdersById(
 
       const totalItemCost = items.reduce(
         (sum, item) => sum + item.quantity * item.priceAtPurchase,
-        0
+        0,
       );
 
       const totalTaxCost = totalItemCost / 11;
@@ -351,29 +359,39 @@ export async function updateOrdersById(
       const totalCost =
         totalItemCost + totalTaxCost + paymentMethodCost + accountingCost;
 
-      // 7. Update Orders Table
-      await pg`
-        update orders
-        set
-          order_name = ${orderName},
-          buyer_id = ${buyerId},
-          seller_id = ${sellerId},
-          document_currency_code = ${documentCurrencyCode},
-          pricing_currency_code = ${pricingCurrencyCode},
-          tax_currency_code = ${taxCurrencyCode},
-          requested_invoice_currency_code = ${requestedInvoiceCurrencyCode},
-          total_order_item_cost = ${totalItemCost},
-          accounting_cost = ${accountingCost},
-          total_tax_cost = ${totalTaxCost},
-          payment_method_cost = ${paymentMethodCost},
-          total_cost = ${totalCost},
-          payment_method_code = ${paymentMethodCode},
-          destination_country_code = ${destinationCountryCode},
-          status = ${status},
-          ubl_xml_content = ${ublXMLContent}
-        where
-          order_id = ${orderId}
-      `;
+      const desiredState: Record<string, any> = {
+        order_name: orderName,
+        buyer_id: buyerId,
+        seller_id: sellerId,
+        document_currency_code: documentCurrencyCode,
+        pricing_currency_code: pricingCurrencyCode,
+        tax_currency_code: taxCurrencyCode,
+        requested_invoice_currency_code: requestedInvoiceCurrencyCode,
+        total_order_item_cost: totalItemCost,
+        accounting_cost: accountingCost,
+        total_tax_cost: totalTaxCost,
+        payment_method_cost: paymentMethodCost,
+        total_cost: totalCost,
+        payment_method_code: paymentMethodCode,
+        destination_country_code: destinationCountryCode,
+        status: status,
+        ubl_xml_content: ublXMLContent,
+      };
+
+      const updatesToApply: Record<string, any> = {};
+      for (const [column, newValue] of Object.entries(desiredState)) {
+        if (existingOrder[column] !== newValue) {
+          updatesToApply[column] = newValue;
+        }
+      }
+
+      if (Object.keys(updatesToApply).length > 0) {
+        await sql`
+          update orders
+          set ${sql(updatesToApply)}
+          where order_id = ${orderId}
+        `;
+      }
 
       return jsonHelper({
         message: "Update successful",
@@ -389,7 +407,7 @@ export async function updateOrdersById(
         error: error,
         error_msg: "Update failed",
       },
-      500
+      500,
     );
   }
 }
@@ -404,7 +422,7 @@ export async function createItem(
   description: string | null,
   price: number,
   quantity_available: number,
-  image_url: string | null
+  image_url: string | null,
 ) {
   try {
     await pg`
@@ -422,7 +440,7 @@ export async function createItem(
       {
         error: "Order failed to create",
       },
-      500
+      500,
     );
   }
 }
@@ -437,7 +455,7 @@ export async function editItem(
   description: string | null,
   price: number | null,
   quantity_available: number | null,
-  image_url: string | null
+  image_url: string | null,
 ) {
   const data = {
     seller_id,
@@ -450,7 +468,7 @@ export async function editItem(
 
   // remove all values that are null
   const updateData = Object.fromEntries(
-    Object.entries(data).filter(([_, value]) => value !== null)
+    Object.entries(data).filter(([_, value]) => value !== null),
   );
 
   if (Object.keys(updateData).length === 0) {
@@ -475,7 +493,7 @@ export async function editItem(
         error: error,
         message: "Item update failed",
       },
-      500
+      500,
     );
   }
 }
@@ -489,7 +507,7 @@ export async function deleteItem(itemId: string) {
       {
         error: "No itemId provided",
       },
-      400
+      400,
     );
   }
 
@@ -506,7 +524,7 @@ export async function deleteItem(itemId: string) {
         error: error,
         message: "Item failed to delete",
       },
-      500
+      500,
     );
   }
 }
