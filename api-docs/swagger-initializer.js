@@ -5,7 +5,7 @@ window.onload = function () {
   window.ui = SwaggerUIBundle({
     urls: [
       {
-        url: "../swagger.json",
+        url: "./swagger.json",
         name: "Local file test",
       },
     ],
