@@ -1,0 +1,69 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "SaasySquad Backend for Sengg2021. Uses a bun backend, neon postgres, and redis cache all deployed on Vercel :).",
+    "version": "1.0.0",
+    "title": "SaasySquad API"
+  },
+  "host": "https://jasonlihav1234.github.io/sassysquad-backend/",
+  "basePath": "/api-docs",
+  "tags": [
+    {
+      "name": "user",
+      "description": "Operations about user"
+    }
+  ],
+  "schemas": ["https", "http"],
+  "paths": {
+    "/auth/regiter": {
+      "post": {
+        "tags": ["user"],
+        "summary": "Registers a user",
+        "description": "",
+        "operationId": "registerUser",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "User details to be registered",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["email", "username", "password"],
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "exmaple": "testing@gmail.com"
+                },
+                "username": {
+                  "type": "string",
+                  "example": "testUserName1234"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "password"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "User has been successfully registered"
+          },
+          "400": {
+            "description": "Email, password, and user not supplied or password is less than 7 characters"
+          },
+          "409": {
+            "description": "Registering email with someone that already exists"
+          },
+          "500": {
+            "description": "General error ocured during registration"
+          }
+        }
+      }
+    }
+  }
+}
