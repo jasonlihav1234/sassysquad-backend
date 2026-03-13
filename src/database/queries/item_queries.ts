@@ -1,5 +1,5 @@
-import { jsonHelper } from "../../utils/jwt_helpers";
 import pg from "../../utils/db";
+import { jsonHelper } from "../../utils/jwt_helpers";
 
 /**
  * Fetches an itemID based on its name.
@@ -7,6 +7,7 @@ import pg from "../../utils/db";
 export async function getItemIdByName(
   itemName: string,
 ): Promise<string | null> {
+  // add try catch here and throw
   const result = await pg`
     SELECT item_id 
     FROM items 

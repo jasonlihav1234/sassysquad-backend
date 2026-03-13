@@ -1,4 +1,5 @@
 # Sengg2021 backend project
-- Run tests like this - bun test --coverage --timeout 10000
-- Setup database like this - db:setup
 
+- Swagger documentation: [here :)](https://jasonlihav1234.github.io/sassysquad-backend/api-docs/)
+- Run tests like this: bun test --concurrency 1 --coverage --timeout 20000 tests/items.test.ts tests/queries.test.ts tests/users.test.ts
+- Setup database like this - db:setup
