@@ -12,7 +12,11 @@ import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
 import { addItemToCart } from "./application/order_application";
-import { getAllItems, getItemByUserId, getItemsById } from "./application/item_application";
+import {
+  getAllItems,
+  getItemByUserId,
+  getItemsById,
+} from "./application/item_application";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -78,10 +82,13 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-<<<<<<< HEAD
   if (url === "/cart/items" && method === "POST") {
     const response = await addItemToCart(req);
-=======
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   // /items
   if (url === "/items" && method === "GET") {
     const response = await getAllItems(req);
@@ -101,7 +108,6 @@ export async function handleRequest(req: any, res: any) {
   // /user/{user_id}/items
   if (url.match(/^\/users\/[a-zA-Z0-9_-]+\/items$/) && method === "GET") {
     const response = await getItemByUserId(req);
->>>>>>> a1cb7d4cbfa275ecbab42a500adaed32860dae02
 
     const body = await response.json();
     return res.status(response.status).json(body);
@@ -195,39 +201,39 @@ export async function handleRequest(req: any, res: any) {
       orderLines,
       createdAt: new Date().toISOString(),
     };
-    // Buildj JSON object 
+    // Buildj JSON object
     const orderJson = {
-    Order: {
-      "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
-      "@xmlns:cac":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-      "@xmlns:cbc":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+      Order: {
+        "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
+        "@xmlns:cac":
+          "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+        "@xmlns:cbc":
+          "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
 
-      "cbc:ID": newOrder.orderId,
-      "cbc:IssueDate": newOrder.createdAt.slice(0, 10),
+        "cbc:ID": newOrder.orderId,
+        "cbc:IssueDate": newOrder.createdAt.slice(0, 10),
 
-      "cac:BuyerCustomerParty": {
-        "cac:Party": {
-          "cbc:CustomerAssignedAccountID": newOrder.userId,
+        "cac:BuyerCustomerParty": {
+          "cac:Party": {
+            "cbc:CustomerAssignedAccountID": newOrder.userId,
+          },
         },
+
+        "cac:OrderLine": newOrder.orderLines.map((line, index) => ({
+          "cbc:ID": crypto.randomUUID(),
+          "cbc:Quantity": String(line.quantity),
+          "cac:Item": {
+            "cbc:Name": line.itemName || "Unknown Item",
+          },
+        })),
       },
+    };
 
-      "cac:OrderLine": newOrder.orderLines.map((line, index) => ({
-        "cbc:ID": crypto.randomUUID(),
-        "cbc:Quantity": String(line.quantity),
-        "cac:Item": {
-          "cbc:Name": line.itemName || "Unknown Item",
-        },
-      })),
-    },
-  };
+    // Now conbvet JSON to XML
+    const xml = create(orderJson).end({ prettyPrint: true });
 
-  // Now conbvet JSON to XML
-  const xml = create(orderJson).end({ prettyPrint: true });
-
-  res.setHeader("Content-Type", "application/xml");
-  return res.status(201).send(xml);
+    res.setHeader("Content-Type", "application/xml");
+    return res.status(201).send(xml);
   }
 
   // 404 if no roiutes match
