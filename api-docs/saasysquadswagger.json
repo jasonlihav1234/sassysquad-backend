@@ -13,7 +13,7 @@
       "description": "Operations about user"
     }
   ],
-  "schemas": ["https", "http"],
+  "schemes": ["https", "http"],
   "securityDefinitions": {
     "accessToken": {
       "type": "apiKey",
