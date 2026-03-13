@@ -164,57 +164,39 @@ export async function handleRequest(req: any, res: any) {
       orderLines,
       createdAt: new Date().toISOString(),
     };
-
-    const root = create({ version: "1.0" }).ele("Order", {
-      xmlns: "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
-      "xmlns:cac":
+    // Buildj JSON object 
+    const orderJson = {
+    Order: {
+      "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
+      "@xmlns:cac":
         "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-      "xmlns:cbc":
+      "@xmlns:cbc":
         "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
-    });
 
-    root.ele("cbc:ID").txt(newOrder.orderId).up();
-    root.ele("cbc:IssueDate").txt(newOrder.createdAt.slice(0, 10)).up();
+      "cbc:ID": newOrder.orderId,
+      "cbc:IssueDate": newOrder.createdAt.slice(0, 10),
 
-    const buyerParty = root.ele("cac:BuyerCustomerParty").ele("cac:Party");
-    buyerParty.ele("cbc:CustomerAssignedAccountID").txt(newOrder.userId).up();
-    buyerParty.up().up();
+      "cac:BuyerCustomerParty": {
+        "cac:Party": {
+          "cbc:CustomerAssignedAccountID": newOrder.userId,
+        },
+      },
 
-    for (let i = 0; i < orderLines.length; i++) {
-      const line = orderLines[i];
+      "cac:OrderLine": newOrder.orderLines.map((line, index) => ({
+        "cbc:ID": crypto.randomUUID(),
+        "cbc:Quantity": String(line.quantity),
+        "cac:Item": {
+          "cbc:Name": line.itemName || "Unknown Item",
+        },
+      })),
+    },
+  };
 
-      const orderLine = root.ele("cac:OrderLine");
-      orderLine
-        .ele("cbc:ID")
-        .txt(String(i + 1))
-        .up();
-      orderLine
-        .ele("cbc:Quantity")
-        .txt(String(line.quantity ?? 1))
-        .up();
+  // Now conbvet JSON to XML
+  const xml = create(orderJson).end({ prettyPrint: true });
 
-      const item = orderLine.ele("cac:Item");
-      item
-        .ele("cbc:Name")
-        .txt(line.itemName || "Unknown Item")
-        .up();
-      item.up();
-
-      orderLine.up();
-    }
-
-    const xml = root.end({ prettyPrint: true });
-
-    res.setHeader("Content-Type", "application/xml");
-    return res.status(201).send(xml);
-  }
-
-  if (url.startsWith("/users")) {
-    return handleUserRoutes(req, res);
-  }
-
-  if (url.startsWith("/health")) {
-    return handleHealthRoutes(req, res);
+  res.setHeader("Content-Type", "application/xml");
+  return res.status(201).send(xml);
   }
 
   // 404 if no roiutes match
