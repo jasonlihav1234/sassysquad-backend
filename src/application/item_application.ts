@@ -140,9 +140,11 @@ export const updateItem = authHelper(
           message: "Update item failed",
           error: error,
         },
+        500,
       );
     }
-});
+  },
+);
 
 export const updateProfile = authHelper(
   async (req: AuthReq): Promise<Response> => {
