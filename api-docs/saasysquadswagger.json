@@ -469,17 +469,20 @@
             "name": "body",
             "description": "Email of the user, token which was sent to reset password, and new password",
             "required": true,
-            "properties": {
-              "email": {
-                "type": "string",
-                "example": "testing@gmail.com"
-              },
-              "token": {
-                "type": "string"
-              },
-              "password": {
-                "type": "string",
-                "example": "new_password1234"
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "testing@gmail.com"
+                },
+                "token": {
+                  "type": "string"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "new_password1234"
+                }
               }
             }
           }
