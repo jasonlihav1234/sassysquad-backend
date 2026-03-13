@@ -7,6 +7,7 @@ import {
   resetPassword,
   logout,
   logoutAll,
+  getUserSessions,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
@@ -239,6 +240,13 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/profile" && method === "PATCH") {
     const response = await updateProfile(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/auth/sessions" && method === "GET") {
+    const response = await getUserSessions(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
