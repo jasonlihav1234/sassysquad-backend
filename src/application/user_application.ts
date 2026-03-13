@@ -23,6 +23,7 @@ import nodemailer from "nodemailer";
 import path from "path";
 import {
   getUserBuyerOrders,
+  getUserById,
   getUserSellerOrders,
   isUserIdValid,
 } from "../database/queries/user_queries";
@@ -510,5 +511,50 @@ export const getUserSessions = authHelper(
     return jsonHelper({
       session: sessionInfo,
     });
+  },
+);
+
+export const getUserDetailsById = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const userId = req.url?.split("/").at(2);
+      const response = await getUserById(userId as string);
+
+      return jsonHelper({
+        message: "User details successfully fetched",
+        response: response,
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper(
+        {
+          message: "Cannot get user details",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const getMyProfileDetails = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const response = await getUserById(req.user?.subject_claim as string);
+
+      return jsonHelper({
+        message: "Profile details successfully fetched",
+        response: response,
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper(
+        {
+          message: "Cannot get user details",
+          error: error,
+        },
+        500,
+      );
+    }
   },
 );
