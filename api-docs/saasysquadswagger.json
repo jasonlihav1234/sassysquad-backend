@@ -283,19 +283,23 @@
           },
           "400": {
             "description": "Refresh token was not provided",
-            "type": "object",
-            "properties": {
-              "error": {
-                "type": "string"
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
               }
             }
           },
           "401": {
             "description": "Refresh token does not exist, or token has been revoked, or token is invalid",
-            "type": "object",
-            "properties": {
-              "error": {
-                "type": "string"
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
               }
             }
           }
