@@ -72,7 +72,7 @@ export async function isUserIdValid(userId: string): Promise<boolean> {
   return row.length > 0;
 }
 
-export async function updateProfile(
+export async function updateProfileQuery(
   user_id: string,
   update: UpdateUserPayload,
 ) {

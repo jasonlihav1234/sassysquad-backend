@@ -10,6 +10,7 @@ import {
   getItemByItemIdQuery,
   getItemsUserQuery,
 } from "../database/queries/item_queries";
+import { updateProfileQuery } from "../database/queries/user_queries";
 
 // look into responses
 export const getItemsById = authHelper(
@@ -98,6 +99,39 @@ export const getAllItems = authHelper(
           message: "Getting all items failed to fetch",
           error: error,
         },
+        500,
+      );
+    }
+  },
+);
+
+export const updateProfile = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const userId = req.user?.subject_claim as string;
+      const body = req.body;
+
+      if (!body.username && !body.email && !body.password) {
+        return jsonHelper(
+          {
+            message: "No fields to update for the user",
+          },
+          400,
+        );
+      }
+
+      await updateProfileQuery(userId, {
+        user_name: body.username,
+        email: body.email,
+        password: body.password,
+      });
+
+      return jsonHelper({
+        message: "Email successfully updated",
+      });
+    } catch (error) {
+      return jsonHelper(
+        { message: "Profile failed to update", error: error },
         500,
       );
     }

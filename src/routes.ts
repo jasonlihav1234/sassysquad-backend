@@ -16,6 +16,7 @@ import {
   getAllItems,
   getItemByUserId,
   getItemsById,
+  updateProfile,
 } from "./application/item_application";
 
 export async function handleRequest(req: any, res: any) {
@@ -234,6 +235,13 @@ export async function handleRequest(req: any, res: any) {
 
     res.setHeader("Content-Type", "application/xml");
     return res.status(201).send(xml);
+  }
+
+  if (url === "/profile" && method === "PATCH") {
+    const response = await updateProfile(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   // 404 if no roiutes match
