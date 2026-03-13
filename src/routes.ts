@@ -10,7 +10,10 @@ import {
   getUserSessions,
   getUserDetailsById,
   getMyProfileDetails,
+<<<<<<< HEAD
   deleteUser,
+=======
+>>>>>>> 060fbd0d24bd66c48e450e2a779602a366012dc3
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
