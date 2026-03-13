@@ -17,6 +17,7 @@ async function fulfillCheckout(sessionId: string) {
     // perform fulfillment of line items
     // record and save fulfillment status in db
     // remove x amount from database
+    // this should just call the orderf fun
   }
 }
 
@@ -33,7 +34,7 @@ export async function createCheckoutSession(req: VercelRequest) {
       // need some way to pass in the line items here
     ],
     mode: "payment",
-    return_url: `http://https://sassysquad-backend.vercel.app/return?session_id={}`, // wip, need to edit this when starting the frontend
+    return_url: `http://https://sassysquad-backend.vercel.app/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
     automatic_tax: { enabled: true },
   });
 
