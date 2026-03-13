@@ -17,6 +17,7 @@ import {
   authHelper,
   AuthReq,
   revokeAllUserRefreshTokens,
+  getAllUserRefreshTokens,
 } from "../utils/jwt_helpers";
 import nodemailer from "nodemailer";
 import path from "path";
@@ -491,3 +492,23 @@ export async function getUserSales(req: any, res: any) {
     });
   }
 }
+
+export const getUserSessions = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    if (!req.user) {
+      return jsonHelper({ error: "Unauthorized " }, 401);
+    }
+
+    const userSessions = await getAllUserRefreshTokens(req.user.subject_claim);
+
+    const sessionInfo = userSessions.map((session: any) => ({
+      deviceInfo: session.deviceInfo,
+      createdAt: session.createdAt,
+      expiresAt: session.expiresAt,
+    }));
+
+    return jsonHelper({
+      session: sessionInfo,
+    });
+  },
+);
