@@ -35,7 +35,7 @@
               "properties": {
                 "email": {
                   "type": "string",
-                  "exmaple": "testing@gmail.com"
+                  "example": "testing@gmail.com"
                 },
                 "username": {
                   "type": "string",
@@ -215,6 +215,78 @@
                 },
                 "error": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["refresh"],
+        "summary": "Refreshes a refresh token",
+        "description": "",
+        "operationId": "refresh",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Users refresh token to be exchanged",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["refreshToken"],
+              "properties": {
+                "refreshToken": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refresh token successfully exchanged",
+            "schema": {
+              "200": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "accessToken": {
+                    "type": "string"
+                  },
+                  "refreshToken": {
+                    "type": "string"
+                  },
+                  "tokenType": {
+                    "type": "string"
+                  },
+                  "expiresIn": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                }
+              },
+              "400": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                }
+              },
+              "401": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
                 }
               }
             }
