@@ -11,6 +11,7 @@ import {
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
+import { addItemToCart } from "./application/order_application";
 import { getAllItems, getItemByUserId, getItemsById } from "./application/item_application";
 
 export async function handleRequest(req: any, res: any) {
@@ -77,6 +78,10 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
+<<<<<<< HEAD
+  if (url === "/cart/items" && method === "POST") {
+    const response = await addItemToCart(req);
+=======
   // /items
   if (url === "/items" && method === "GET") {
     const response = await getAllItems(req);
@@ -96,6 +101,7 @@ export async function handleRequest(req: any, res: any) {
   // /user/{user_id}/items
   if (url.match(/^\/users\/[a-zA-Z0-9_-]+\/items$/) && method === "GET") {
     const response = await getItemByUserId(req);
+>>>>>>> a1cb7d4cbfa275ecbab42a500adaed32860dae02
 
     const body = await response.json();
     return res.status(response.status).json(body);
