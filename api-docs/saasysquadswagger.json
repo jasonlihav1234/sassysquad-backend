@@ -19,7 +19,7 @@
       "type": "apiKey",
       "name": "Authorization",
       "in": "header",
-      "description": "Enter your bearer token in the format **Bearer &lt;token**"
+      "description": "Enter your bearer token in the format **Bearer token**"
     }
   },
   "paths": {
@@ -368,6 +368,81 @@
               "type": "object",
               "properties": {
                 "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": ["user"],
+        "summary": "Sends a forgot password email to given email if valid",
+        "description": "",
+        "operationId": "forgot-password",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Email to send forgot password to",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["email"],
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "testing@gmail.com"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mail successfully sent",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Provided email not linked to any user",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failed email sending",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "error": {
                   "type": "string"
                 }
               }
