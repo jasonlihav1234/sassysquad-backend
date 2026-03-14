@@ -10,24 +10,8 @@ import { createOrderQuery } from "../database/queries/order_queries";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-async function fulfillCheckout(sessionId: string) {
-  console.log("fulfilling checkout session");
-
-  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
-    expand: ["line_items"],
-  });
-
-  if (checkoutSession.payment_status !== "unpaid") {
-    // perform fulfillment of line items
-    // record and save fulfillment status in db
-    // remove x amount from database
-    // this should just call the orderf fun
-    // here I would call the post orders method
-  }
-}
-
 export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
-  const buyer = req.user?.subject_claim as string; // authenticated method should be able to get id from subject claim
+  const buyerId = req.user?.subject_claim as string; // authenticated method should be able to get id from subject claim
   const {
     userId,
     orderLines,
@@ -52,12 +36,51 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     );
   }
 
+  try {
+    const { xml } = await processOrderCreation({
+      buyerId,
+      sellerId,
+      orderLines,
+      paymentMethodCode,
+      destinationCountryCode,
+    });
+
+    return new Response(xml, {
+      headers: { "Content-Type": "application/xml" },
+      status: 200,
+    });
+  } catch (error) {
+      return jsonHelper(
+    {
+      message: "Order creation failed",
+      error: error,
+    },
+    500,
+  );
+  }
+});
+
+export async function processOrderCreation(data: {
+  buyerId: string;
+  sellerId: string;
+  orderLines: any[];
+  paymentMethodCode: string;
+  destinationCountryCode: string;
+}) {
+  const {
+    buyerId,
+    sellerId,
+    orderLines,
+    paymentMethodCode,
+    destinationCountryCode,
+  } = data;
   const newOrder = {
     orderId: crypto.randomUUID(),
-    userId,
+    buyerId,
     orderLines,
     createdAt: new Date().toISOString(),
   };
+
   // Buildj JSON object
   const orderJson = {
     Order: {
@@ -72,7 +95,7 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
 
       "cac:BuyerCustomerParty": {
         "cac:Party": {
-          "cbc:CustomerAssignedAccountID": newOrder.userId,
+          "cbc:CustomerAssignedAccountID": newOrder.buyerId,
         },
       },
 
@@ -93,7 +116,7 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
   // have a default order name which the user edit later
   const response = await createOrderQuery(
     `order-${newOrder.orderId}`,
-    buyer,
+    buyerId,
     sellerId,
     "aud",
     "aud",
@@ -105,23 +128,34 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     xml,
     orderLines,
   );
-  const responseBody = await response.json();
 
-  if (responseBody.error === undefined) {
-    return new Response(xml, {
-      headers: { "Content-Type": "application/xml" },
-      status: 200,
-    });
+  return { xml, response };
+}
+
+async function fulfillCheckout(session: Stripe.Checkout.Session) {
+  console.log("fulfilling checkout session");
+  const buyerId = session.metadata?.buyerId;
+  const sellerId = session.metadata?.sellerId;
+  const sessionId = session.id;
+
+  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ["line_items"],
+  });
+
+  if (checkoutSession.payment_status !== "unpaid") {
+    // perform fulfillment of line items
+    // record and save fulfillment status in db
+    // remove x amount from database
+    // this should just call the orderf fun
+    // here I would call the post orders method
   }
+}
 
-  return jsonHelper({
-    error: responseBody
-  }, 500);
-});
-
+// sellerId has to be in the body
 export const createCheckoutSession = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim;
+    const sellerId = req.body?.sellerId;
     const key = `cart:${userId}`;
 
     // get the cart from the redis cache, need to save quantity and get info about item
@@ -163,6 +197,10 @@ export const createCheckoutSession = authHelper(
     }
 
     const session = await stripe.checkout.sessions.create({
+      metadata: {
+        userId: userId ?? "",
+        sellerId: sellerId ?? "",
+      },
       ui_mode: "embedded",
       customer_email: "...",
       submit_type: "pay",
@@ -242,7 +280,7 @@ export async function serverWebhook(req: VercelRequest) {
     event.type === "checkout.session.async_payment_succeeded"
   ) {
     try {
-      await fulfillCheckout(event.data.object.id);
+      await fulfillCheckout(event.data.object);
 
       return jsonHelper({
         message: "Checkout successfully fulfilled",
