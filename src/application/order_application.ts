@@ -91,16 +91,6 @@ export const deleteItemFromCart = authHelper(
         deleteAllItems = true;
       }
       const itemId = splitUrl?.at(3) as string;
-      const body = req.body;
-
-      if (!body.itemId) {
-        return jsonHelper(
-          {
-            message: "Item ID not given",
-          },
-          400,
-        );
-      }
 
       if (deleteAllItems) {
         await redis.del(`cart:${userId}`);
