@@ -152,15 +152,41 @@ export async function serverWebhook(req: VercelRequest) {
         message: "Checkout successfully fulfilled",
       });
     } catch (error) {
+      return jsonHelper({ error: "Event type invalid" }, 400);
+    }
+  }
+}
+
+// post with itemId and quantity and userId in body
+export const addItemToCart = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const body = req.body;
+
+      if (!body.itemId || !body.quantity || !body.userId) {
+        return jsonHelper(
+          {
+            error: "Need userID, item ID, and quantity in the body",
+          },
+          400,
+        );
+      }
+      // users should share carts between devices
+      const key = `cart:${body.userId}:${body.itemId}`;
+      await redis.set(key, body.quantity);
+      await redis.expire(key, 86400); // cart expires in 1 day
+
+      return jsonHelper({
+        message: "Item successfully added to cart",
+      });
+    } catch (error) {
       return jsonHelper(
         {
-          message: "Checkout failed",
+          message: "Item failed to add to cart",
           error: error,
         },
         500,
       );
     }
-  }
-
-  return jsonHelper({ error: "Event type invalid" }, 400);
-}
+  },
+);

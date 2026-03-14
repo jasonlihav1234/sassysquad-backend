@@ -17,13 +17,16 @@ import {
   authHelper,
   AuthReq,
   revokeAllUserRefreshTokens,
+  getAllUserRefreshTokens,
 } from "../utils/jwt_helpers";
 import nodemailer from "nodemailer";
 import path from "path";
 import {
   getUserBuyerOrders,
+  getUserById,
   getUserSellerOrders,
   isUserIdValid,
+  removeUserById,
 } from "../database/queries/user_queries";
 import { VercelRequest } from "@vercel/node";
 
@@ -267,8 +270,8 @@ export const logoutAll = authHelper(async (req: AuthReq): Promise<Response> => {
 
   return jsonHelper({ message: "All sessions logged out" });
 });
-export async function forgotPassword(request: Request) {
-  const body = await request.json();
+export async function forgotPassword(request: VercelRequest) {
+  const body = await request.body;
 
   if (!body.email) {
     return jsonHelper(
@@ -491,3 +494,90 @@ export async function getUserSales(req: any, res: any) {
     });
   }
 }
+
+export const getUserSessions = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    if (!req.user) {
+      return jsonHelper({ error: "Unauthorized " }, 401);
+    }
+
+    const userSessions = await getAllUserRefreshTokens(req.user.subject_claim);
+
+    const sessionInfo = userSessions.map((session: any) => ({
+      deviceInfo: session.deviceInfo,
+      createdAt: session.createdAt,
+      expiresAt: session.expiresAt,
+    }));
+
+    return jsonHelper({
+      session: sessionInfo,
+    });
+  },
+);
+
+export const getUserDetailsById = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const userId = req.url?.split("/").at(2);
+      const response = await getUserById(userId as string);
+
+      return jsonHelper({
+        message: "User details successfully fetched",
+        response: response,
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper(
+        {
+          message: "Cannot get user details",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const getMyProfileDetails = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const response = await getUserById(req.user?.subject_claim as string);
+
+      return jsonHelper({
+        message: "Profile details successfully fetched",
+        response: response,
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper(
+        {
+          message: "Cannot get user details",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const deleteUser = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const response = await removeUserById(req.user?.subject_claim as string);
+
+      return jsonHelper({
+        message: "User successfully deleted",
+        response: response,
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper(
+        {
+          message: "Failed to delete user",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
