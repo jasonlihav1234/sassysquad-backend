@@ -371,6 +371,42 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(responseBody);
   }
 
+  if (url === "/profile" && method === "PATCH") {
+    const response = await updateProfile(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/auth/sessions" && method === "GET") {
+    const response = await getUserSessions(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "GET") {
+    const response = await getUserDetailsById(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/profile" && method === "GET") {
+    const response = await getMyProfileDetails(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+    const response = await deleteUser(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+
   // 404 if no roiutes match
   return res.status(404).json({ error: "Not found" });
 }
