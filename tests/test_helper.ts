@@ -12,6 +12,16 @@ export async function resetDb(): Promise<void> {
   await pg`truncate table users restart identity cascade`;
 }
 
+// Creates access token for given user_id and email
+export async function makeAccessTokenForUser(user: {
+  user_id: string;
+  email: string;
+}): Promise<string> {
+  return await createAccessToken(user.user_id, user.email);
+}
+
+export async function 
+
 // Creates a random user with fields that can be overriden, and returns inputted User
 export async function insertUser(
   overrides: InsertUserOverrides = {},
@@ -69,14 +79,6 @@ export async function insertOrder(overrides: InsertOrderOverrides) {
   `;
 
   return rows[0] as Order;
-}
-
-// Creates access token for given user_id and email
-export async function makeAccessTokenForUser(user: {
-  user_id: string;
-  email: string;
-}): Promise<string> {
-  return await createAccessToken(user.user_id, user.email);
 }
 
 // Create purchases from random sellers
