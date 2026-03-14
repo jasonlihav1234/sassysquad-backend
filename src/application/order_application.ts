@@ -151,7 +151,7 @@ export const updateCartItem = authHelper(
     if (body.length === 0 || body.quantity === undefined) {
       return jsonHelper(
         {
-          message: "Quantity not provided to update cart items",
+          message: "Quantity not provided to update cart item",
         },
         400,
       );

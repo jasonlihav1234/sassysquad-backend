@@ -442,8 +442,8 @@ describe("Updating cart item tests", () => {
     const getResponse = await updateCartItem(request2);
     const getBody = await getResponse.json();
 
-    expect(getResponse.status).toBe(404);
-    expect(getBody.message).toBe("Item does note exist");
+    expect(getResponse.status).toBe(400);
+    expect(getBody.message).toBe("Quantity not provided to update cart item");
   });
 
   test("No fields provided", async () => {
@@ -464,7 +464,100 @@ describe("Updating cart item tests", () => {
     const getResponse = await updateCartItem(request2);
     const getBody = await getResponse.json();
 
-    expect(getResponse.status).toBe(404);
-    expect(getBody.message).toBe("Item does note exist");
+    expect(getResponse.status).toBe(400);
+    expect(getBody.message).toBe("Quantity not provided to update cart item");
   });
+
+  test("Item does not exist to update", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items/${crypto.randomUUID()}`,
+      "PATCH",
+      {
+        quantity: 20,
+      },
+      accessToken,
+    );
+
+    const getResponse = await updateCartItem(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(404);
+    expect(getBody.message).toBe("Item does not exist");
+  });
+
+  test("Invalid quantity to set", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items/${itemId1}`,
+      "PATCH",
+      {
+        quantity: 100000000000000,
+      },
+      accessToken,
+    );
+
+    const getResponse = await updateCartItem(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(400);
+    expect(getBody.message).toBe("Invalid quantity to set");
+
+    const request3 = generateAuthenticatedRequest(
+      `/cart/items/${itemId1}`,
+      "PATCH",
+      {
+        quantity: -1,
+      },
+      accessToken,
+    );
+
+    const getResponse2 = await updateCartItem(request3);
+    const getBody2 = await getResponse2.json();
+
+    expect(getResponse2.status).toBe(400);
+    expect(getBody2.message).toBe("Invalid quantity to set");
+  });
+
+  test("Successful item update", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items/${itemId1}`,
+      "PATCH",
+      {
+        quantity: 5,
+      },
+      accessToken,
+    );
+
+    const response = await updateCartItem(request2);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Item successfully updated");
+
+    const rd = await redis.hget(`cart:${sellerId}`, itemId1);
+
+    expect(rd).toBe("5");
+  });
+
+  // 500 path impossible to test unless backend crashes
 });
