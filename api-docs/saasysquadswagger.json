@@ -579,6 +579,77 @@
       }
     },
     "/profile": {
+      "get": {
+        "tags": ["user"],
+        "summary": "Fetches the details of logged in user",
+        "description": "",
+        "operationId": "get-profile",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Profile details successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "response": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "user_id": {
+                        "type": "string"
+                      },
+                      "user_name": {
+                        "type": "string"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "password_hash": {
+                        "type": "string"
+                      },
+                      "created_at": {
+                        "type": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error to fail getting user details",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": ["user"],
         "summary": "Updates the details of logged in user",
