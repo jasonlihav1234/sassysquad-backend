@@ -719,6 +719,83 @@
           }
         }
       }
+    },
+    "/users/{userId}": {
+      "get": {
+        "tags": ["user"],
+        "summary": "Retrieves the details of a user given a user ID",
+        "description": "",
+        "operationId": "user-userId",
+        "produces": ["application/json"],
+        "security": {
+          "bearerAuth": []
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of user",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User details successfully fetched",
+            "schema": {
+              "type": "object",
+              "propeties": {
+                "message": {
+                  "type": "string"
+                },
+                "response": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "user_id": {
+                        "type": "string"
+                      },
+                      "user_name": {
+                        "type": "string"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "password_hash": {
+                        "type": "string"
+                      },
+                      "created_at": {
+                        "type": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failed fetching of user details",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
