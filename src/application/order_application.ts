@@ -386,10 +386,7 @@ export const createCheckoutSession = authHelper(
 
 export const checkCheckoutSessionStatus = authHelper(
   async (req: AuthReq): Promise<Response> => {
-    const queryId = req.query.session_id;
-    const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
-
-    if (!sessionId) {
+    if (!req.query || !req.query.session_id) {
       return jsonHelper(
         {
           message: "Session cannot be found",
@@ -397,6 +394,8 @@ export const checkCheckoutSessionStatus = authHelper(
         404,
       );
     }
+    const queryId = req.query.session_id;
+    const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
 
     try {
       const session = await stripe.checkout.sessions.retrieve(sessionId);

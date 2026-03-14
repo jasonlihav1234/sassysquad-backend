@@ -6,8 +6,11 @@ import {
   registerAndLogin,
   resetDb,
 } from "./test_helper";
-import { createCheckoutSession } from "../src/application/order_application";
-import { randomBytes } from "node:crypto";
+import {
+  checkCheckoutSessionStatus,
+  createCheckoutSession,
+} from "../src/application/order_application";
+import Stripe from "stripe";
 
 describe("Creating checkout session", () => {
   beforeEach(async () => {
@@ -144,5 +147,107 @@ describe("Creating checkout session", () => {
 
     expect(response.status).toBe(200);
     expect(body.clientSecret).not.toBe(undefined);
+  });
+});
+
+describe("Check checkout session status tests", async () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  test("No session given", async () => {
+    await redis.send("FLUSHDB", []);
+    const { userId, accessToken } = await registerAndLogin(
+      "test123@gmail.com",
+      "username",
+      "password",
+    );
+
+    const request = {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      accessToken: accessToken,
+    } as any;
+
+    const response = await checkCheckoutSessionStatus(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.message).toBe("Session cannot be found");
+  });
+
+  test("Session does not exist", async () => {
+    await redis.send("FLUSHDB", []);
+    const { userId, accessToken } = await registerAndLogin(
+      "test123@gmail.com",
+      "username",
+      "password",
+    );
+
+    const request = generateAuthenticatedRequest(
+      "/checkout-session-status?session_id=gjknskjefn123",
+      "GET",
+      {},
+      accessToken,
+    );
+
+    request.query = {
+      session_id: "gjknskjefn123",
+    };
+
+    const response = await checkCheckoutSessionStatus(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.error).toBe("Failed to retrieve session status");
+  });
+
+  test("Successfully check session", async () => {
+    await redis.send("FLUSHDB", []);
+    const { userId, accessToken } = await registerAndLogin(
+      "test123@gmail.com",
+      "username",
+      "password",
+    );
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { name: "Test Item" },
+            unit_amount: 1000,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: "http://localhost/success",
+      cancel_url: "http://localhost/cancel",
+    });
+
+    // 2. Grab the actual session ID
+    const sessionId = session.id;
+
+    const request = generateAuthenticatedRequest(
+      `/checkout-session-status?session_id=${sessionId}`,
+      "GET",
+      {},
+      accessToken,
+    );
+    request.query = {
+      session_id: sessionId,
+    };
+
+    const response = await checkCheckoutSessionStatus(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("open");
+    expect(body.customer_email).toBe("No email provided");
   });
 });
