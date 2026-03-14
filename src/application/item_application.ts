@@ -9,7 +9,10 @@ import {
   getAllItemsQuery,
   getItemByItemIdQuery,
   getItemsUserQuery,
+  updateItemQuery,
+  deleteItemFromIdQuery,
 } from "../database/queries/item_queries";
+import { updateProfileQuery } from "../database/queries/user_queries";
 
 // look into responses
 export const getItemsById = authHelper(
@@ -98,6 +101,103 @@ export const getAllItems = authHelper(
           message: "Getting all items failed to fetch",
           error: error,
         },
+        500,
+      );
+    }
+  },
+);
+
+// update item
+export const updateItem = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const itemId = req.url?.split("/").at(2) as string;
+      const body = req.body;
+
+      // need to have at least 1 field
+      if (Object.keys(body).length < 2) {
+        return jsonHelper({
+          message: "No item fields to update provided",
+        });
+      }
+
+      // map each field into null if undefined
+      const response = await updateItemQuery(
+        itemId,
+        body.itemName ?? null,
+        body.description ?? null,
+        body.price ?? null,
+        body.quantity_available ?? null,
+        body.image_url ?? null,
+      );
+
+      return jsonHelper({
+        message: "Item successfully updated",
+        response: response,
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Update item failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+// delete item
+export const deleteItem = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      // need to extract the item id from the param not the body
+      const itemId = req.url?.split("/").at(2) as string;
+      const response = await deleteItemFromIdQuery(itemId);
+
+      return jsonHelper({
+        message: "Item deleted",
+        response: response,
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Deleting item failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const updateProfile = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const userId = req.user?.subject_claim as string;
+      const body = req.body;
+
+      if (!body.username && !body.email && !body.password) {
+        return jsonHelper(
+          {
+            message: "No fields to update for the user",
+          },
+          400,
+        );
+      }
+
+      await updateProfileQuery(userId, {
+        user_name: body.username,
+        email: body.email,
+        password: body.password,
+      });
+
+      return jsonHelper({
+        message: "Email successfully updated",
+      });
+    } catch (error) {
+      return jsonHelper(
+        { message: "Profile failed to update", error: error },
         500,
       );
     }

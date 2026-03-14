@@ -7,12 +7,30 @@ import {
   resetPassword,
   logout,
   logoutAll,
+  getUserSessions,
+  getUserDetailsById,
+  getMyProfileDetails,
+  deleteUser,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
-import { addItemToCart } from "./application/order_application";
-import { getAllItems, getItemByUserId, getItemsById } from "./application/item_application";
+import { deleteItem } from "./application/item_application";
+import { updateItem } from "./application/item_application";
+import {
+  addItemToCart,
+  checkCheckoutSessionStatus,
+  createCheckoutSession,
+  postOrder,
+  serverWebhook,
+} from "./application/order_application";
+import {
+  getAllItems,
+  getItemByUserId,
+  getItemsById,
+  updateProfile,
+} from "./application/item_application";
+import { createOrderQuery } from "./database/queries/order_queries";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -78,10 +96,27 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-<<<<<<< HEAD
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+    const response = await deleteItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
+    const response = await updateItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   if (url === "/cart/items" && method === "POST") {
     const response = await addItemToCart(req);
-=======
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   // /items
   if (url === "/items" && method === "GET") {
     const response = await getAllItems(req);
@@ -101,7 +136,6 @@ export async function handleRequest(req: any, res: any) {
   // /user/{user_id}/items
   if (url.match(/^\/users\/[a-zA-Z0-9_-]+\/items$/) && method === "GET") {
     const response = await getItemByUserId(req);
->>>>>>> a1cb7d4cbfa275ecbab42a500adaed32860dae02
 
     const body = await response.json();
     return res.status(response.status).json(body);
@@ -173,61 +207,80 @@ export async function handleRequest(req: any, res: any) {
     });
   }
 
-  // POST /orders
+  // POST /orders - need a seller id should be easy to obtain
+  // each orderLine should follow:
+  //[
+  //  {
+  //      quantity,
+  //      priceAtPurchase,
+  //      itemId,
+  //      taxPercentPer
+  //  }
+  //]
   if (url === "/orders" && method === "POST") {
-    const { userId, orderLines } = body || {};
+    const response = await postOrder(req);
 
-    if (!userId || typeof userId !== "string") {
-      return res.status(400).json({
-        error: "userId is required and must be a string",
-      });
-    }
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
 
-    if (!Array.isArray(orderLines) || orderLines.length === 0) {
-      return res.status(400).json({
-        error: "orderLines is required and must be a non-empty array",
-      });
-    }
+  if (url === "/profile" && method === "PATCH") {
+    const response = await updateProfile(req);
 
-    const newOrder = {
-      orderId: crypto.randomUUID(),
-      userId,
-      orderLines,
-      createdAt: new Date().toISOString(),
-    };
-    // Buildj JSON object 
-    const orderJson = {
-    Order: {
-      "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
-      "@xmlns:cac":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-      "@xmlns:cbc":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
 
-      "cbc:ID": newOrder.orderId,
-      "cbc:IssueDate": newOrder.createdAt.slice(0, 10),
+  if (url === "/auth/sessions" && method === "GET") {
+    const response = await getUserSessions(req);
 
-      "cac:BuyerCustomerParty": {
-        "cac:Party": {
-          "cbc:CustomerAssignedAccountID": newOrder.userId,
-        },
-      },
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
 
-      "cac:OrderLine": newOrder.orderLines.map((line, index) => ({
-        "cbc:ID": crypto.randomUUID(),
-        "cbc:Quantity": String(line.quantity),
-        "cac:Item": {
-          "cbc:Name": line.itemName || "Unknown Item",
-        },
-      })),
-    },
-  };
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "GET") {
+    const response = await getUserDetailsById(req);
 
-  // Now conbvet JSON to XML
-  const xml = create(orderJson).end({ prettyPrint: true });
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
 
-  res.setHeader("Content-Type", "application/xml");
-  return res.status(201).send(xml);
+  if (url === "/profile" && method === "GET") {
+    const response = await getMyProfileDetails(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+    const response = await deleteUser(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/create-checkout-session" && method === "POST") {
+    const response = await createCheckoutSession(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (
+    url.match(/^\/checkout-session-status\/[a-zA-Z0-9_-]+$/) &&
+    method === "GET"
+  ) {
+    const response = await checkCheckoutSessionStatus(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/webhook" && method === "POST") {
+    const response = await serverWebhook(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   // 404 if no roiutes match
