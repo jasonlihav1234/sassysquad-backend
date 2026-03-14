@@ -203,113 +203,112 @@ export async function handleRequest(req: any, res: any) {
 
   // POST /orders
   if (url === "/orders" && method === "POST") {
-
     const contentType =
-  req.headers?.get?.("content-type") || req.headers?.["content-type"];
+      req.headers?.get?.("content-type") || req.headers?.["content-type"];
 
-if (!contentType || !contentType.includes("application/json")) {
-  return res.status(415).json({
-    error: "UNSUPPORTED_TYPE",
-    message: "This content type is not supported",
-  });
-}
+    if (!contentType || !contentType.includes("application/json")) {
+      return res.status(415).json({
+        error: "UNSUPPORTED_TYPE",
+        message: "This content type is not supported",
+      });
+    }
 
-let parsedBody = body;
+    let parsedBody = body;
 
-try {
-  if (!parsedBody && req.json) {
-    parsedBody = await req.json();
-  }
-} catch (error) {
-  return res.status(400).json({
-    error: "INVALID_INPUT",
-    message: "The request body is not valid",
-  });
-}
+    try {
+      if (!parsedBody && req.json) {
+        parsedBody = await req.json();
+      }
+    } catch (error) {
+      return res.status(400).json({
+        error: "INVALID_INPUT",
+        message: "The request body is not valid",
+      });
+    }
+
     const {
-  orderName,
-  buyerId,
-  sellerId,
-  documentCurrencyCode,
-  pricingCurrencyCode,
-  taxCurrencyCode,
-  requestedInvoiceCurrencyCode,
-  accountingCost,
-  paymentMethodCode,
-  destinationCountryCode,
-  orderLines,
-} = parsedBody || {};
+      orderName,
+      buyerId,
+      sellerId,
+      documentCurrencyCode,
+      pricingCurrencyCode,
+      taxCurrencyCode,
+      requestedInvoiceCurrencyCode,
+      accountingCost,
+      paymentMethodCode,
+      destinationCountryCode,
+      orderLines,
+    } = parsedBody || {};
 
-const orderId = crypto.randomUUID();
+    const orderId = crypto.randomUUID();
 
     if (
-  !orderName ||
-  typeof orderName !== "string" ||
-  !buyerId ||
-  typeof buyerId !== "string" ||
-  !sellerId ||
-  typeof sellerId !== "string" ||
-  !documentCurrencyCode ||
-  typeof documentCurrencyCode !== "string" ||
-  !pricingCurrencyCode ||
-  typeof pricingCurrencyCode !== "string" ||
-  !taxCurrencyCode ||
-  typeof taxCurrencyCode !== "string" ||
-  !requestedInvoiceCurrencyCode ||
-  typeof requestedInvoiceCurrencyCode !== "string" ||
-  typeof accountingCost !== "number" ||
-  !paymentMethodCode ||
-  typeof paymentMethodCode !== "string" ||
-  !destinationCountryCode ||
-  typeof destinationCountryCode !== "string"
-) {
-  return res.status(422).json({
-    error: "VALIDATION_FAILED",
-    message: "The request body is missing mandatory fields",
-  });
-}
+      !orderName ||
+      typeof orderName !== "string" ||
+      !buyerId ||
+      typeof buyerId !== "string" ||
+      !sellerId ||
+      typeof sellerId !== "string" ||
+      !documentCurrencyCode ||
+      typeof documentCurrencyCode !== "string" ||
+      !pricingCurrencyCode ||
+      typeof pricingCurrencyCode !== "string" ||
+      !taxCurrencyCode ||
+      typeof taxCurrencyCode !== "string" ||
+      !requestedInvoiceCurrencyCode ||
+      typeof requestedInvoiceCurrencyCode !== "string" ||
+      typeof accountingCost !== "number" ||
+      !paymentMethodCode ||
+      typeof paymentMethodCode !== "string" ||
+      !destinationCountryCode ||
+      typeof destinationCountryCode !== "string"
+    ) {
+      return res.status(422).json({
+        error: "VALIDATION_FAILED",
+        message: "The request body is missing mandatory fields",
+      });
+    }
 
-if (!Array.isArray(orderLines) || orderLines.length === 0) {
-  return res.status(400).json({
-    error: "orderLines is required and must be a non-empty array",
-  });
-}
+    if (!Array.isArray(orderLines) || orderLines.length === 0) {
+      return res.status(400).json({
+        error: "orderLines is required and must be a non-empty array",
+      });
+    }
 
-for (const line of orderLines) {
-  if (
-    !line ||
-    typeof line !== "object" ||
-    !line.itemID ||
-    typeof line.itemID !== "string" ||
-    typeof line.quantity !== "number" ||
-    line.quantity <= 0 ||
-    typeof line.priceAtPurchase !== "number" ||
-    line.priceAtPurchase < 0
-  ) {
-    return res.status(422).json({
-      error: "VALIDATION_FAILED",
-      message: "The request body is missing mandatory fields",
-    });
-  }
-}
+    for (const line of orderLines) {
+      if (
+        !line ||
+        typeof line !== "object" ||
+        !line.itemID ||
+        typeof line.itemID !== "string" ||
+        typeof line.quantity !== "number" ||
+        line.quantity <= 0 ||
+        typeof line.priceAtPurchase !== "number" ||
+        line.priceAtPurchase < 0
+      ) {
+        return res.status(422).json({
+          error: "VALIDATION_FAILED",
+          message: "The request body is missing mandatory fields",
+        });
+      }
+    }
 
+    const newOrder = {
+      orderId,
+      orderName,
+      buyerId,
+      sellerId,
+      documentCurrencyCode,
+      pricingCurrencyCode,
+      taxCurrencyCode,
+      requestedInvoiceCurrencyCode,
+      accountingCost,
+      paymentMethodCode,
+      destinationCountryCode,
+      orderLines,
+      createdAt: new Date().toISOString(),
+    };
 
-const newOrder = {
-  orderId,
-  orderName,
-  buyerId,
-  sellerId,
-  documentCurrencyCode,
-  pricingCurrencyCode,
-  taxCurrencyCode,
-  requestedInvoiceCurrencyCode,
-  accountingCost,
-  paymentMethodCode,
-  destinationCountryCode,
-  orderLines,
-  createdAt: new Date().toISOString(),
-};
-    // Buildj JSON object
     const orderJson = {
       Order: {
         "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
@@ -318,8 +317,8 @@ const newOrder = {
         "@xmlns:cbc":
           "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
 
-      "cbc:ID": orderId,
-      "cbc:IssueDate": createdAt.slice(0, 10),
+        "cbc:ID": newOrder.orderId,
+        "cbc:IssueDate": newOrder.createdAt.slice(0, 10),
 
         "cac:BuyerCustomerParty": {
           "cac:Party": {
@@ -343,68 +342,32 @@ const newOrder = {
       },
     };
 
-  // convert JSON object into UBL XML format
-  const xml = create(orderJson).end({ prettyPrint: true });
+    const xml = create(orderJson).end({ prettyPrint: true });
 
-    const items = orderLines.map((line: any) => ({
-  itemId: line.itemID,
-  quantity: line.quantity,
-  priceAtPurchase: line.priceAtPurchase,
-}));
+    const items = newOrder.orderLines.map((line: any) => ({
+      itemId: line.itemID,
+      quantity: line.quantity,
+      priceAtPurchase: line.priceAtPurchase,
+    }));
 
-const response = await createOrderQuery(
-  orderId,
-  orderName,
-  buyerId,
-  sellerId,
-  documentCurrencyCode,
-  pricingCurrencyCode,
-  taxCurrencyCode,
-  requestedInvoiceCurrencyCode,
-  accountingCost,
-  paymentMethodCode,
-  destinationCountryCode,
-  xml,
-  items,
-);
+    const response = await createOrderQuery(
+      newOrder.orderId,
+      newOrder.orderName,
+      newOrder.buyerId,
+      newOrder.sellerId,
+      newOrder.documentCurrencyCode,
+      newOrder.pricingCurrencyCode,
+      newOrder.taxCurrencyCode,
+      newOrder.requestedInvoiceCurrencyCode,
+      newOrder.accountingCost,
+      newOrder.paymentMethodCode,
+      newOrder.destinationCountryCode,
+      xml,
+      items,
+    );
 
-const responseBody = await response.json();
-return res.status(response.status).json(responseBody);
-  }
-
-  if (url === "/profile" && method === "PATCH") {
-    const response = await updateProfile(req);
-
-    const body = await response.json();
-    return res.status(response.status).json(body);
-  }
-
-  if (url === "/auth/sessions" && method === "GET") {
-    const response = await getUserSessions(req);
-
-    const body = await response.json();
-    return res.status(response.status).json(body);
-  }
-
-  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "GET") {
-    const response = await getUserDetailsById(req);
-
-    const body = await response.json();
-    return res.status(response.status).json(body);
-  }
-
-  if (url === "/profile" && method === "GET") {
-    const response = await getMyProfileDetails(req);
-
-    const body = await response.json();
-    return res.status(response.status).json(body);
-  }
-
-  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
-    const response = await deleteUser(req);
-
-    const body = await response.json();
-    return res.status(response.status).json(body);
+    const responseBody = await response.json();
+    return res.status(response.status).json(responseBody);
   }
 
   // 404 if no roiutes match
