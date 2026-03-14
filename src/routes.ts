@@ -1,4 +1,5 @@
 import { create } from "xmlbuilder2";
+import { createOrderQuery } from "./database/queries/order_queries";
 import {
   register,
   login,
@@ -202,11 +203,69 @@ export async function handleRequest(req: any, res: any) {
 
   // POST /orders
   if (url === "/orders" && method === "POST") {
-    const { userId, orderLines } = body || {};
+    const contentType =
+      req.headers?.get?.("content-type") || req.headers?.["content-type"];
 
-    if (!userId || typeof userId !== "string") {
+    if (!contentType || !contentType.includes("application/json")) {
+      return res.status(415).json({
+        error: "UNSUPPORTED_TYPE",
+        message: "This content type is not supported",
+      });
+    }
+
+    let parsedBody = body;
+
+    try {
+      if (!parsedBody && req.json) {
+        parsedBody = await req.json();
+      }
+    } catch (error) {
       return res.status(400).json({
-        error: "userId is required and must be a string",
+        error: "INVALID_INPUT",
+        message: "The request body is not valid",
+      });
+    }
+
+    const {
+      orderName,
+      buyerId,
+      sellerId,
+      documentCurrencyCode,
+      pricingCurrencyCode,
+      taxCurrencyCode,
+      requestedInvoiceCurrencyCode,
+      accountingCost,
+      paymentMethodCode,
+      destinationCountryCode,
+      orderLines,
+    } = parsedBody || {};
+
+    const orderId = crypto.randomUUID();
+
+    if (
+      !orderName ||
+      typeof orderName !== "string" ||
+      !buyerId ||
+      typeof buyerId !== "string" ||
+      !sellerId ||
+      typeof sellerId !== "string" ||
+      !documentCurrencyCode ||
+      typeof documentCurrencyCode !== "string" ||
+      !pricingCurrencyCode ||
+      typeof pricingCurrencyCode !== "string" ||
+      !taxCurrencyCode ||
+      typeof taxCurrencyCode !== "string" ||
+      !requestedInvoiceCurrencyCode ||
+      typeof requestedInvoiceCurrencyCode !== "string" ||
+      typeof accountingCost !== "number" ||
+      !paymentMethodCode ||
+      typeof paymentMethodCode !== "string" ||
+      !destinationCountryCode ||
+      typeof destinationCountryCode !== "string"
+    ) {
+      return res.status(422).json({
+        error: "VALIDATION_FAILED",
+        message: "The request body is missing mandatory fields",
       });
     }
 
@@ -216,13 +275,40 @@ export async function handleRequest(req: any, res: any) {
       });
     }
 
+    for (const line of orderLines) {
+      if (
+        !line ||
+        typeof line !== "object" ||
+        !line.itemID ||
+        typeof line.itemID !== "string" ||
+        typeof line.quantity !== "number" ||
+        line.quantity <= 0 ||
+        typeof line.priceAtPurchase !== "number" ||
+        line.priceAtPurchase < 0
+      ) {
+        return res.status(422).json({
+          error: "VALIDATION_FAILED",
+          message: "The request body is missing mandatory fields",
+        });
+      }
+    }
+
     const newOrder = {
-      orderId: crypto.randomUUID(),
-      userId,
+      orderId,
+      orderName,
+      buyerId,
+      sellerId,
+      documentCurrencyCode,
+      pricingCurrencyCode,
+      taxCurrencyCode,
+      requestedInvoiceCurrencyCode,
+      accountingCost,
+      paymentMethodCode,
+      destinationCountryCode,
       orderLines,
       createdAt: new Date().toISOString(),
     };
-    // Buildj JSON object
+
     const orderJson = {
       Order: {
         "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
@@ -236,25 +322,53 @@ export async function handleRequest(req: any, res: any) {
 
         "cac:BuyerCustomerParty": {
           "cac:Party": {
-            "cbc:CustomerAssignedAccountID": newOrder.userId,
+            "cbc:CustomerAssignedAccountID": newOrder.buyerId,
           },
         },
 
-        "cac:OrderLine": newOrder.orderLines.map((line, index) => ({
+        "cac:SellerSupplierParty": {
+          "cac:Party": {
+            "cbc:CustomerAssignedAccountID": newOrder.sellerId,
+          },
+        },
+
+        "cac:OrderLine": newOrder.orderLines.map((line: any) => ({
           "cbc:ID": crypto.randomUUID(),
           "cbc:Quantity": String(line.quantity),
           "cac:Item": {
-            "cbc:Name": line.itemName || "Unknown Item",
+            "cbc:Name": line.itemName || line.itemID,
           },
         })),
       },
     };
 
-    // Now conbvet JSON to XML
     const xml = create(orderJson).end({ prettyPrint: true });
 
-    res.setHeader("Content-Type", "application/xml");
-    return res.status(201).send(xml);
+    const items = newOrder.orderLines.map((line: any) => ({
+      itemId: line.itemID,
+      quantity: line.quantity,
+      priceAtPurchase: line.priceAtPurchase,
+    }));
+
+    const response = await createOrderQuery(
+      newOrder.orderId,
+      newOrder.orderName,
+      newOrder.buyerId,
+      newOrder.sellerId,
+      newOrder.documentCurrencyCode,
+      newOrder.pricingCurrencyCode,
+      newOrder.taxCurrencyCode,
+      newOrder.requestedInvoiceCurrencyCode,
+      newOrder.accountingCost,
+      newOrder.paymentMethodCode,
+      newOrder.destinationCountryCode,
+      xml,
+      items,
+    );
+
+    
+    const responseBody = await response.json();
+    return res.status(response.status).json(responseBody);
   }
 
   if (url === "/profile" && method === "PATCH") {
@@ -291,6 +405,7 @@ export async function handleRequest(req: any, res: any) {
     const body = await response.json();
     return res.status(response.status).json(body);
   }
+
 
   // 404 if no roiutes match
   return res.status(404).json({ error: "Not found" });
