@@ -1,5 +1,8 @@
 import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
-import { register, login } from "../src/application/user_application";
+import {
+  register,
+  login,
+} from "../src/application/user_application";
 import pg, { redis } from "../src/utils/db";
 import {
   getItemsById,
@@ -70,14 +73,14 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
-  await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+  await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
   await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 });
 
 describe("Getting items tests", () => {
   beforeAll(async () => {
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
-    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
     await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 
     const registerReq = generateRequest(
@@ -129,7 +132,7 @@ describe("Getting items tests", () => {
 
   afterAll(async () => {
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
-    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
     await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
   });
 
@@ -326,7 +329,7 @@ describe("Update item tests", () => {
   beforeAll(async () => {
     // register users
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
-    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
     await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 
     const registerReq = generateRequest(
@@ -378,7 +381,7 @@ describe("Update item tests", () => {
 
   afterAll(async () => {
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
-    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
     await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
   });
 
@@ -477,7 +480,7 @@ describe("Deleting item tests", () => {
   beforeAll(async () => {
     // register users
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
-    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
     await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 
     const registerReq = generateRequest(
@@ -530,7 +533,7 @@ describe("Deleting item tests", () => {
   afterAll(async () => {
     // delete all registered users
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
-    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
     await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
   });
 
