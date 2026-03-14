@@ -30,10 +30,6 @@ import {
   registerOnly,
 } from "./test_helper";
 
-afterEach(async () => {
-  await resetDb();
-});
-
 const registerRoute = "http://localhost/auth/register";
 const logoutRoute = "http://localhost/auth/logout";
 const refreshRoute = "http://localhost/auth/refresh";
