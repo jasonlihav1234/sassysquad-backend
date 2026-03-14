@@ -20,6 +20,7 @@ import { handleHealthRoutes } from "./routes/health_routes";
 import {
   addItemToCart,
   deleteItemFromCart,
+  updateCartItem,
 } from "./application/order_application";
 import { deleteItem } from "./application/item_application";
 import { updateItem } from "./application/item_application";
@@ -131,7 +132,14 @@ export async function handleRequest(req: any, res: any) {
     const body = await response.json();
     return res.status(response.status).json(body);
   }
-  
+
+  if (url.match(/^\/cart\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
+    const response = await updateCartItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   // /items/{item_id}
   if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "GET") {
     const response = await getItemsById(req);
@@ -379,7 +387,6 @@ export async function handleRequest(req: any, res: any) {
       items,
     );
 
-    
     const responseBody = await response.json();
     return res.status(response.status).json(responseBody);
   }
@@ -418,7 +425,6 @@ export async function handleRequest(req: any, res: any) {
     const body = await response.json();
     return res.status(response.status).json(body);
   }
-
 
   // 404 if no roiutes match
   return res.status(404).json({ error: "Not found" });
