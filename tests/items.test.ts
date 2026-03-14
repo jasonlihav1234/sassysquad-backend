@@ -1,21 +1,6 @@
 import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
-import {
-  generateUser,
-  checkUser,
-  register,
-  refresh,
-  login,
-  logout,
-  logoutAll,
-  forgotPassword,
-  resetPassword,
-} from "../src/application/user_application";
-import { afterEach, beforeEach, mock } from "node:test";
+import { register, login } from "../src/application/user_application";
 import pg, { redis } from "../src/utils/db";
-import { createHash } from "node:crypto";
-import { verifyRefreshToken } from "../src/utils/jwt_config";
-import { getMaxListeners } from "node:cluster";
-import { sleep } from "bun";
 import {
   getItemsById,
   getAllItems,
@@ -33,7 +18,7 @@ let sellerId2: string | null = null;
 
 beforeAll(async () => {
   await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
-  await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+  await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
   await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 
   const registerReq = generateRequest(
