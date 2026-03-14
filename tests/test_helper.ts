@@ -1,5 +1,4 @@
 import pg from "../src/utils/db";
-import { createAccessToken } from "../src/utils/jwt_config";
 import type { User, InsertUserOverrides } from "../src/types/user";
 import type { Order, InsertOrderOverrides } from "../src/types/order";
 
@@ -12,15 +11,39 @@ export async function resetDb(): Promise<void> {
   await pg`truncate table users restart identity cascade`;
 }
 
-// Creates access token for given user_id and email
-export async function makeAccessTokenForUser(user: {
-  user_id: string;
-  email: string;
-}): Promise<string> {
-  return await createAccessToken(user.user_id, user.email);
-}
+export const generateRequest = (
+  url: string,
+  givenMethod: string,
+  givenBody: any,
+): any => {
+  return {
+    url: url,
+    method: givenMethod,
+    headers: {
+      "content-type": "application/json",
+    },
+    body: givenBody,
+    json: async () => givenBody,
+  };
+};
 
-export async function 
+export const generateAuthenticatedRequest = (
+  url: string,
+  givenMethod: string,
+  givenBody: any,
+  token: any,
+): any => {
+  return {
+    url: url,
+    method: givenMethod,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: givenBody,
+    json: async () => givenBody,
+  };
+};
 
 // Creates a random user with fields that can be overriden, and returns inputted User
 export async function insertUser(
