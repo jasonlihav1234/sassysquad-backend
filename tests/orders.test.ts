@@ -1,4 +1,4 @@
-import { describe, expect } from "bun:test";
+import { describe, expect, spyOn } from "bun:test";
 import pg, { redis } from "../src/utils/db";
 import test, { beforeEach } from "node:test";
 import {
@@ -9,7 +9,9 @@ import {
 import {
   checkCheckoutSessionStatus,
   createCheckoutSession,
+  serverWebhook,
 } from "../src/application/order_application";
+import * as OrderApp from "../src/application/order_application";
 import Stripe from "stripe";
 
 describe("Creating checkout session", () => {
@@ -249,5 +251,121 @@ describe("Check checkout session status tests", async () => {
     expect(response.status).toBe(200);
     expect(body.status).toBe("open");
     expect(body.customer_email).toBe("No email provided");
+  });
+});
+
+describe("Webhook tests", async () => {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
+  test("Fails when no body is provided", async () => {
+    const request = {
+      body: undefined,
+      headers: {
+        "stripe-signature": "fake_signature_123",
+      },
+    } as any;
+
+    const response = await serverWebhook(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("No body provided");
+  });
+
+  test("Fails when no signature is provided", async () => {
+    const request = {
+      body: { some: "data" },
+      headers: {},
+    } as any;
+
+    const response = await serverWebhook(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("No signature provided");
+  });
+
+  test("Fails with invalid webhook signature", async () => {
+    const request = {
+      body: JSON.stringify({ type: "checkout.session.completed" }),
+      headers: {
+        "stripe-signature": "t=1620000000,v1=fake_invalid_hash_123",
+      },
+    } as any;
+
+    const response = await serverWebhook(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe("Webhook error");
+    expect(body.error).toBeDefined();
+  });
+
+  test("Successfully processes checkout.session.completed", async () => {
+    const fulfillSpy = spyOn(OrderApp, "fulfillCheckout").mockResolvedValue(
+      true,
+    );
+    const mockEventData = {
+      id: "evt_test_123",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_test_123",
+        },
+      },
+    };
+
+    const payloadString = JSON.stringify(mockEventData);
+
+    const header = await stripe.webhooks.generateTestHeaderStringAsync({
+      payload: payloadString,
+      secret: endpointSecret,
+    });
+
+    const request = {
+      body: payloadString,
+      headers: {
+        "stripe-signature": header,
+      },
+    } as any;
+
+    const response = await serverWebhook(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Checkout successfully fulfilled");
+  });
+
+  test("Returns 404 for unhandled event types", async () => {
+    const mockEventData = {
+      id: "evt_test_999",
+      type: "customer.created",
+      data: {
+        object: {
+          id: "cus_test_123",
+        },
+      },
+    };
+
+    const payloadString = JSON.stringify(mockEventData);
+
+    const header = await stripe.webhooks.generateTestHeaderStringAsync({
+      payload: payloadString,
+      secret: endpointSecret,
+    });
+
+    const request = {
+      body: payloadString,
+      headers: {
+        "stripe-signature": header,
+      },
+    } as any;
+
+    const response = await serverWebhook(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe("No event types match");
   });
 });

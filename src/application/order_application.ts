@@ -222,7 +222,7 @@ export async function processOrderCreation(data: {
   return { xml, response };
 }
 
-async function fulfillCheckout(session: Stripe.Checkout.Session) {
+export async function fulfillCheckout(session: Stripe.Checkout.Session) {
   console.log("fulfilling checkout session");
   const buyerId = session.metadata?.buyerId as string;
   const sellerId = session.metadata?.sellerId as string;
@@ -295,8 +295,11 @@ async function fulfillCheckout(session: Stripe.Checkout.Session) {
         accountingCost: 1.5,
         destinationCountryCode,
       });
+
+      return true;
     } catch (error) {
       console.log(error);
+      return false;
     }
   }
 }
@@ -438,7 +441,11 @@ export async function serverWebhook(req: VercelRequest): Promise<Response> {
   let event = null;
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
+    event = await stripe.webhooks.constructEventAsync(
+      body,
+      signature,
+      endpointSecret,
+    );
   } catch (error) {
     return jsonHelper(
       {
@@ -460,11 +467,12 @@ export async function serverWebhook(req: VercelRequest): Promise<Response> {
         message: "Checkout successfully fulfilled",
       });
     } catch (error) {
+      console.log(error);
       return jsonHelper({ error: "Event type invalid" }, 400);
     }
   }
 
-  return jsonHelper({ error: "No event types match " }, 404);
+  return jsonHelper({ error: "No event types match" }, 404);
 }
 
 // post with itemId and quantity and userId in body
