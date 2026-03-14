@@ -112,24 +112,19 @@ export async function updateProfileQuery(
     }
 
     if (Object.keys(updatesToApply).length > 0) {
-      await pg`
+      const res = await pg`
         update users
         set ${pg(updatesToApply)}
         where user_id = ${user_id}
       `;
+
+      return res;
     }
 
-    return jsonHelper({
-      message: "Profile updated successfully",
-    });
+    return [];
   } catch (error) {
-    return jsonHelper(
-      {
-        error: error,
-        message: "Failed to update profile",
-      },
-      500,
-    );
+    console.log(error);
+    throw error;
   }
 }
 

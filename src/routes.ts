@@ -11,6 +11,7 @@ import {
   getUserDetailsById,
   getMyProfileDetails,
   deleteUser,
+  updateProfile,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
@@ -22,7 +23,6 @@ import {
   getAllItems,
   getItemByUserId,
   getItemsById,
-  updateProfile,
 } from "./application/item_application";
 
 export async function handleRequest(req: any, res: any) {
