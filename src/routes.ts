@@ -17,7 +17,13 @@ import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
 import { deleteItem } from "./application/item_application";
 import { updateItem } from "./application/item_application";
-import { addItemToCart, postOrder } from "./application/order_application";
+import {
+  addItemToCart,
+  checkCheckoutSessionStatus,
+  createCheckoutSession,
+  postOrder,
+  serverWebhook,
+} from "./application/order_application";
 import {
   getAllItems,
   getItemByUserId,
@@ -248,6 +254,30 @@ export async function handleRequest(req: any, res: any) {
 
   if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
     const response = await deleteUser(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/create-checkout-session" && method === "POST") {
+    const response = await createCheckoutSession(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (
+    url.match(/^\/checkout-session-status\/[a-zA-Z0-9_-]+$/) &&
+    method === "GET"
+  ) {
+    const response = await checkCheckoutSessionStatus(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/webhook" && method === "POST") {
+    const response = await serverWebhook(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
