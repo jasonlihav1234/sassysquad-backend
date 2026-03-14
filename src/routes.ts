@@ -12,6 +12,7 @@ import {
   getUserDetailsById,
   getMyProfileDetails,
   deleteUser,
+  updateProfile,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
@@ -26,7 +27,6 @@ import {
   getAllItems,
   getItemByUserId,
   getItemsById,
-  updateProfile,
 } from "./application/item_application";
 
 export async function handleRequest(req: any, res: any) {
@@ -412,7 +412,7 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+  if (url === "/profile" && method === "DELETE") {
     const response = await deleteUser(req);
 
     const body = await response.json();
