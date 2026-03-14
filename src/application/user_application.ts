@@ -30,6 +30,7 @@ import {
   updateProfileQuery,
 } from "../database/queries/user_queries";
 import { VercelRequest } from "@vercel/node";
+import { StringOrBuffer } from "bun";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -498,16 +499,13 @@ export async function getUserSales(req: any, res: any) {
 
 export const getUserSessions = authHelper(
   async (req: AuthReq): Promise<Response> => {
-    if (!req.user) {
-      return jsonHelper({ error: "Unauthorized " }, 401);
-    }
-
-    const userSessions = await getAllUserRefreshTokens(req.user.subject_claim);
+    const userId = req.user?.subject_claim as string;
+    const userSessions = await getAllUserRefreshTokens(userId);
 
     const sessionInfo = userSessions.map((session: any) => ({
       deviceInfo: session.deviceInfo,
-      createdAt: session.createdAt,
-      expiresAt: session.expiresAt,
+      createdAt: session.created,
+      expiresAt: session.expires,
     }));
 
     return jsonHelper({

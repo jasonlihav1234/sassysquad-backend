@@ -13,6 +13,7 @@ import {
   getUserDetailsById,
   updateProfile,
   deleteUser,
+  getUserSessions,
 } from "../src/application/user_application";
 import { afterEach, beforeEach, mock } from "node:test";
 import pg, { redis } from "../src/utils/db";
@@ -943,4 +944,57 @@ describe("Deleting a user test", () => {
   });
 
   // impossible to test the 500 path unless the postgres server crashes
+});
+
+describe("Getting user session tests", () => {
+  let accessToken: string = "";
+  let userId: string = "";
+  beforeAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+    const regRes = await register(registerReq);
+    const regBody = await regRes.json();
+    userId = regBody.user;
+
+    const loginReq = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginRes = await login(loginReq);
+    const body = await loginRes.json();
+
+    accessToken = body.accessToken;
+  });
+
+  afterAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+  });
+
+  test("Successfully getting the sessions", async () => {
+    const authReq = generateAuthenticatedRequest(
+      `/auth/sessions`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const response = await getUserSessions(authReq);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.session).not.toBe(undefined);
+    expect(body.session[0].createdAt).not.toBe(undefined);
+    expect(body.session[0].expiresAt).not.toBe(undefined);
+  });
 });
