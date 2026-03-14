@@ -1,0 +1,142 @@
+import {
+  addItemToCart,
+  deleteItemFromCart,
+  updateCartItem,
+} from "../src/application/order_application";
+import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
+import { afterEach, beforeEach, mock } from "node:test";
+import pg, { redis } from "../src/utils/db";
+import { generateAuthenticatedRequest, generateRequest } from "./users.test";
+import { register, login } from "../src/application/user_application";
+
+const itemId1 = "537d8f9c-bd93-484a-b14c-ce1853456a15";
+const itemId2 = "99c1a581-510a-4467-91b5-112b78362f03";
+const itemId3 = "ff44b3f7-0f88-413e-b359-bb6750fb0001";
+let sellerId: string | null = null;
+let sellerId2: string | null = null;
+
+describe("Add items to cart tests", () => {
+  beforeAll(async () => {
+    await pg`delete from items where item_id in (${itemId1})`;
+    await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+
+    const registerReq2 = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli8909@gmail.com",
+        username: "test2",
+        password: "testing123",
+      },
+    );
+
+    const userRes = await register(registerReq);
+    const userRes2 = await register(registerReq2);
+    sellerId = (await userRes.json()).user;
+    sellerId2 = (await userRes2.json()).user;
+
+    await redis.del(`cart:${sellerId}`);
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId1}, ${sellerId2}, ${"test_item"}, ${9.5}, ${20})
+    `;
+  });
+
+  afterAll(async () => {
+    await pg`delete from items where item_id in (${itemId1})`;
+    await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
+    await redis.del(`cart:${sellerId}`);
+  });
+
+  test("Item Id not provided", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items`,
+      "POST",
+      {
+        quantity: 20,
+      },
+      accessToken,
+    );
+
+    const getResponse = await addItemToCart(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(400);
+    expect(getBody.error).toBe("Need item ID and quantity in the body");
+  });
+
+  test("Quantity not provided", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items`,
+      "POST",
+      {
+        itemId: "dioana9123hd",
+      },
+      accessToken,
+    );
+
+    const getResponse = await addItemToCart(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(400);
+    expect(getBody.error).toBe("Need item ID and quantity in the body");
+  });
+
+  test("Item successfully added to cart", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items`,
+      "POST",
+      {
+        itemId: itemId1,
+        quantity: 20,
+      },
+      accessToken,
+    );
+
+    const getResponse = await addItemToCart(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(200);
+    expect(getBody.message).toBe("Item successfully added to cart");
+
+    const query = await redis.hget(`cart:${sellerId}`, itemId1);
+    
+    expect(query).not.toBe(null);
+  });
+});
