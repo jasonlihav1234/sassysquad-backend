@@ -50,13 +50,13 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
       status: 200,
     });
   } catch (error) {
-      return jsonHelper(
-    {
-      message: "Order creation failed",
-      error: error,
-    },
-    500,
-  );
+    return jsonHelper(
+      {
+        message: "Order creation failed",
+        error: error,
+      },
+      500,
+    );
   }
 });
 
@@ -134,20 +134,74 @@ export async function processOrderCreation(data: {
 
 async function fulfillCheckout(session: Stripe.Checkout.Session) {
   console.log("fulfilling checkout session");
-  const buyerId = session.metadata?.buyerId;
-  const sellerId = session.metadata?.sellerId;
+  const buyerId = session.metadata?.buyerId as string;
+  const sellerId = session.metadata?.sellerId as string;
   const sessionId = session.id;
 
   const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
-    expand: ["line_items"],
+    expand: ["line_items.data.price.product", "payment_intent.payment_method"],
   });
 
+  let paymentMethodCode = "none";
   if (checkoutSession.payment_status !== "unpaid") {
+    if (
+      checkoutSession.payment_intent &&
+      typeof checkoutSession.payment_intent !== "string"
+    ) {
+      const paymentIntent =
+        checkoutSession.payment_intent as Stripe.PaymentIntent;
+
+      if (
+        paymentIntent.payment_method &&
+        typeof paymentIntent.payment_method !== "string"
+      ) {
+        const paymentMethod =
+          paymentIntent.payment_method as Stripe.PaymentMethod;
+
+        if (paymentMethod.type === "card" && paymentMethod.card?.brand) {
+          paymentMethodCode = paymentMethod.card.brand;
+        } else {
+          paymentMethodCode = paymentMethod.type;
+        }
+      }
+    }
+
+    const safeSession = checkoutSession as any;
+    // might be an issue need to check for this
+    const destinationCountryCode =
+      safeSession.shipping_details?.address?.country || "AU";
+    const rawLineItems = checkoutSession.line_items?.data || [];
+    const orderLines = rawLineItems.map((stripeItem) => {
+      const product = stripeItem.price?.product as Stripe.Product;
+      const itemId = product?.metadata?.item_id || "unknown_item";
+
+      const unitAmountCents = stripeItem.price?.unit_amount || 0;
+      const priceAtPurchase = unitAmountCents / 100;
+
+      return {
+        itemId: itemId,
+        quantity: stripeItem.quantity || 0,
+        priceAtPurchase: priceAtPurchase,
+        taxPercentPer: 0,
+      };
+    });
+
     // perform fulfillment of line items
     // record and save fulfillment status in db
     // remove x amount from database
     // this should just call the orderf fun
     // here I would call the post orders method
+    try {
+      await processOrderCreation({
+        buyerId,
+        sellerId,
+        orderLines,
+        paymentMethodCode,
+        destinationCountryCode,
+      });
+    } catch (error) {
+      console.log(error);
+    }
   }
 }
 
@@ -187,6 +241,9 @@ export const createCheckoutSession = authHelper(
             images: [item.image_url],
             tax_code: "txcd_99999999",
             description: item.description,
+            metadata: {
+              item_id: item.item_id,
+            },
           },
           unit_amount: Number(item.price) * 100,
         },
