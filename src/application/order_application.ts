@@ -4,6 +4,8 @@ import { authHelper, jsonHelper } from "../utils/jwt_helpers";
 import { url } from "node:inspector";
 import pg, { redis } from "../utils/db";
 import { AuthReq } from "../utils/jwt_helpers";
+import { create } from "xmlbuilder2";
+import { createOrderQuery } from "../database/queries/order_queries";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -23,6 +25,99 @@ async function fulfillCheckout(sessionId: string) {
     // here I would call the post orders method
   }
 }
+
+export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
+  const buyer = req.user?.subject_claim as string; // authenticated method should be able to get id from subject claim
+  const {
+    userId,
+    orderLines,
+    sellerId,
+    paymentMethodCode,
+    destinationCountryCode,
+  } = req.body || {};
+
+  if (!userId || typeof userId !== "string") {
+    return jsonHelper(
+      {
+        error: "userId is required and must be a string",
+      },
+      400,
+    );
+  }
+
+  if (!Array.isArray(orderLines) || orderLines.length === 0) {
+    return jsonHelper(
+      { error: "orderLines is required and must be a non-empty array" },
+      400,
+    );
+  }
+
+  const newOrder = {
+    orderId: crypto.randomUUID(),
+    userId,
+    orderLines,
+    createdAt: new Date().toISOString(),
+  };
+  // Buildj JSON object
+  const orderJson = {
+    Order: {
+      "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
+      "@xmlns:cac":
+        "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+      "@xmlns:cbc":
+        "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+
+      "cbc:ID": newOrder.orderId,
+      "cbc:IssueDate": newOrder.createdAt.slice(0, 10),
+
+      "cac:BuyerCustomerParty": {
+        "cac:Party": {
+          "cbc:CustomerAssignedAccountID": newOrder.userId,
+        },
+      },
+
+      "cac:OrderLine": newOrder.orderLines.map((line, index) => ({
+        "cbc:ID": crypto.randomUUID(),
+        "cbc:Quantity": String(line.quantity),
+        "cac:Item": {
+          "cbc:Name": line.itemName || "Unknown Item",
+        },
+      })),
+    },
+  };
+
+  // Now conbvet JSON to XML
+  const xml = create(orderJson).end({ prettyPrint: true });
+
+  // store the order in the database
+  // have a default order name which the user edit later
+  const response = await createOrderQuery(
+    `order-${newOrder.orderId}`,
+    buyer,
+    sellerId,
+    "aud",
+    "aud",
+    "aud",
+    "aud",
+    1.5,
+    paymentMethodCode,
+    destinationCountryCode,
+    xml,
+    orderLines,
+  );
+  const responseBody = await response.json();
+
+  if (responseBody.error === undefined) {
+    return new Response(xml, {
+      headers: { "Content-Type": "application/xml" },
+      status: 200,
+    });
+  }
+
+  return jsonHelper({
+    error: responseBody
+  }, 500);
+});
 
 export const createCheckoutSession = authHelper(
   async (req: AuthReq): Promise<Response> => {
