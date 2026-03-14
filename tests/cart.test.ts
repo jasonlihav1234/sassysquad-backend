@@ -369,3 +369,102 @@ describe("Deleting item from carts tests", () => {
 
   // impossible to test 500 path unless backend crashes
 });
+
+describe("Updating cart item tests", () => {
+  beforeAll(async () => {
+    await pg`delete from items where item_id in (${itemId1})`;
+    await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+
+    const registerReq2 = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli8909@gmail.com",
+        username: "test2",
+        password: "testing123",
+      },
+    );
+
+    const userRes = await register(registerReq);
+    const userRes2 = await register(registerReq2);
+    sellerId = (await userRes.json()).user;
+    sellerId2 = (await userRes2.json()).user;
+
+    await redis.del(`cart:${sellerId}`);
+
+    await pg`
+    insert into items
+    (item_id, seller_id, item_name, price, quantity_available)
+    values
+    (${itemId1}, ${sellerId2}, ${"test_item"}, ${9.5}, ${20})
+    `;
+
+    if (sellerId !== null) {
+      await redis.hset(`cart:${sellerId}`, itemId1, (100).toString());
+    }
+  });
+
+  afterAll(async () => {
+    await pg`delete from items where item_id in (${itemId1})`;
+    await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
+    await redis.del(`cart:${sellerId}`);
+  });
+
+  test("No quantity provided", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items/${itemId1}`,
+      "PATCH",
+      {
+        notQuantity: 100,
+      },
+      accessToken,
+    );
+
+    const getResponse = await updateCartItem(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(404);
+    expect(getBody.message).toBe("Item does note exist");
+  });
+
+  test("No fields provided", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items/${itemId1}`,
+      "PATCH",
+      {},
+      accessToken,
+    );
+
+    const getResponse = await updateCartItem(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(404);
+    expect(getBody.message).toBe("Item does note exist");
+  });
+});

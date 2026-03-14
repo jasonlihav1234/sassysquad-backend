@@ -26,6 +26,7 @@ import {
   isUserIdValid,
 } from "../database/queries/user_queries";
 import { VercelRequest } from "@vercel/node";
+import { error } from "console";
 
 // post with itemId and quantity and userId in body
 export const addItemToCart = authHelper(
@@ -134,10 +135,30 @@ export const updateCartItem = authHelper(
     const body = req.body;
 
     // body will have updated fields
-    if (body.length === 0) {
+    // quanatity should also not be higher than available
+    const query =
+      await pg`select quantity_available from items where item_id = ${itemId}`;
+    if (query.length === 0) {
+      return jsonHelper(
+        {
+          message: "Item does not exist",
+        },
+        404,
+      );
+    }
+    const numAvailable = query[0].quantity_available;
+    // checkout should have a final check as well
+    if (body.length === 0 || body.quantity === undefined) {
       return jsonHelper(
         {
           message: "Quantity not provided to update cart items",
+        },
+        400,
+      );
+    } else if (body.quantity <= 0 || numAvailable < body.quantity) {
+      return jsonHelper(
+        {
+          message: "Invalid quantity to set",
         },
         400,
       );
