@@ -755,6 +755,77 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": ["user"],
+        "summary": "Deletes a user",
+        "description": "",
+        "operationId": "delete-profile",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "User successfully deleted",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "interger",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "response": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "user_id": {
+                        "type": "string"
+                      },
+                      "user_name": {
+                        "type": "string"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "password_hash": {
+                        "type": "string"
+                      },
+                      "created_at": {
+                        "type": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General failure to delete user error",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/auth/sessions": {
