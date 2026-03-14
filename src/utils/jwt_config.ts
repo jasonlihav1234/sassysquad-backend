@@ -1,4 +1,7 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+
+export type { JWTPayload };
+
 // interface which the jwt's must follow
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -6,10 +9,27 @@ export interface TokenPayload extends JWTPayload {
   type: "access" | "refresh";
   jwt_id: string;
 }
+// HS256 requires a key of at least 256 bits (32 bytes)
+const MIN_SECRET_LENGTH = 32;
+
+function requireSecret(name: string, value: string | undefined): string {
+  if (value === undefined || value === "") {
+    throw new Error(
+      `${name} is missing. Set ${name} in .env with at least 32 characters.`,
+    );
+  }
+  if (value.length < MIN_SECRET_LENGTH) {
+    throw new Error(
+      `${name} must be at least ${MIN_SECRET_LENGTH} characters for HS256.`,
+    );
+  }
+  return value;
+}
+
 // contains our secret signing keys for access and refresh token, as well as TTL
 export const config = {
-  jwtSecret: process.env.JWT_SECRET,
-  refreshSecret: process.env.REFRESH_SECRET,
+  jwtSecret: requireSecret("JWT_SECRET", process.env.JWT_SECRET),
+  refreshSecret: requireSecret("REFRESH_SECRET", process.env.REFRESH_SECRET),
   accessTokenExpiry: "15m",
   refreshTokenExpiry: "7d",
 };

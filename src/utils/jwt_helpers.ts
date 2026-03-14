@@ -67,14 +67,12 @@ export function authHelper(
 
 export async function getAuthenticatedUserId(
   req: any,
-  res: any,
   pathUserId?: string,
   unauthorizedMessage = "User is not logged on or lacks authorization to access orders",
-) {
+): Promise<string | Response> {
   const authHeader = req.headers?.authorization || req.headers?.Authorization;
   if (!authHeader || !String(authHeader).startsWith("Bearer ")) {
-    res.status(401).json({ error: unauthorizedMessage });
-    return null;
+    return jsonHelper({ error: unauthorizedMessage }, 401);
   }
 
   // "Bearer " slice
@@ -84,13 +82,11 @@ export async function getAuthenticatedUserId(
     const payload = await verifyAccessToken(token);
     tokenUserId = payload.subject_claim as string;
   } catch {
-    res.status(401).json({ error: unauthorizedMessage });
-    return null;
+    return jsonHelper({ error: unauthorizedMessage }, 401);
   }
 
   if (pathUserId !== undefined && tokenUserId !== pathUserId) {
-    res.status(401).json({ error: unauthorizedMessage });
-    return null;
+    return jsonHelper({ error: unauthorizedMessage }, 401);
   }
 
   return tokenUserId;
