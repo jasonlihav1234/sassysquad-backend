@@ -283,10 +283,16 @@ async function fulfillCheckout(session: Stripe.Checkout.Session) {
     // here I would call the post orders method
     try {
       await processOrderCreation({
+        orderId: crypto.randomUUID(),
         buyerId,
         sellerId,
         orderLines,
         paymentMethodCode,
+        documentCurrencyCode: "aud",
+        pricingCurrencyCode: "aud",
+        taxCurrencyCode: "aud",
+        requestedInvoiceCurrencyCode: "aud",
+        accountingCost: 1.50,
         destinationCountryCode,
       });
     } catch (error) {
