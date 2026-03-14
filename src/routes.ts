@@ -1,5 +1,5 @@
 import { create } from "xmlbuilder2";
-import { createOrderQuery } from "./database/queries/order_queries";
+import { createOrderQuery, getOrderById } from "./database/queries/order_queries";
 import {
   register,
   login,
@@ -14,9 +14,8 @@ import {
   deleteUser,
   updateProfile,
 } from "./application/user_application";
-import { jsonHelper, deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
+import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
-import { getOrderById, deleteOrdersById } from "./database/queries/order_queries";
 import { handleHealthRoutes } from "./routes/health_routes";
 import {
   addItemToCart,
@@ -390,6 +389,31 @@ export async function handleRequest(req: any, res: any) {
 
     const responseBody = await response.json();
     return res.status(response.status).json(responseBody);
+  }
+
+  // DELETE /orders/{id}
+  if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
+    const { userId, orderLines } = body || {};
+    const orderId = url.split("/")[1];
+
+    if (!orderId) {
+      return res.status(400).json({ error: "Bad Request" });
+    }
+
+    const order = await getOrderById(orderId);
+
+    if (userId !== order.buyerId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found!" });
+    }
+
+    deleteOrdersById(orderId);
+    
+    const xml = root.end({ prettyPrint: true });
+    return res.status(200).send(xml);
   }
 
   if (url === "/profile" && method === "PATCH") {
