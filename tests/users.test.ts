@@ -1,4 +1,4 @@
-import { expect, test, describe, spyOn } from "bun:test";
+import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
 import {
   generateUser,
   checkUser,
@@ -9,6 +9,11 @@ import {
   logoutAll,
   forgotPassword,
   resetPassword,
+  getMyProfileDetails,
+  getUserDetailsById,
+  updateProfile,
+  deleteUser,
+  getUserSessions,
 } from "../src/application/user_application";
 import { afterEach, beforeEach, mock } from "node:test";
 import pg, { redis } from "../src/utils/db";
@@ -16,8 +21,10 @@ import { createHash } from "node:crypto";
 import { verifyRefreshToken } from "../src/utils/jwt_config";
 import { getMaxListeners } from "node:cluster";
 import { sleep } from "bun";
+import { brotliDecompress } from "node:zlib";
+import { updateItem } from "../src/application/item_application";
 
-const generateRequest = (
+export const generateRequest = (
   url: string,
   givenMethod: string,
   givenBody: any,
@@ -33,7 +40,7 @@ const generateRequest = (
   };
 };
 
-const generateAuthenticatedRequest = (
+export const generateAuthenticatedRequest = (
   url: string,
   givenMethod: string,
   givenBody: any,
@@ -50,6 +57,12 @@ const generateAuthenticatedRequest = (
     json: async () => givenBody,
   };
 };
+
+beforeAll(async () => {
+  await pg`delete from refresh_tokens`;
+  await pg`delete from items`;
+  await pg`delete from users`;
+});
 
 const registerRoute = "http://localhost/auth/register";
 const logoutRoute = "http://localhost/auth/logout";
@@ -703,5 +716,285 @@ describe("Logout-all tests", () => {
     for (const refresh of findTokens) {
       expect(refresh.revoked).toBe(true);
     }
+  });
+});
+
+describe("Getting users profile test", () => {
+  let accessToken: string = "";
+  let userId: string = "";
+  beforeAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+    const regRes = await register(registerReq);
+    const regBody = await regRes.json();
+    userId = regBody.user;
+
+    const loginReq = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginRes = await login(loginReq);
+    const body = await loginRes.json();
+
+    accessToken = body.accessToken;
+  });
+
+  afterAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+  });
+
+  test("Successfully fetches profile", async () => {
+    const authReq = generateAuthenticatedRequest(
+      "/profile",
+      "GET",
+      {},
+      accessToken,
+    );
+    const response = await getMyProfileDetails(authReq);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.response).not.toBe(undefined);
+    expect(body.response[0].email).toBe("jasonli1234@gmail.com");
+  });
+
+  // kinda impossible to test 500 route since this means that authentication postgres crashed
+
+  test("Successfully fetch a profile given a user ID", async () => {
+    const authReq = generateAuthenticatedRequest(
+      `/users/${userId}`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const response = await getUserDetailsById(authReq);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.response).not.toBe(undefined);
+    expect(body.response[0].email).toBe("jasonli1234@gmail.com");
+  });
+
+  test("Fetching a profile for a user that doesn't exist", async () => {
+    const authReq = generateAuthenticatedRequest(
+      `/users/awiodhadwiaw`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const response = await getUserDetailsById(authReq);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Cannot get user details");
+    expect(body.error).not.toBe(undefined);
+  });
+});
+
+describe("Updating profile tests", () => {
+  let accessToken: string = "";
+  let userId: string = "";
+  beforeAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+    const regRes = await register(registerReq);
+    const regBody = await regRes.json();
+    userId = regBody.user;
+
+    const loginReq = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginRes = await login(loginReq);
+    const body = await loginRes.json();
+
+    accessToken = body.accessToken;
+  });
+
+  afterAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+  });
+
+  test("No fields to update provided", async () => {
+    const authReq = generateAuthenticatedRequest(
+      `/profile`,
+      "PATCH",
+      {},
+      accessToken,
+    );
+
+    const response = await updateProfile(authReq);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe("No fields to update for the user");
+  });
+
+  test("Details get successfully updated", async () => {
+    const authReq = generateAuthenticatedRequest(
+      `/profile`,
+      "PATCH",
+      {
+        username: "newusernam12345",
+      },
+      accessToken,
+    );
+
+    const response = await updateProfile(authReq);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Details successfully updated");
+  });
+
+  test("Username too long", async () => {
+    const authReq = generateAuthenticatedRequest(
+      `/profile`,
+      "PATCH",
+      {
+        username:
+          "mocbmlmdnjxrmabwdkajbndkajdwbjklbvkeghfamouvotvnkunpltyoiskwdeocqrrknbgvcnozkfholefrmhjamwnqdekmnunpodpcvuwqbdqpbntwanvvhglrggqdgppekoqmewfdxlqxhzjvidfbzvwpdvvvrahfvwthfdyquvfmpvcebwqjffychklevonvxivsnhjrqmynttnztumdfxhzycuxisledsejhqraysczxubzxnenocctgrlemdmusbwbvojmznhvfyyz",
+      },
+      accessToken,
+    );
+
+    const response = await updateProfile(authReq);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Profile failed to update");
+  });
+});
+
+describe("Deleting a user test", () => {
+  let accessToken: string = "";
+  let userId: string = "";
+  beforeAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+    const regRes = await register(registerReq);
+    const regBody = await regRes.json();
+    userId = regBody.user;
+
+    const loginReq = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginRes = await login(loginReq);
+    const body = await loginRes.json();
+
+    accessToken = body.accessToken;
+  });
+
+  afterAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+  });
+
+  test("User successfully deleted", async () => {
+    const authReq = generateAuthenticatedRequest(
+      `/profile`,
+      "DELETE",
+      {},
+      accessToken,
+    );
+
+    const response = await deleteUser(authReq);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("User successfully deleted");
+
+    const query = await pg`select * from users where user_id = ${userId}`;
+    expect(query.length).toBe(0);
+  });
+
+  // impossible to test the 500 path unless the postgres server crashes
+});
+
+describe("Getting user session tests", () => {
+  let accessToken: string = "";
+  let userId: string = "";
+  beforeAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+    const regRes = await register(registerReq);
+    const regBody = await regRes.json();
+    userId = regBody.user;
+
+    const loginReq = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginRes = await login(loginReq);
+    const body = await loginRes.json();
+
+    accessToken = body.accessToken;
+  });
+
+  afterAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+  });
+
+  test("Successfully getting the sessions", async () => {
+    const authReq = generateAuthenticatedRequest(
+      `/auth/sessions`,
+      "GET",
+      {},
+      accessToken,
+    );
+
+    const response = await getUserSessions(authReq);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.session).not.toBe(undefined);
+    expect(body.session[0].createdAt).not.toBe(undefined);
+    expect(body.session[0].expiresAt).not.toBe(undefined);
   });
 });

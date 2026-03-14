@@ -67,7 +67,10 @@ describe("Updating orders query tests", () => {
     (${"ff44b3f7-0f88-413e-b359-bb6750fb0001"}, ${seller}, 'kajdaw', ${null}, ${2.5}, ${10000}, ${null}, ${new Date()}, ${new Date()})
     `;
 
+    const testOrderId = crypto.randomUUID(); 
+
     await createOrderQuery(
+      testOrderId,
       "TestOrder",
       buyer,
       seller,
@@ -101,19 +104,7 @@ describe("Updating orders query tests", () => {
     await pg`select * from order_lines`;
 
     const orderId = response[0].order_id;
-    const order_name = response[0].order_name;
-    const buyerId = response[0].buyer_id;
-    const sellerId = response[0].seller_id;
-    const documentCurrencyCode = response[0].document_currency_code;
-    const pricingCurrencyCode = response[0].pricing_currency_code;
-    const taxCurrencyCode = response[0].tax_currency_code;
-    const requestedInvoiceCurrencyCode =
-      response[0].requested_invoice_currency_code;
-    const accountingCost = response[0].accounting_cost;
-    const paymentMethodCode = response[0].payment_method_code;
-    const destinationCountryCode = response[0].destination_country_code;
     const status = "paid";
-    const ublXMLContent = response[0].ubl_xml_content;
     const items = [
       {
         quantity: 10,
@@ -134,22 +125,10 @@ describe("Updating orders query tests", () => {
 
     // changing quantity
     expect(response.length).toBe(1);
-    const test = await updateOrdersById(
-      orderId,
-      order_name,
-      buyerId,
-      sellerId,
-      documentCurrencyCode,
-      pricingCurrencyCode,
-      taxCurrencyCode,
-      requestedInvoiceCurrencyCode,
-      accountingCost,
-      paymentMethodCode,
-      destinationCountryCode,
-      status,
-      ublXMLContent,
-      items,
-    );
+    const test = await updateOrdersById(orderId, {
+      status: status,
+      items: items,
+    });
     const updateResponse = await pg`select * from orders`;
 
     expect(updateResponse.length).toBe(1);
