@@ -1,4 +1,5 @@
 import { create } from "xmlbuilder2";
+import { createOrderQuery, getOrderById, updateOrdersById } from "./database/queries/order_queries";
 import {
   register,
   login,
@@ -7,11 +8,27 @@ import {
   resetPassword,
   logout,
   logoutAll,
+  getUserSessions,
+  getUserDetailsById,
+  getMyProfileDetails,
+  deleteUser,
+  updateProfile,
 } from "./application/user_application";
-import { getAuthenticatedUserId, deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
+import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
-import { getOrderById } from "./database/queries/order_queries";
 import { handleHealthRoutes } from "./routes/health_routes";
+import {
+  addItemToCart,
+  deleteItemFromCart,
+  updateCartItem,
+} from "./application/order_application";
+import { deleteItem } from "./application/item_application";
+import { updateItem } from "./application/item_application";
+import {
+  getAllItems,
+  getItemByUserId,
+  getItemsById,
+} from "./application/item_application";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -42,7 +59,7 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-  if (url === "/auth/clean-tokens" && method === "GET") {
+  if (url === "/auth/clean-tokens" && method === "DELETE") {
     await deleteExpiredRefreshTokens();
     return res.status(200).json({
       message: "Deleted refresh tokens",
@@ -72,6 +89,68 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/auth/reset-password" && method === "POST") {
     const response = await resetPassword(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+    const response = await deleteItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
+    const response = await updateItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/cart/items" && method === "POST") {
+    const response = await addItemToCart(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  // /items
+  if (url === "/items" && method === "GET") {
+    const response = await getAllItems(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (
+    (url === "/cart" || url.match(/^\/cart\/items\/[a-zA-Z0-9_-]+$/)) &&
+    method === "DELETE"
+  ) {
+    const response = await deleteItemFromCart(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/cart\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
+    const response = await updateCartItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  // /items/{item_id}
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "GET") {
+    const response = await getItemsById(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  // /user/{user_id}/items
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+\/items$/) && method === "GET") {
+    const response = await getItemByUserId(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
@@ -145,11 +224,69 @@ export async function handleRequest(req: any, res: any) {
 
   // POST /orders
   if (url === "/orders" && method === "POST") {
-    const { userId, orderLines } = body || {};
+    const contentType =
+      req.headers?.get?.("content-type") || req.headers?.["content-type"];
 
-    if (!userId || typeof userId !== "string") {
+    if (!contentType || !contentType.includes("application/json")) {
+      return res.status(415).json({
+        error: "UNSUPPORTED_TYPE",
+        message: "This content type is not supported",
+      });
+    }
+
+    let parsedBody = body;
+
+    try {
+      if (!parsedBody && req.json) {
+        parsedBody = await req.json();
+      }
+    } catch (error) {
       return res.status(400).json({
-        error: "userId is required and must be a string",
+        error: "INVALID_INPUT",
+        message: "The request body is not valid",
+      });
+    }
+
+    const {
+      orderName,
+      buyerId,
+      sellerId,
+      documentCurrencyCode,
+      pricingCurrencyCode,
+      taxCurrencyCode,
+      requestedInvoiceCurrencyCode,
+      accountingCost,
+      paymentMethodCode,
+      destinationCountryCode,
+      orderLines,
+    } = parsedBody || {};
+
+    const orderId = crypto.randomUUID();
+
+    if (
+      !orderName ||
+      typeof orderName !== "string" ||
+      !buyerId ||
+      typeof buyerId !== "string" ||
+      !sellerId ||
+      typeof sellerId !== "string" ||
+      !documentCurrencyCode ||
+      typeof documentCurrencyCode !== "string" ||
+      !pricingCurrencyCode ||
+      typeof pricingCurrencyCode !== "string" ||
+      !taxCurrencyCode ||
+      typeof taxCurrencyCode !== "string" ||
+      !requestedInvoiceCurrencyCode ||
+      typeof requestedInvoiceCurrencyCode !== "string" ||
+      typeof accountingCost !== "number" ||
+      !paymentMethodCode ||
+      typeof paymentMethodCode !== "string" ||
+      !destinationCountryCode ||
+      typeof destinationCountryCode !== "string"
+    ) {
+      return res.status(422).json({
+        error: "VALIDATION_FAILED",
+        message: "The request body is missing mandatory fields",
       });
     }
 
@@ -159,63 +296,107 @@ export async function handleRequest(req: any, res: any) {
       });
     }
 
+    for (const line of orderLines) {
+      if (
+        !line ||
+        typeof line !== "object" ||
+        !line.itemID ||
+        typeof line.itemID !== "string" ||
+        typeof line.quantity !== "number" ||
+        line.quantity <= 0 ||
+        typeof line.priceAtPurchase !== "number" ||
+        line.priceAtPurchase < 0
+      ) {
+        return res.status(422).json({
+          error: "VALIDATION_FAILED",
+          message: "The request body is missing mandatory fields",
+        });
+      }
+    }
+
     const newOrder = {
-      orderId: crypto.randomUUID(),
-      userId,
+      orderId,
+      orderName,
+      buyerId,
+      sellerId,
+      documentCurrencyCode,
+      pricingCurrencyCode,
+      taxCurrencyCode,
+      requestedInvoiceCurrencyCode,
+      accountingCost,
+      paymentMethodCode,
+      destinationCountryCode,
       orderLines,
       createdAt: new Date().toISOString(),
     };
 
-    const root = create({ version: "1.0" }).ele("Order", {
-      xmlns: "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
-      "xmlns:cac":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-      "xmlns:cbc":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
-    });
+    const orderJson = {
+      Order: {
+        "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
+        "@xmlns:cac":
+          "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+        "@xmlns:cbc":
+          "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
 
-    root.ele("cbc:ID").txt(newOrder.orderId).up();
-    root.ele("cbc:IssueDate").txt(newOrder.createdAt.slice(0, 10)).up();
+        "cbc:ID": newOrder.orderId,
+        "cbc:IssueDate": newOrder.createdAt.slice(0, 10),
 
-    const buyerParty = root.ele("cac:BuyerCustomerParty").ele("cac:Party");
-    buyerParty.ele("cbc:CustomerAssignedAccountID").txt(newOrder.userId).up();
-    buyerParty.up().up();
+        "cac:BuyerCustomerParty": {
+          "cac:Party": {
+            "cbc:CustomerAssignedAccountID": newOrder.buyerId,
+          },
+        },
 
-    for (let i = 0; i < orderLines.length; i++) {
-      const line = orderLines[i];
+        "cac:SellerSupplierParty": {
+          "cac:Party": {
+            "cbc:CustomerAssignedAccountID": newOrder.sellerId,
+          },
+        },
 
-      const orderLine = root.ele("cac:OrderLine");
-      orderLine
-        .ele("cbc:ID")
-        .txt(String(i + 1))
-        .up();
-      orderLine
-        .ele("cbc:Quantity")
-        .txt(String(line.quantity ?? 1))
-        .up();
+        "cac:OrderLine": newOrder.orderLines.map((line: any) => ({
+          "cbc:ID": crypto.randomUUID(),
+          "cbc:Quantity": String(line.quantity),
+          "cac:Item": {
+            "cbc:Name": line.itemName || line.itemID,
+          },
+        })),
+      },
+    };
 
-      const item = orderLine.ele("cac:Item");
-      item
-        .ele("cbc:Name")
-        .txt(line.itemName || "Unknown Item")
-        .up();
-      item.up();
+    const xml = create(orderJson).end({ prettyPrint: true });
 
-      orderLine.up();
-    }
+    const items = newOrder.orderLines.map((line: any) => ({
+      itemId: line.itemID,
+      quantity: line.quantity,
+      priceAtPurchase: line.priceAtPurchase,
+    }));
 
-    const xml = root.end({ prettyPrint: true });
+    const response = await createOrderQuery(
+      newOrder.orderId,
+      newOrder.orderName,
+      newOrder.buyerId,
+      newOrder.sellerId,
+      newOrder.documentCurrencyCode,
+      newOrder.pricingCurrencyCode,
+      newOrder.taxCurrencyCode,
+      newOrder.requestedInvoiceCurrencyCode,
+      newOrder.accountingCost,
+      newOrder.paymentMethodCode,
+      newOrder.destinationCountryCode,
+      xml,
+      items,
+    );
 
-    res.setHeader("Content-Type", "application/xml");
-    return res.status(201).send(xml);
+    const responseBody = await response.json();
+    return res.status(response.status).json(responseBody);
   }
 
   // PUT /orders
-  if (method === "PUT" && /\/orders\/[^/]+/.test(url)) { // TODO: move to different file later? + check ID format correct
-    const { userId, orderLines } = body || {};
+  if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
+    const { userId, updates } = body || {};
     const orderId = url.split("/")[1];
 
-    if (!orderId) { // TODO: invalid orderid
+    if (!orderId) {
       return res.status(400).json({ error: "Bad Request" });
     }
 
@@ -233,59 +414,44 @@ export async function handleRequest(req: any, res: any) {
       return res.status(404).json({ error: "Order not found!" });
     }
 
-    const updatedOrder = {
-      orderId,
-      userId,
-      orderLines,
-    };
+    return await updateOrdersById(orderId, updates);
 
-    const root = create({ version: "1.0" }).ele("Order", {
-      xmlns: "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
-      "xmlns:cac":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-      "xmlns:cbc":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
-    });
-
-    root.ele("cbc:ID").txt(updatedOrder.orderId).up();
-
-    const buyerParty = root.ele("cac:BuyerCustomerParty").ele("cac:Party");
-    buyerParty.ele("cbc:CustomerAssignedAccountID").txt(updatedOrder.userId).up();
-    buyerParty.up().up();
-
-    for (let i = 0; i < orderLines.length; i++) {
-      const line = orderLines[i];
-
-      const orderLine = root.ele("cac:OrderLine");
-      orderLine
-        .ele("cbc:ID")
-        .txt(String(i + 1))
-        .up();
-      orderLine
-        .ele("cbc:Quantity")
-        .txt(String(line.quantity ?? 1))
-        .up();
-
-      const item = orderLine.ele("cac:Item");
-      item
-        .ele("cbc:Name")
-        .txt(line.itemName || "Unknown Item")
-        .up();
-      item.up();
-
-      orderLine.up();
-    }
-
-    const xml = root.end({ prettyPrint: true });
-    return res.status(200).send(xml);
+    return res.status(200);
   }
 
-  if (url.startsWith("/users")) {
-    return handleUserRoutes(req, res);
+  if (url === "/profile" && method === "PATCH") {
+    const response = await updateProfile(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
-  if (url.startsWith("/health")) {
-    return handleHealthRoutes(req, res);
+  if (url === "/auth/sessions" && method === "GET") {
+    const response = await getUserSessions(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "GET") {
+    const response = await getUserDetailsById(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/profile" && method === "GET") {
+    const response = await getMyProfileDetails(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/profile" && method === "DELETE") {
+    const response = await deleteUser(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   // 404 if no roiutes match
