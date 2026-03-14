@@ -1,6 +1,8 @@
+import { expect } from "bun:test";
 import pg from "../src/utils/db";
 import type { User, InsertUserOverrides } from "../src/types/user";
 import type { Order, InsertOrderOverrides } from "../src/types/order";
+import { register, login } from "../src/application/user_application";
 
 // Resets DB
 export async function resetDb(): Promise<void> {
@@ -45,6 +47,43 @@ export const generateAuthenticatedRequest = (
   };
 };
 
+const registerRoute = "http://localhost/auth/register";
+const loginRoute = "http://localhost/auth/login";
+
+/** Register a user and log in; returns userId and accessToken for authenticated requests. */
+export async function registerAndLogin(
+  email: string,
+  username: string,
+  password: string,
+): Promise<{ userId: string; accessToken: string }> {
+  const registerRes = await register(
+    generateRequest(registerRoute, "POST", { email, username, password }),
+  );
+  const registerBody = await registerRes.json();
+  expect(registerRes.status).toBe(201);
+  const userId = registerBody.user;
+  const loginRes = await login(
+    generateRequest(loginRoute, "POST", { email, password }),
+  );
+  const loginBody = await loginRes.json();
+  expect(loginRes.status).toBe(200);
+  return { userId, accessToken: loginBody.accessToken };
+}
+
+/** Register a user only; returns userId. */
+export async function registerOnly(
+  email: string,
+  username: string,
+  password: string,
+): Promise<{ userId: string }> {
+  const registerRes = await register(
+    generateRequest(registerRoute, "POST", { email, username, password }),
+  );
+  const registerBody = await registerRes.json();
+  expect(registerRes.status).toBe(201);
+  return { userId: registerBody.user };
+}
+
 // Creates a random user with fields that can be overriden, and returns inputted User
 export async function insertUser(
   overrides: InsertUserOverrides = {},
@@ -70,7 +109,11 @@ export async function insertOrder(overrides: InsertOrderOverrides) {
   const order_name = overrides.order_name ?? `order_${crypto.randomUUID()}`;
   const buyer_id = overrides.buyer_id;
   const seller_id = overrides.seller_id;
-  const issue_date = overrides.issue_date ?? new Date();
+  const rawDate = overrides.issue_date ?? new Date();
+  const issue_date =
+    rawDate instanceof Date
+      ? rawDate.toISOString().slice(0, 10)
+      : new Date(rawDate).toISOString().slice(0, 10);
 
   if (!buyer_id || !seller_id) {
     throw new Error("Buyer and Seller id must be specified in insertOrder()");
