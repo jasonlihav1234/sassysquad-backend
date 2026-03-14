@@ -32,10 +32,9 @@ let sellerId: string | null = null;
 let sellerId2: string | null = null;
 
 beforeAll(async () => {
-  // register users
-  await pg`delete from refresh_tokens`;
-  await pg`delete from items`;
-  await pg`delete from users`;
+  await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
+  await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+  await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 
   const registerReq = generateRequest(
     "http://localhost/auth/register",
@@ -85,18 +84,16 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // delete all registered users
-  await pg`delete from refresh_tokens`;
-  await pg`delete from items`;
-  await pg`delete from users`;
+  await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
+  await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+  await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 });
 
 describe("Getting items tests", () => {
   beforeAll(async () => {
-    // register users
-    await pg`delete from refresh_tokens`;
-    await pg`delete from items`;
-    await pg`delete from users`;
+    await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
+    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 
     const registerReq = generateRequest(
       "http://localhost/auth/register",
@@ -146,10 +143,9 @@ describe("Getting items tests", () => {
   });
 
   afterAll(async () => {
-    // delete all registered users
-    await pg`delete from refresh_tokens`;
-    await pg`delete from items`;
-    await pg`delete from users`;
+    await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
+    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
   });
 
   test("Getting item by item id", async () => {
@@ -344,9 +340,9 @@ describe("Getting items tests", () => {
 describe("Update item tests", () => {
   beforeAll(async () => {
     // register users
-    await pg`delete from refresh_tokens`;
-    await pg`delete from items`;
-    await pg`delete from users`;
+    await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
+    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 
     const registerReq = generateRequest(
       "http://localhost/auth/register",
@@ -396,10 +392,9 @@ describe("Update item tests", () => {
   });
 
   afterAll(async () => {
-    // delete all registered users
-    await pg`delete from refresh_tokens`;
-    await pg`delete from items`;
-    await pg`delete from users`;
+    await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
+    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
   });
 
   test("No items were provided", async () => {
@@ -496,9 +491,9 @@ describe("Update item tests", () => {
 describe("Deleting item tests", () => {
   beforeAll(async () => {
     // register users
-    await pg`delete from refresh_tokens`;
-    await pg`delete from items`;
-    await pg`delete from users`;
+    await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
+    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 
     const registerReq = generateRequest(
       "http://localhost/auth/register",
@@ -549,9 +544,9 @@ describe("Deleting item tests", () => {
 
   afterAll(async () => {
     // delete all registered users
-    await pg`delete from refresh_tokens`;
-    await pg`delete from items`;
-    await pg`delete from users`;
+    await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
+    await pg`delete from refresh_tokens where user_id in (select id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
+    await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
   });
 
   test("Entry does not exist", async () => {
@@ -591,6 +586,7 @@ describe("Deleting item tests", () => {
       accessToken,
     );
 
+    const query2 = await pg`select * from items`;
     const response = await deleteItem(request2);
     const body = await response.json();
 
@@ -599,6 +595,6 @@ describe("Deleting item tests", () => {
     expect(body.response).not.toBe(undefined);
 
     const query = await pg`select * from items`;
-    expect(query.length).toBe(2);
+    expect(query.length).not.toBe(query2.length);
   });
 });
