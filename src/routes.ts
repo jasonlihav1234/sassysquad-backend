@@ -17,7 +17,7 @@ import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
 import { deleteItem } from "./application/item_application";
 import { updateItem } from "./application/item_application";
-import { addItemToCart } from "./application/order_application";
+import { addItemToCart, postOrder } from "./application/order_application";
 import {
   getAllItems,
   getItemByUserId,
@@ -212,87 +212,9 @@ export async function handleRequest(req: any, res: any) {
   //  }
   //]
   if (url === "/orders" && method === "POST") {
-    const buyer = ""; // authenticated method should be able to get id from subject claim
-    const {
-      userId,
-      orderLines,
-      sellerId,
-      paymentMethodCode,
-      destinationCountryCode,
-    } = body || {};
+    const response = await postOrder(req);
 
-    if (!userId || typeof userId !== "string") {
-      return res.status(400).json({
-        error: "userId is required and must be a string",
-      });
-    }
-
-    if (!Array.isArray(orderLines) || orderLines.length === 0) {
-      return res.status(400).json({
-        error: "orderLines is required and must be a non-empty array",
-      });
-    }
-
-    const newOrder = {
-      orderId: crypto.randomUUID(),
-      userId,
-      orderLines,
-      createdAt: new Date().toISOString(),
-    };
-    // Buildj JSON object
-    const orderJson = {
-      Order: {
-        "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
-        "@xmlns:cac":
-          "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-        "@xmlns:cbc":
-          "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
-
-        "cbc:ID": newOrder.orderId,
-        "cbc:IssueDate": newOrder.createdAt.slice(0, 10),
-
-        "cac:BuyerCustomerParty": {
-          "cac:Party": {
-            "cbc:CustomerAssignedAccountID": newOrder.userId,
-          },
-        },
-
-        "cac:OrderLine": newOrder.orderLines.map((line, index) => ({
-          "cbc:ID": crypto.randomUUID(),
-          "cbc:Quantity": String(line.quantity),
-          "cac:Item": {
-            "cbc:Name": line.itemName || "Unknown Item",
-          },
-        })),
-      },
-    };
-
-    // Now conbvet JSON to XML
-    const xml = create(orderJson).end({ prettyPrint: true });
-
-    // store the order in the database
-    // have a default order name which the user edit later
-    const response = await createOrderQuery(
-      `order-${newOrder.orderId}`,
-      buyer,
-      sellerId,
-      "aud",
-      "aud",
-      "aud",
-      "aud",
-      1.5,
-      paymentMethodCode,
-      destinationCountryCode,
-      xml,
-      orderLines,
-    );
-    const responseBody = await response.json();
-
-    if (responseBody.error === undefined) {
-      res.setHeader("Content-Type", "application/xml");
-      return res.status(201).send(xml);
-    }
-
+    const body = await response.json();
     return res.status(response.status).json(body);
   }
 
