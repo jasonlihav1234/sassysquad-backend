@@ -586,6 +586,11 @@
         "operationId": "patch-profile",
         "consumes": ["application/json"],
         "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "body",
@@ -674,6 +679,40 @@
                 },
                 "error": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sessions": {
+      "get": {
+        "tags": ["user"],
+        "summary": "Gets all active sessions of a user",
+        "description": "",
+        "operationId": "sessions",
+        "produces": ["application/json"],
+        "security": {
+          "bearerAuth": []
+        },
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Getting all user sessions successful",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "deviceInfo": {
+                  "type": "object"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "expiresAt": {
+                  "type": "string",
+                  "format": "date-time"
                 }
               }
             }
