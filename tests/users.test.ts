@@ -378,7 +378,11 @@ describe("Forgot password test", () => {
   });
 });
 
-describe("Reset password tests", () => {
+describe.only("Reset password tests", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
   const resetPasswordRoute = "http://localhost/auth/reset-password";
 
   test("No token passed in", async () => {
@@ -489,7 +493,6 @@ describe("Reset password tests", () => {
       await pg`select password_hash from users where email = ${testingEmail}`;
 
     expect(query_1[0].password_hash).not.toBe(query_2[0].password_hash);
-    resetDb();
   });
 });
 
