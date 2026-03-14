@@ -1,4 +1,4 @@
-import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
+import { expect, test, describe, spyOn, afterAll } from "bun:test";
 import { register, login } from "../src/application/user_application";
 import pg, { redis } from "../src/utils/db";
 import {
@@ -76,7 +76,7 @@ afterAll(async () => {
 });
 
 describe("Getting items tests", () => {
-  beforeAll(async () => {
+  beforeEach(async () => {
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
     await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
     await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
@@ -324,7 +324,7 @@ describe("Getting items tests", () => {
 });
 
 describe("Update item tests", () => {
-  beforeAll(async () => {
+  beforeEach(async () => {
     // register users
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
     await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
@@ -475,7 +475,7 @@ describe("Update item tests", () => {
 });
 
 describe("Deleting item tests", () => {
-  beforeAll(async () => {
+  beforeEach(async () => {
     // register users
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
     await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
