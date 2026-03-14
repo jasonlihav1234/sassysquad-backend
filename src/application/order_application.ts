@@ -31,19 +31,21 @@ import { VercelRequest } from "@vercel/node";
 export const addItemToCart = authHelper(
   async (req: AuthReq): Promise<Response> => {
     try {
+      // use the subject claim
+      const userId = req.user?.subject_claim;
       const body = req.body;
 
-      if (!body.itemId || !body.quantity || !body.userId) {
+      if (!body.itemId || !body.quantity) {
         return jsonHelper(
           {
-            error: "Need userID, item ID, and quantity in the body",
+            error: "Need item ID and quantity in the body",
           },
           400,
         );
       }
       // users should share carts between devices
-      const key = `cart:${body.userId}:${body.itemId}`;
-      await redis.set(key, body.quantity);
+      const key = `cart:${userId}`;
+      await redis.hset(key, body.itemId, body.quantity);
       await redis.expire(key, 86400); // cart expires in 1 day
 
       return jsonHelper({
@@ -53,6 +55,91 @@ export const addItemToCart = authHelper(
       return jsonHelper(
         {
           message: "Item failed to add to cart",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const deleteItemFromCart = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const splitUrl = req?.url?.split("/");
+      let deleteAllItems = false;
+      const userId = req.user?.subject_claim;
+
+      // case of /cart
+      if (splitUrl?.length === 2) {
+        deleteAllItems = true;
+      }
+      const itemId = splitUrl?.at(3) as string;
+      const body = req.body;
+
+      if (!body.itemId) {
+        return jsonHelper(
+          {
+            message: "Item ID not given",
+          },
+          400,
+        );
+      }
+
+      if (deleteAllItems) {
+        await redis.del(`cart:${userId}`);
+      } else {
+        await redis.hdel(`cart:${userId}`, itemId);
+      }
+
+      return jsonHelper({
+        message: "Item/s successfully removed from cart",
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper(
+        {
+          message: "Item/s failed to remove from cart",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+// in a cart you can only change the quantity of an item
+export const updateCartItem = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const itemId = req.url?.split("/").at(3) as string;
+    const userId = req.user?.subject_claim;
+    const body = req.body;
+
+    // body will have updated fields
+    if (body.length === 0) {
+      return jsonHelper(
+        {
+          message: "Quantity not provided to update cart items",
+        },
+        400,
+      );
+    }
+
+    try {
+      const quantity = body.quantity;
+      const key = `cart:${userId}`;
+      await redis.hset(`cart:${userId}`, itemId, quantity);
+      await redis.expire(key, 86400);
+
+      return jsonHelper({
+        message: "Item successfully updated",
+      });
+    } catch (error) {
+      console.log(error);
+
+      return jsonHelper(
+        {
+          message: "Item failed to update",
           error: error,
         },
         500,

@@ -26,8 +26,10 @@ import {
   getUserSellerOrders,
   isUserIdValid,
   removeUserById,
+  updateProfileQuery,
 } from "../database/queries/user_queries";
 import { VercelRequest } from "@vercel/node";
+import { StringOrBuffer } from "bun";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -506,16 +508,13 @@ export const getUserSales = authHelper(
 
 export const getUserSessions = authHelper(
   async (req: AuthReq): Promise<Response> => {
-    if (!req.user) {
-      return jsonHelper({ error: "Unauthorized " }, 401);
-    }
-
-    const userSessions = await getAllUserRefreshTokens(req.user.subject_claim);
+    const userId = req.user?.subject_claim as string;
+    const userSessions = await getAllUserRefreshTokens(userId);
 
     const sessionInfo = userSessions.map((session: any) => ({
       deviceInfo: session.deviceInfo,
-      createdAt: session.createdAt,
-      expiresAt: session.expiresAt,
+      createdAt: session.created,
+      expiresAt: session.expires,
     }));
 
     return jsonHelper({
@@ -585,6 +584,39 @@ export const deleteUser = authHelper(
           message: "Failed to delete user",
           error: error,
         },
+        500,
+      );
+    }
+  },
+);
+
+export const updateProfile = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const userId = req.user?.subject_claim as string;
+      const body = req.body;
+
+      if (!body.username && !body.email && !body.password) {
+        return jsonHelper(
+          {
+            message: "No fields to update for the user",
+          },
+          400,
+        );
+      }
+
+      await updateProfileQuery(userId, {
+        user_name: body.username,
+        email: body.email,
+        password: body.password,
+      });
+
+      return jsonHelper({
+        message: "Details successfully updated",
+      });
+    } catch (error) {
+      return jsonHelper(
+        { message: "Profile failed to update", error: error },
         500,
       );
     }
