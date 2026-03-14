@@ -3,8 +3,8 @@ import {
   createAccessToken,
   createRefreshToken,
   verifyRefreshToken,
-  type JWTPayload,
 } from "../utils/jwt_config";
+import { type JWTPayload } from "jose";
 import bcrypt from "bcrypt";
 import pg, { redis } from "../utils/db";
 import {
