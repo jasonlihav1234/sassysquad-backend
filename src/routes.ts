@@ -202,166 +202,209 @@ export async function handleRequest(req: any, res: any) {
   }
 
   // POST /orders
-if (url === "/orders" && method === "POST") {
-  // check request type is JSON
-  const contentType =
-    req.headers?.get?.("content-type") || req.headers?.["content-type"];
+  if (url === "/orders" && method === "POST") {
 
-  if (!contentType || !contentType.includes("application/json")) {
-    return res.status(415).json({
-      error: "UNSUPPORTED_TYPE",
-      message: "This content type is not supported",
-    });
+    const contentType =
+  req.headers?.get?.("content-type") || req.headers?.["content-type"];
+
+if (!contentType || !contentType.includes("application/json")) {
+  return res.status(415).json({
+    error: "UNSUPPORTED_TYPE",
+    message: "This content type is not supported",
+  });
+}
+
+let parsedBody = body;
+
+try {
+  if (!parsedBody && req.json) {
+    parsedBody = await req.json();
   }
+} catch (error) {
+  return res.status(400).json({
+    error: "INVALID_INPUT",
+    message: "The request body is not valid",
+  });
+}
+    const {
+  orderName,
+  buyerId,
+  sellerId,
+  documentCurrencyCode,
+  pricingCurrencyCode,
+  taxCurrencyCode,
+  requestedInvoiceCurrencyCode,
+  accountingCost,
+  paymentMethodCode,
+  destinationCountryCode,
+  orderLines,
+} = parsedBody || {};
 
-  // attempt to parse rew body
-  let parsedBody = body;
+const orderId = crypto.randomUUID();
 
-  try {
-    if (!parsedBody && req.json) {
-      parsedBody = await req.json();
-    }
-  } catch (error) {
-    return res.status(400).json({
-      error: "INVALID_INPUT",
-      message: "The request body is not valid",
-    });
-  }
+    if (
+  !orderName ||
+  typeof orderName !== "string" ||
+  !buyerId ||
+  typeof buyerId !== "string" ||
+  !sellerId ||
+  typeof sellerId !== "string" ||
+  !documentCurrencyCode ||
+  typeof documentCurrencyCode !== "string" ||
+  !pricingCurrencyCode ||
+  typeof pricingCurrencyCode !== "string" ||
+  !taxCurrencyCode ||
+  typeof taxCurrencyCode !== "string" ||
+  !requestedInvoiceCurrencyCode ||
+  typeof requestedInvoiceCurrencyCode !== "string" ||
+  typeof accountingCost !== "number" ||
+  !paymentMethodCode ||
+  typeof paymentMethodCode !== "string" ||
+  !destinationCountryCode ||
+  typeof destinationCountryCode !== "string"
+) {
+  return res.status(422).json({
+    error: "VALIDATION_FAILED",
+    message: "The request body is missing mandatory fields",
+  });
+}
 
-  // get order fields from req body: FIXED TO MATCH DB QUERY FIELDS
-  const {
-    orderName,
-    buyerId,
-    sellerId,
-    documentCurrencyCode,
-    pricingCurrencyCode,
-    taxCurrencyCode,
-    requestedInvoiceCurrencyCode,
-    accountingCost,
-    paymentMethodCode,
-    destinationCountryCode,
-    orderLines,
-  } = parsedBody || {};
+if (!Array.isArray(orderLines) || orderLines.length === 0) {
+  return res.status(400).json({
+    error: "orderLines is required and must be a non-empty array",
+  });
+}
 
-  // validate all fields required by databse query exist
+for (const line of orderLines) {
   if (
-    !orderName ||
-    typeof orderName !== "string" ||
-    !buyerId ||
-    typeof buyerId !== "string" ||
-    !sellerId ||
-    typeof sellerId !== "string" ||
-    !documentCurrencyCode ||
-    typeof documentCurrencyCode !== "string" ||
-    !pricingCurrencyCode ||
-    typeof pricingCurrencyCode !== "string" ||
-    !taxCurrencyCode ||
-    typeof taxCurrencyCode !== "string" ||
-    !requestedInvoiceCurrencyCode ||
-    typeof requestedInvoiceCurrencyCode !== "string" ||
-    typeof accountingCost !== "number" ||
-    !paymentMethodCode ||
-    typeof paymentMethodCode !== "string" ||
-    !destinationCountryCode ||
-    typeof destinationCountryCode !== "string" ||
-    !Array.isArray(orderLines) ||
-    orderLines.length === 0
+    !line ||
+    typeof line !== "object" ||
+    !line.itemID ||
+    typeof line.itemID !== "string" ||
+    typeof line.quantity !== "number" ||
+    line.quantity <= 0 ||
+    typeof line.priceAtPurchase !== "number" ||
+    line.priceAtPurchase < 0
   ) {
     return res.status(422).json({
       error: "VALIDATION_FAILED",
       message: "The request body is missing mandatory fields",
     });
   }
+}
 
-    // validate each order line, orderline must contain itemID, quantity, priceAtPurchase
-  for (const line of orderLines) {
-    if (
-      !line ||
-      typeof line !== "object" ||
-      !line.itemID ||
-      typeof line.itemID !== "string" ||
-      typeof line.quantity !== "number" ||
-      line.quantity <= 0 ||
-      typeof line.priceAtPurchase !== "number" ||
-      line.priceAtPurchase < 0
-    ) {
-      return res.status(422).json({
-        error: "VALIDATION_FAILED",
-        message: "The request body is missing mandatory fields",
-      });
-    }
-  }
 
-  // get unique orderID and timestamp
-  const orderId = crypto.randomUUID();
-  const createdAt = new Date().toISOString();
-
-  // make orderLines into the structure expected by CreateOrderQuery()
-  const items = orderLines.map((line: any) => ({
-    itemId: line.itemID,
-    quantity: line.quantity,
-    priceAtPurchase: line.priceAtPurchase,
-  }));
-
-  // JSON representation of UBL order document
-  // FIX: CONVERT TO XML AFTER to store in DB 
-  const orderJson = {
-    Order: {
-      "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
-      "@xmlns:cac":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-      "@xmlns:cbc":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+const newOrder = {
+  orderId,
+  orderName,
+  buyerId,
+  sellerId,
+  documentCurrencyCode,
+  pricingCurrencyCode,
+  taxCurrencyCode,
+  requestedInvoiceCurrencyCode,
+  accountingCost,
+  paymentMethodCode,
+  destinationCountryCode,
+  orderLines,
+  createdAt: new Date().toISOString(),
+};
+    // Buildj JSON object
+    const orderJson = {
+      Order: {
+        "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
+        "@xmlns:cac":
+          "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+        "@xmlns:cbc":
+          "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
 
       "cbc:ID": orderId,
       "cbc:IssueDate": createdAt.slice(0, 10),
 
-      "cac:BuyerCustomerParty": {
-        "cac:Party": {
-          "cbc:CustomerAssignedAccountID": buyerId,
+        "cac:BuyerCustomerParty": {
+          "cac:Party": {
+            "cbc:CustomerAssignedAccountID": newOrder.buyerId,
+          },
         },
-      },
 
-      "cac:SellerSupplierParty": {
-        "cac:Party": {
-          "cbc:CustomerAssignedAccountID": sellerId,
+        "cac:SellerSupplierParty": {
+          "cac:Party": {
+            "cbc:CustomerAssignedAccountID": newOrder.sellerId,
+          },
         },
+
+        "cac:OrderLine": newOrder.orderLines.map((line: any) => ({
+          "cbc:ID": crypto.randomUUID(),
+          "cbc:Quantity": String(line.quantity),
+          "cac:Item": {
+            "cbc:Name": line.itemName || line.itemID,
+          },
+        })),
       },
-      
-      // convert each line in orderline UBL struc
-      "cac:OrderLine": orderLines.map((line: any) => ({
-        "cbc:ID": crypto.randomUUID(),
-        "cbc:Quantity": String(line.quantity),
-        "cac:Item": {
-          "cbc:Name": line.itemName || line.itemID,
-        },
-      })),
-    },
-  };
+    };
 
   // convert JSON object into UBL XML format
   const xml = create(orderJson).end({ prettyPrint: true });
 
-  // FIXED: call db query to perist order and orderlines for other routes
-  // generated XML stored in db
-  const response = await createOrderQuery(
-    orderName,
-    buyerId,
-    sellerId,
-    documentCurrencyCode,
-    pricingCurrencyCode,
-    taxCurrencyCode,
-    requestedInvoiceCurrencyCode,
-    accountingCost,
-    paymentMethodCode,
-    destinationCountryCode,
-    xml,
-    items,
-  );
+    const items = orderLines.map((line: any) => ({
+  itemId: line.itemID,
+  quantity: line.quantity,
+  priceAtPurchase: line.priceAtPurchase,
+}));
 
-  // forwward repsonee from db query
-  const responseBody = await response.json();
-  return res.status(response.status).json(responseBody);
+const response = await createOrderQuery(
+  orderId,
+  orderName,
+  buyerId,
+  sellerId,
+  documentCurrencyCode,
+  pricingCurrencyCode,
+  taxCurrencyCode,
+  requestedInvoiceCurrencyCode,
+  accountingCost,
+  paymentMethodCode,
+  destinationCountryCode,
+  xml,
+  items,
+);
+
+const responseBody = await response.json();
+return res.status(response.status).json(responseBody);
+  }
+
+  if (url === "/profile" && method === "PATCH") {
+    const response = await updateProfile(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/auth/sessions" && method === "GET") {
+    const response = await getUserSessions(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "GET") {
+    const response = await getUserDetailsById(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/profile" && method === "GET") {
+    const response = await getMyProfileDetails(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+    const response = await deleteUser(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   // 404 if no roiutes match
