@@ -378,7 +378,7 @@ describe("Forgot password test", () => {
   });
 });
 
-describe.only("Reset password tests", () => {
+describe("Reset password tests", () => {
   beforeEach(async () => {
     await resetDb();
   });
