@@ -366,6 +366,7 @@ export async function handleRequest(req: any, res: any) {
       items,
     );
 
+    
     const responseBody = await response.json();
     return res.status(response.status).json(responseBody);
   }
