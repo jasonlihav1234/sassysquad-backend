@@ -34,7 +34,8 @@ export const addItemToCart = authHelper(
       // use the subject claim
       const userId = req.user?.subject_claim;
       const body = req.body;
-
+      // cart should implicitly know that a item already exists since you can only
+      // call this through the frontend which displays all already existing items
       if (!body.itemId || !body.quantity) {
         return jsonHelper(
           {
@@ -43,6 +44,21 @@ export const addItemToCart = authHelper(
           400,
         );
       }
+
+      const [item] = await pg`
+      select item_id, quantity_available
+      from items
+      where item_id = ${body.itemId}
+      `;
+
+      if (!item) {
+        return jsonHelper({ error: "Item does not exist" }, 404);
+      }
+
+      if (item.quantity_available < body.quantity) {
+        return jsonHelper({ error: "Not enough items in stock" }, 400);
+      }
+
       // users should share carts between devices
       const key = `cart:${userId}`;
       await redis.hset(key, body.itemId, body.quantity);
