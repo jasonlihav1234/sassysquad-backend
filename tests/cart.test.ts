@@ -111,6 +111,56 @@ describe("Add items to cart tests", () => {
     expect(getBody.error).toBe("Need item ID and quantity in the body");
   });
 
+  test("Item does not exist", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items`,
+      "POST",
+      {
+        itemId: crypto.randomUUID(),
+        quantity: 200,
+      },
+      accessToken,
+    );
+
+    const getResponse = await addItemToCart(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(404);
+    expect(getBody.error).toBe("Item does not exist");
+  });
+
+  test("Quantity more large than available", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items`,
+      "POST",
+      {
+        itemId: itemId1,
+        quantity: 2000000000000,
+      },
+      accessToken,
+    );
+
+    const getResponse = await addItemToCart(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(400);
+    expect(getBody.error).toBe("Not enough items in stock");
+  });
+
   test("Item successfully added to cart", async () => {
     const request = generateRequest("http://localhost/auth/login", "POST", {
       email: "jasonli1234@gmail.com",
@@ -136,7 +186,32 @@ describe("Add items to cart tests", () => {
     expect(getBody.message).toBe("Item successfully added to cart");
 
     const query = await redis.hget(`cart:${sellerId}`, itemId1);
-    
+
     expect(query).not.toBe(null);
+  });
+
+  test("Invalid item Id inputted", async () => {
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items`,
+      "POST",
+      {
+        itemId: ":adhaanwd",
+        quantity: 1,
+      },
+      accessToken,
+    );
+
+    const getResponse = await addItemToCart(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(500);
+    expect(getBody.message).toBe("Item failed to add to cart");
   });
 });
