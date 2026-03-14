@@ -292,7 +292,7 @@ async function fulfillCheckout(session: Stripe.Checkout.Session) {
         pricingCurrencyCode: "aud",
         taxCurrencyCode: "aud",
         requestedInvoiceCurrencyCode: "aud",
-        accountingCost: 1.50,
+        accountingCost: 1.5,
         destinationCountryCode,
       });
     } catch (error) {
@@ -305,8 +305,18 @@ async function fulfillCheckout(session: Stripe.Checkout.Session) {
 export const createCheckoutSession = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim;
-    const sellerId = req.body?.sellerId;
+    const sellerId = req.body.sellerId;
+    const email = req.body.email;
     const key = `cart:${userId}`;
+
+    if (!sellerId || !email) {
+      return jsonHelper(
+        {
+          message: "Missing email or sellerId",
+        },
+        400,
+      );
+    }
 
     // get the cart from the redis cache, need to save quantity and get info about item
     const itemIds = await redis.hkeys(key);
@@ -317,7 +327,8 @@ export const createCheckoutSession = authHelper(
       });
     }
 
-    const getItems = await pg`select * from items where item_id in ${itemIds}`;
+    const getItems =
+      await pg`select * from items where item_id in ${pg(itemIds)}`;
 
     if (getItems.length === 0) {
       return jsonHelper({
@@ -355,7 +366,7 @@ export const createCheckoutSession = authHelper(
         sellerId: sellerId ?? "",
       },
       ui_mode: "embedded",
-      customer_email: "...",
+      customer_email: email,
       submit_type: "pay",
       billing_address_collection: "auto",
       shipping_address_collection: {
@@ -363,7 +374,7 @@ export const createCheckoutSession = authHelper(
       },
       line_items: lineItems,
       mode: "payment",
-      return_url: `http://https://sassysquad-backend.vercel.app/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
+      return_url: `https://sassysquad-backend.vercel.app/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
       automatic_tax: { enabled: true },
     });
 
