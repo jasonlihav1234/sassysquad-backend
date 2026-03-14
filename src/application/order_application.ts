@@ -482,7 +482,8 @@ export const addItemToCart = authHelper(
       // use the subject claim
       const userId = req.user?.subject_claim;
       const body = req.body;
-
+      // cart should implicitly know that a item already exists since you can only
+      // call this through the frontend which displays all already existing items
       if (!body.itemId || !body.quantity) {
         return jsonHelper(
           {
@@ -491,6 +492,21 @@ export const addItemToCart = authHelper(
           400,
         );
       }
+
+      const [item] = await pg`
+      select item_id, quantity_available
+      from items
+      where item_id = ${body.itemId}
+      `;
+
+      if (!item) {
+        return jsonHelper({ error: "Item does not exist" }, 404);
+      }
+
+      if (item.quantity_available < body.quantity) {
+        return jsonHelper({ error: "Not enough items in stock" }, 400);
+      }
+
       // users should share carts between devices
       const key = `cart:${userId}`;
       await redis.hset(key, body.itemId, body.quantity);
@@ -523,21 +539,23 @@ export const deleteItemFromCart = authHelper(
         deleteAllItems = true;
       }
       const itemId = splitUrl?.at(3) as string;
-      const body = req.body;
-
-      if (!body.itemId) {
-        return jsonHelper(
-          {
-            message: "Item ID not given",
-          },
-          400,
-        );
-      }
 
       if (deleteAllItems) {
-        await redis.del(`cart:${userId}`);
+        const numDeleted = await redis.del(`cart:${userId}`);
+
+        if (numDeleted === 0) {
+          return jsonHelper({
+            message: "No items in the cart to delete",
+          });
+        }
       } else {
-        await redis.hdel(`cart:${userId}`, itemId);
+        const numDeleted = await redis.hdel(`cart:${userId}`, itemId);
+
+        if (numDeleted === 0) {
+          return jsonHelper({
+            message: "Item does not exist in the cart to delete",
+          });
+        }
       }
 
       return jsonHelper({
@@ -564,10 +582,30 @@ export const updateCartItem = authHelper(
     const body = req.body;
 
     // body will have updated fields
-    if (body.length === 0) {
+    // quanatity should also not be higher than available
+    const query =
+      await pg`select quantity_available from items where item_id = ${itemId}`;
+    if (query.length === 0) {
       return jsonHelper(
         {
-          message: "Quantity not provided to update cart items",
+          message: "Item does not exist",
+        },
+        404,
+      );
+    }
+    const numAvailable = query[0].quantity_available;
+    // checkout should have a final check as well
+    if (body.length === 0 || body.quantity === undefined) {
+      return jsonHelper(
+        {
+          message: "Quantity not provided to update cart item",
+        },
+        400,
+      );
+    } else if (body.quantity <= 0 || numAvailable < body.quantity) {
+      return jsonHelper(
+        {
+          message: "Invalid quantity to set",
         },
         400,
       );

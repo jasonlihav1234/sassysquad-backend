@@ -1,5 +1,10 @@
 import { create } from "xmlbuilder2";
 import {
+  createOrderQuery,
+  getOrderById,
+  updateOrdersById,
+} from "./database/queries/order_queries";
+import {
   register,
   login,
   refresh,
@@ -32,7 +37,6 @@ import {
   getItemByUserId,
   getItemsById,
 } from "./application/item_application";
-import { createOrderQuery } from "./database/queries/order_queries";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -241,6 +245,34 @@ export async function handleRequest(req: any, res: any) {
 
     const responseBody = await response.json();
     return res.status(response.status).json(responseBody);
+  }
+
+  // PUT /orders
+  if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
+    const { userId, updates } = body || {};
+    const orderId = url.split("/")[1];
+
+    if (!orderId) {
+      return res.status(400).json({ error: "Bad Request" });
+    }
+
+    // if () { // TODO: invalid access token
+    //   return res.status(401).json({ error: "Unauthorised" });
+    // }
+
+    const order = await getOrderById(orderId);
+
+    if (userId !== order.buyerId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found!" });
+    }
+
+    return await updateOrdersById(orderId, updates);
+
+    return res.status(200);
   }
 
   if (url === "/profile" && method === "PATCH") {

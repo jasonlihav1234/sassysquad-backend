@@ -135,7 +135,6 @@ describe("Getting items tests", () => {
   });
 
   test("Getting item by item id", async () => {
-    const test = await pg`select * from users`;
     const request = generateRequest("http://localhost/auth/login", "POST", {
       email: "jasonli1234@gmail.com",
       password: "testing123",
