@@ -4,7 +4,6 @@ import {
   updateCartItem,
 } from "../src/application/order_application";
 import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
-import { afterEach, beforeEach, mock } from "node:test";
 import pg, { redis } from "../src/utils/db";
 import { generateAuthenticatedRequest, generateRequest } from "./users.test";
 import { register, login } from "../src/application/user_application";
@@ -292,6 +291,8 @@ describe("Deleting item from carts tests", () => {
 
     const res = await redis.hkeys(`cart:${sellerId}`);
     expect(res.length).toBe(0);
+
+    await redis.hset(`cart:${sellerId}`, itemId1, (100).toString());
   });
 
   test("Successfully deletes a singular item", async () => {
@@ -306,10 +307,7 @@ describe("Deleting item from carts tests", () => {
     const request2 = generateAuthenticatedRequest(
       `/cart/items/${itemId2}`,
       "DELETE",
-      {
-        itemId: ":adhaanwd",
-        quantity: 1,
-      },
+      {},
       accessToken,
     );
 
@@ -322,4 +320,52 @@ describe("Deleting item from carts tests", () => {
     const res = await redis.hkeys(`cart:${sellerId}`);
     expect(res.length).not.toBe(0);
   });
+
+  test("No items in cart for user", async () => {
+    await redis.hdel(`cart:${sellerId}`, itemId1);
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart`,
+      "DELETE",
+      {},
+      accessToken,
+    );
+
+    const getResponse = await deleteItemFromCart(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(200);
+    expect(getBody.message).toBe("No items in the cart to delete");
+  });
+
+  test("Deleting item in cart that does not exist", async () => {
+    await redis.hdel(`cart:${sellerId}`, itemId1);
+    const request = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginReq = await login(request);
+    const accessToken = (await loginReq.json()).accessToken;
+
+    const request2 = generateAuthenticatedRequest(
+      `/cart/items/${itemId1}`,
+      "DELETE",
+      {},
+      accessToken,
+    );
+
+    const getResponse = await deleteItemFromCart(request2);
+    const getBody = await getResponse.json();
+
+    expect(getResponse.status).toBe(200);
+    expect(getBody.message).toBe("Item does not exist in the cart to delete");
+  });
+
+  // impossible to test 500 path unless backend crashes
 });

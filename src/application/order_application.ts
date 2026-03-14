@@ -93,9 +93,21 @@ export const deleteItemFromCart = authHelper(
       const itemId = splitUrl?.at(3) as string;
 
       if (deleteAllItems) {
-        await redis.del(`cart:${userId}`);
+        const numDeleted = await redis.del(`cart:${userId}`);
+
+        if (numDeleted === 0) {
+          return jsonHelper({
+            message: "No items in the cart to delete",
+          });
+        }
       } else {
-        await redis.hdel(`cart:${userId}`, itemId);
+        const numDeleted = await redis.hdel(`cart:${userId}`, itemId);
+
+        if (numDeleted === 0) {
+          return jsonHelper({
+            message: "Item does not exist in the cart to delete",
+          });
+        }
       }
 
       return jsonHelper({
