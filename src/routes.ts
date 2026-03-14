@@ -285,7 +285,7 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+  if (url === "/profile" && method === "DELETE") {
     const response = await deleteUser(req);
 
     const body = await response.json();

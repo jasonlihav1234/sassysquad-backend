@@ -12,6 +12,7 @@ import {
   getMyProfileDetails,
   getUserDetailsById,
   updateProfile,
+  deleteUser,
 } from "../src/application/user_application";
 import { afterEach, beforeEach, mock } from "node:test";
 import pg, { redis } from "../src/utils/db";
@@ -886,4 +887,60 @@ describe("Updating profile tests", () => {
     expect(response.status).toBe(500);
     expect(body.message).toBe("Profile failed to update");
   });
+});
+
+describe("Deleting a user test", () => {
+  let accessToken: string = "";
+  let userId: string = "";
+  beforeAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "jasonli1234@gmail.com",
+        username: "test",
+        password: "testing123",
+      },
+    );
+    const regRes = await register(registerReq);
+    const regBody = await regRes.json();
+    userId = regBody.user;
+
+    const loginReq = generateRequest("http://localhost/auth/login", "POST", {
+      email: "jasonli1234@gmail.com",
+      password: "testing123",
+    });
+    const loginRes = await login(loginReq);
+    const body = await loginRes.json();
+
+    accessToken = body.accessToken;
+  });
+
+  afterAll(async () => {
+    await pg`delete from users`;
+    await pg`delete from refresh_tokens`;
+  });
+
+  test("User successfully deleted", async () => {
+    const authReq = generateAuthenticatedRequest(
+      `/profile`,
+      "DELETE",
+      {},
+      accessToken,
+    );
+
+    const response = await deleteUser(authReq);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("User successfully deleted");
+
+    const query = await pg`select * from users where user_id = ${userId}`;
+    expect(query.length).toBe(0);
+  });
+
+  // impossible to test the 500 path unless the postgres server crashes
 });
