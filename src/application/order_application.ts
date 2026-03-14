@@ -20,6 +20,7 @@ async function fulfillCheckout(sessionId: string) {
     // record and save fulfillment status in db
     // remove x amount from database
     // this should just call the orderf fun
+    // here I would call the post orders method
   }
 }
 

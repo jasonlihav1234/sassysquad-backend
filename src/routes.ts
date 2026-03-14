@@ -24,6 +24,7 @@ import {
   getItemsById,
   updateProfile,
 } from "./application/item_application";
+import { createOrderQuery } from "./database/queries/order_queries";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -200,9 +201,25 @@ export async function handleRequest(req: any, res: any) {
     });
   }
 
-  // POST /orders
+  // POST /orders - need a seller id should be easy to obtain
+  // each orderLine should follow:
+  //[
+  //  {
+  //      quantity,
+  //      priceAtPurchase,
+  //      itemId,
+  //      taxPercentPer
+  //  }
+  //]
   if (url === "/orders" && method === "POST") {
-    const { userId, orderLines } = body || {};
+    const buyer = ""; // authenticated method should be able to get id from subject claim
+    const {
+      userId,
+      orderLines,
+      sellerId,
+      paymentMethodCode,
+      destinationCountryCode,
+    } = body || {};
 
     if (!userId || typeof userId !== "string") {
       return res.status(400).json({
@@ -253,8 +270,30 @@ export async function handleRequest(req: any, res: any) {
     // Now conbvet JSON to XML
     const xml = create(orderJson).end({ prettyPrint: true });
 
-    res.setHeader("Content-Type", "application/xml");
-    return res.status(201).send(xml);
+    // store the order in the database
+    // have a default order name which the user edit later
+    const response = await createOrderQuery(
+      `order-${newOrder.orderId}`,
+      buyer,
+      sellerId,
+      "aud",
+      "aud",
+      "aud",
+      "aud",
+      1.5,
+      paymentMethodCode,
+      destinationCountryCode,
+      xml,
+      orderLines,
+    );
+    const responseBody = await response.json();
+
+    if (responseBody.error === undefined) {
+      res.setHeader("Content-Type", "application/xml");
+      return res.status(201).send(xml);
+    }
+
+    return res.status(response.status).json(body);
   }
 
   if (url === "/profile" && method === "PATCH") {
