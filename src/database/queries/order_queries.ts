@@ -45,7 +45,7 @@ export async function getOrderIdByName(
     return null;
   }
 
-  return result[0].id;
+  return result[0].order_id;
 }
 
 /**
@@ -60,6 +60,7 @@ export async function getOrderIdByName(
  * ]
  */
 export async function createOrderQuery(
+  orderId: string,
   orderName: string,
   buyerId: string,
   sellerId: string,
@@ -93,7 +94,6 @@ export async function createOrderQuery(
    * status - make this
    * ubl xml content - need this
    */
-  const orderId = crypto.randomUUID();
   const totalItemCost = items.reduce((sum, item) => {
     return sum + item.quantity * item.priceAtPurchase;
   }, 0);
