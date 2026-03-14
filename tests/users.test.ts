@@ -206,6 +206,10 @@ describe("Login User", () => {
 });
 
 describe("Refresh token test", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
   test("No refresh token provided", async () => {
     const request = generateRequest(refreshRoute, "POST", {
       invalidField: "byeol",
@@ -341,10 +345,6 @@ describe("Refresh token test", () => {
 });
 
 describe("Forgot password test", () => {
-  beforeEach(async () => {
-    await redis.send("FLUSHDB", []);
-  });
-
   test("Email is not provided", async () => {
     let request = generateRequest(
       "http://localhost/auth/reset-password",
@@ -378,13 +378,8 @@ describe("Forgot password test", () => {
   });
 });
 
-describe("Reset password tests", () => {
+describe.only("Reset password tests", () => {
   const resetPasswordRoute = "http://localhost/auth/reset-password";
-  afterEach(async () => {
-    await redis.send("FLUSHDB", []);
-    await pg`truncate table users restart identity cascade`;
-    await pg`truncate table refresh_tokens restart identity cascade`;
-  });
 
   test("No token passed in", async () => {
     let request = generateRequest(resetPasswordRoute, "POST", {
@@ -494,10 +489,15 @@ describe("Reset password tests", () => {
       await pg`select password_hash from users where email = ${testingEmail}`;
 
     expect(query_1[0].password_hash).not.toBe(query_2[0].password_hash);
+    resetDb();
   });
 });
 
 describe("Logout tests", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
   test("User successfully logged out", async () => {
     let request = generateRequest(registerRoute, "POST", {
       email: "testing@gmail.com",
@@ -572,6 +572,10 @@ describe("Logout tests", () => {
 });
 
 describe("Logout-all tests", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
   test("User is not authorised to logout", async () => {
     let request = generateRequest(registerRoute, "POST", {
       email: "testing@gmail.com",
@@ -651,6 +655,10 @@ describe("Logout-all tests", () => {
 });
 
 describe("GET /users/:userId/purchases", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
   test("returns 200 and empty orders when user has no purchases", async () => {
     const { userId, accessToken } = await registerAndLogin(
       "buyer@test.com",
@@ -752,6 +760,10 @@ describe("GET /users/:userId/purchases", () => {
 });
 
 describe("GET /users/:userId/sales", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
   test("returns 200 and empty orders when user has no sales", async () => {
     const { userId, accessToken } = await registerAndLogin(
       "seller@test.com",
