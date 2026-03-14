@@ -7,10 +7,23 @@ import {
   resetPassword,
   logout,
   logoutAll,
+  getUserSessions,
+  getUserDetailsById,
+  getMyProfileDetails,
+  deleteUser,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
+import { deleteItem } from "./application/item_application";
+import { updateItem } from "./application/item_application";
+import { addItemToCart } from "./application/order_application";
+import {
+  getAllItems,
+  getItemByUserId,
+  getItemsById,
+  updateProfile,
+} from "./application/item_application";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -71,6 +84,51 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/auth/reset-password" && method === "POST") {
     const response = await resetPassword(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+    const response = await deleteItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
+    const response = await updateItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/cart/items" && method === "POST") {
+    const response = await addItemToCart(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  // /items
+  if (url === "/items" && method === "GET") {
+    const response = await getAllItems(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  // /items/{item_id}
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "GET") {
+    const response = await getItemsById(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  // /user/{user_id}/items
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+\/items$/) && method === "GET") {
+    const response = await getItemByUserId(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
@@ -164,57 +222,74 @@ export async function handleRequest(req: any, res: any) {
       orderLines,
       createdAt: new Date().toISOString(),
     };
+    // Buildj JSON object
+    const orderJson = {
+      Order: {
+        "@xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
+        "@xmlns:cac":
+          "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+        "@xmlns:cbc":
+          "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
 
-    const root = create({ version: "1.0" }).ele("Order", {
-      xmlns: "urn:oasis:names:specification:ubl:schema:xsd:Order-2",
-      "xmlns:cac":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-      "xmlns:cbc":
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
-    });
+        "cbc:ID": newOrder.orderId,
+        "cbc:IssueDate": newOrder.createdAt.slice(0, 10),
 
-    root.ele("cbc:ID").txt(newOrder.orderId).up();
-    root.ele("cbc:IssueDate").txt(newOrder.createdAt.slice(0, 10)).up();
+        "cac:BuyerCustomerParty": {
+          "cac:Party": {
+            "cbc:CustomerAssignedAccountID": newOrder.userId,
+          },
+        },
 
-    const buyerParty = root.ele("cac:BuyerCustomerParty").ele("cac:Party");
-    buyerParty.ele("cbc:CustomerAssignedAccountID").txt(newOrder.userId).up();
-    buyerParty.up().up();
+        "cac:OrderLine": newOrder.orderLines.map((line, index) => ({
+          "cbc:ID": crypto.randomUUID(),
+          "cbc:Quantity": String(line.quantity),
+          "cac:Item": {
+            "cbc:Name": line.itemName || "Unknown Item",
+          },
+        })),
+      },
+    };
 
-    for (let i = 0; i < orderLines.length; i++) {
-      const line = orderLines[i];
-
-      const orderLine = root.ele("cac:OrderLine");
-      orderLine
-        .ele("cbc:ID")
-        .txt(String(i + 1))
-        .up();
-      orderLine
-        .ele("cbc:Quantity")
-        .txt(String(line.quantity ?? 1))
-        .up();
-
-      const item = orderLine.ele("cac:Item");
-      item
-        .ele("cbc:Name")
-        .txt(line.itemName || "Unknown Item")
-        .up();
-      item.up();
-
-      orderLine.up();
-    }
-
-    const xml = root.end({ prettyPrint: true });
+    // Now conbvet JSON to XML
+    const xml = create(orderJson).end({ prettyPrint: true });
 
     res.setHeader("Content-Type", "application/xml");
     return res.status(201).send(xml);
   }
 
-  if (url.startsWith("/users")) {
-    return handleUserRoutes(req, res);
+  if (url === "/profile" && method === "PATCH") {
+    const response = await updateProfile(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
-  if (url.startsWith("/health")) {
-    return handleHealthRoutes(req, res);
+  if (url === "/auth/sessions" && method === "GET") {
+    const response = await getUserSessions(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "GET") {
+    const response = await getUserDetailsById(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/profile" && method === "GET") {
+    const response = await getMyProfileDetails(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url.match(/^\/users\/[a-zA-Z0-9_-]+$/) && method === "DELETE") {
+    const response = await deleteUser(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   // 404 if no roiutes match

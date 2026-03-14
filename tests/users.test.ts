@@ -1,4 +1,4 @@
-import { expect, test, describe, spyOn } from "bun:test";
+import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
 import {
   generateUser,
   register,
@@ -22,6 +22,12 @@ import {
   insertOrder,
   resetDb,
 } from "./test_helper";
+
+beforeAll(async () => {
+  await pg`delete from refresh_tokens`;
+  await pg`delete from items`;
+  await pg`delete from users`;
+});
 
 const registerRoute = "http://localhost/auth/register";
 const logoutRoute = "http://localhost/auth/logout";
@@ -658,7 +664,7 @@ describe("Logout-all tests", () => {
   });
 });
 
-describe.only("GET /users/:userId/purchases", () => {
+describe("GET /users/:userId/purchases", () => {
   test("returns 200 and empty orders when user has no purchases", async () => {
     const registerReq = generateRequest(registerRoute, "POST", {
       email: "buyer@test.com",
