@@ -277,28 +277,39 @@ export const createCheckoutSession = authHelper(
   },
 );
 
-export async function checkCheckoutSessionStatus(req: VercelRequest) {
-  const queryId = req.query.session_id;
-  const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
+export const checkCheckoutSessionStatus = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const queryId = req.query.session_id;
+    const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
 
-  if (!sessionId) {
-    return jsonHelper(
-      {
-        message: "Session cannot be found",
-      },
-      404,
-    );
-  }
+    if (!sessionId) {
+      return jsonHelper(
+        {
+          message: "Session cannot be found",
+        },
+        404,
+      );
+    }
 
-  const session = await stripe.checkout.sessions.retrieve(sessionId);
+    try {
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-  return jsonHelper({
-    status: session.status,
-    customer_email: session.customer_details?.email ?? "No email provided",
-  });
-}
+      return jsonHelper({
+        status: session.status,
+        customer_email: session.customer_details?.email ?? "No email provided",
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          error: "Failed to retrieve session status",
+        },
+        500,
+      );
+    }
+  },
+);
 
-export async function serverWebhook(req: VercelRequest) {
+export async function serverWebhook(req: VercelRequest): Promise<Response> {
   const body = req.body;
   const signature = req.headers["stripe-signature"];
 
@@ -346,6 +357,8 @@ export async function serverWebhook(req: VercelRequest) {
       return jsonHelper({ error: "Event type invalid" }, 400);
     }
   }
+
+  return jsonHelper({ error: "No event types match " }, 404);
 }
 
 // post with itemId and quantity and userId in body
