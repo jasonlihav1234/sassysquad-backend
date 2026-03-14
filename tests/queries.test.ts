@@ -1,4 +1,4 @@
-/**import { expect, test, describe, spyOn } from "bun:test";
+import { expect, test, describe, spyOn } from "bun:test";
 import {
   generateUser,
   checkUser,
@@ -67,7 +67,10 @@ describe("Updating orders query tests", () => {
     (${"ff44b3f7-0f88-413e-b359-bb6750fb0001"}, ${seller}, 'kajdaw', ${null}, ${2.5}, ${10000}, ${null}, ${new Date()}, ${new Date()})
     `;
 
+    const testOrderId = crypto.randomUUID(); 
+
     await createOrderQuery(
+      testOrderId,
       "TestOrder",
       buyer,
       seller,
@@ -132,4 +135,3 @@ describe("Updating orders query tests", () => {
     expect(updateResponse[0].total_cost).not.toBe(response[0].total_cost);
   });
 });
-*/
