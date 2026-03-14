@@ -378,7 +378,7 @@ describe("Forgot password test", () => {
   });
 });
 
-describe.only("Reset password tests", () => {
+describe("Reset password tests", () => {
   const resetPasswordRoute = "http://localhost/auth/reset-password";
 
   test("No token passed in", async () => {
