@@ -16,9 +16,12 @@ import {
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
+import {
+  addItemToCart,
+  deleteItemFromCart,
+} from "./application/order_application";
 import { deleteItem } from "./application/item_application";
 import { updateItem } from "./application/item_application";
-import { addItemToCart } from "./application/order_application";
 import {
   getAllItems,
   getItemByUserId,
@@ -119,6 +122,16 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
+  if (
+    (url === "/cart" || url.match(/^\/cart\/items\/[a-zA-Z0-9_-]+$/)) &&
+    method === "DELETE"
+  ) {
+    const response = await deleteItemFromCart(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+  
   // /items/{item_id}
   if (url.match(/^\/items\/[a-zA-Z0-9_-]+$/) && method === "GET") {
     const response = await getItemsById(req);
