@@ -882,16 +882,6 @@ export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     (req.headers as unknown as Headers)?.get?.("accept") ||
     req.headers?.["accept"];
 
-  //  unsupported accept type as response must be returned in UBL XML format
-  // -- idk if the response must be a UBL XML format? cause if you are getting an order you might want to know the status of the order which the XML won't show --
-
-  // if (!accept || !accept.includes("application/xml")) {
-  //   return res.status(406).json({
-  //     error: "UNSUPPORTED_TYPE",
-  //     message: "The response type is unsupported",
-  //   });
-  // }
-
   // get orderId from URL
   const orderId = req.url?.split("/").pop();
 
@@ -922,11 +912,6 @@ export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     }
 
     // return previously generated UBL XML stored in databse - we should probably send the whole response cause there are fields in the order that we might need
-
-    //   return res
-    // .status(200)
-    // .setHeader("Content-Type", "application/xml")
-    // .send(order.ubl_xml_content); // return stored UBL XML
 
     return jsonHelper({
       message: "Order successfully retrieved",

@@ -14,6 +14,7 @@ import {
   processOrderCreation,
   postOrder,
   updateOrder,
+  getOrder,
 } from "../../src/application/order_application";
 import * as OrderApp from "../../src/application/order_application";
 import * as db from "../../src/database/queries/order_queries";
@@ -654,6 +655,124 @@ describe("Post order tests", () => {
     expect(response.status).toBe(500);
     expect(body.message).toBe("Order creation failed");
     expect(body.error).not.toBe(undefined);
+
+    querySpy.mockRestore();
+  });
+});
+
+describe("Get orders tests", () => {
+  let userId: any = null;
+
+  afterEach(async () => {
+    await deleteTestData({
+      userIds: [userId],
+    });
+  });
+
+  test("Invalid order id", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/orders/",
+      "GET",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await getOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("INVALID_ID");
+    expect(body.message).toBe("The id provided is syntactically invalid");
+  });
+
+  test("Order not found", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      `/orders/${crypto.randomUUID()}`,
+      "GET",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await getOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe("ID_NOT_FOUND");
+    expect(body.message).toBe("Id does not exist or is invalid");
+  });
+
+  test("Successfully retrieves order", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const fakeOrder = {
+      order_id: "123",
+      buyer_id: rl.userId,
+      seller_id: "seller1",
+      status: "pending",
+    };
+
+    const querySpy = spyOn(db, "getOrderById").mockResolvedValue(fakeOrder as any);
+
+    const request = generateAuthenticatedRequest(
+      "/orders/123",
+      "GET",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await getOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Order successfully retrieved");
+    expect(body.order).not.toBe(undefined);
+
+    querySpy.mockRestore();
+  });
+
+  test("Returns 500 when database throws error", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const querySpy = spyOn(db, "getOrderById").mockImplementation(() => {
+      throw new Error("Database error");
+    });
+
+    const request = generateAuthenticatedRequest(
+      "/orders/123",
+      "GET",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await getOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.error).toBe("INTERNAL_ERROR");
 
     querySpy.mockRestore();
   });
