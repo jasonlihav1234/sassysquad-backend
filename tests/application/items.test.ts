@@ -1,14 +1,14 @@
 import { expect, test, describe, spyOn, afterAll } from "bun:test";
-import { register, login } from "../src/application/user_application";
-import pg, { redis } from "../src/utils/db";
+import { register, login } from "../../src/application/user_application";
+import pg, { redis } from "../../src/utils/db";
 import {
   getItemsById,
   getAllItems,
   getItemByUserId,
   updateItem,
   deleteItem,
-} from "../src/application/item_application";
-import { generateAuthenticatedRequest, generateRequest } from "./test_helper";
+} from "../../src/application/item_application";
+import { generateAuthenticatedRequest, generateRequest } from "../test_helper";
 import { beforeEach } from "node:test";
 
 const itemId1 = "537d8f9c-bd93-484a-b14c-ce1853456a15";
