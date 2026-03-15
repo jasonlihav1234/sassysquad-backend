@@ -1724,7 +1724,7 @@
                 },
                 "accountingCost": {
                   "type": "number",
-                  "example": 150.50
+                  "example": 150.5
                 },
                 "paymentMethodCode": {
                   "type": "string",
@@ -1740,11 +1740,7 @@
                   "description": "List of items in the order",
                   "items": {
                     "type": "object",
-                    "required": [
-                      "itemID",
-                      "quantity",
-                      "priceAtPurchase"
-                    ],
+                    "required": ["itemID", "quantity", "priceAtPurchase"],
                     "properties": {
                       "itemID": {
                         "type": "string",
@@ -1818,6 +1814,127 @@
                 },
                 "error": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{orderId}": {
+      "put": {
+        "tags": ["order"],
+        "summary": "Updates an existing order",
+        "description": "Updates an order based on the provided order ID and update payload. The user making the request must be the buyer of the order.",
+        "operationId": "update-order-by-id",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the order to update",
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the user ID and the updates to be applied",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["userId", "updates"],
+              "properties": {
+                "userId": {
+                  "type": "string",
+                  "description": "The ID of the user requesting the update (must match the buyerId of the order)",
+                  "example": "buyer_12345"
+                },
+                "updates": {
+                  "type": "object",
+                  "description": "The fields to update on the order",
+                  "properties": {
+                    "orderName": {
+                      "type": "string",
+                      "example": "Updated Order Name"
+                    },
+                    "accountingCost": {
+                      "type": "number",
+                      "example": 200.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order successfully updated",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order successfully updated"
+                },
+                "response": {
+                  "type": "object",
+                  "description": "Details of the updated order"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing orderId in path)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Bad Request"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (User is not the buyer of the order)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Forbidden"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Order does not exist)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Order not found!"
                 }
               }
             }
