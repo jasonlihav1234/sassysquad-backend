@@ -19,7 +19,7 @@ export async function getItemIdByName(
     return null;
   }
 
-  return result[0].id;
+  return result[0].item_id;
 }
 
 /**

@@ -1,7 +1,6 @@
 import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
 import {
   generateUser,
-  checkUser,
   register,
   refresh,
   login,
@@ -9,60 +8,27 @@ import {
   logoutAll,
   forgotPassword,
   resetPassword,
+  getUserPurchases,
+  getUserSales,
   getMyProfileDetails,
   getUserDetailsById,
   updateProfile,
   deleteUser,
   getUserSessions,
 } from "../src/application/user_application";
-import { afterEach, beforeEach, mock } from "node:test";
+import { afterEach, beforeEach } from "node:test";
 import pg, { redis } from "../src/utils/db";
 import { createHash } from "node:crypto";
-import { verifyRefreshToken } from "../src/utils/jwt_config";
-import { getMaxListeners } from "node:cluster";
-import { sleep } from "bun";
-import { brotliDecompress } from "node:zlib";
-import { updateItem } from "../src/application/item_application";
-
-export const generateRequest = (
-  url: string,
-  givenMethod: string,
-  givenBody: any,
-): any => {
-  return {
-    url: url,
-    method: givenMethod,
-    headers: {
-      "content-type": "application/json",
-    },
-    body: givenBody,
-    json: async () => givenBody,
-  };
-};
-
-export const generateAuthenticatedRequest = (
-  url: string,
-  givenMethod: string,
-  givenBody: any,
-  token: any,
-): any => {
-  return {
-    url: url,
-    method: givenMethod,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: givenBody,
-    json: async () => givenBody,
-  };
-};
-
-beforeAll(async () => {
-  await pg`delete from refresh_tokens`;
-  await pg`delete from items`;
-  await pg`delete from users`;
-});
+import { verifyRefreshToken, createAccessToken } from "../src/utils/jwt_config";
+import {
+  generateRequest,
+  generateAuthenticatedRequest,
+  insertUser,
+  insertOrder,
+  resetDb,
+  registerAndLogin,
+  registerOnly,
+} from "./test_helper";
 
 const registerRoute = "http://localhost/auth/register";
 const logoutRoute = "http://localhost/auth/logout";
@@ -71,13 +37,6 @@ const loginRoute = "http://localhost/auth/login";
 const logoutAllRoute = "http://localhost/auth/logout-all";
 
 describe("Register User", () => {
-  const registerRoute = "http://localhost/auth/register";
-
-  afterEach(async () => {
-    await pg`truncate table users restart identity cascade`;
-    await pg`truncate table refresh_tokens restart identity cascade`;
-  });
-
   test("Email not provided", async () => {
     const request = generateRequest(registerRoute, "POST", {
       username: "awdjbadadjkwbn",
@@ -178,11 +137,8 @@ describe("Register User", () => {
 });
 
 describe("Login User", () => {
-  const loginRoute = "http://localhost/auth/login";
-
-  afterEach(async () => {
-    await pg`truncate table users restart identity cascade`;
-    await pg`truncate table refresh_tokens restart identity cascade`;
+  beforeEach(async () => {
+    await resetDb();
   });
 
   test("User does not exist", async () => {
@@ -254,12 +210,8 @@ describe("Login User", () => {
 });
 
 describe("Refresh token test", () => {
-  const refreshRoute = "http://localhost/auth/refresh";
-  const loginRoute = "http://localhost/auth/login";
-
-  afterEach(async () => {
-    await pg`truncate table users restart identity cascade`;
-    await pg`truncate table refresh_tokens restart identity cascade`;
+  beforeEach(async () => {
+    await resetDb();
   });
 
   test("No refresh token provided", async () => {
@@ -397,12 +349,6 @@ describe("Refresh token test", () => {
 });
 
 describe("Forgot password test", () => {
-  beforeEach(async () => {
-    await redis.send("FLUSHDB", []);
-    await pg`truncate table users restart identity cascade`;
-    await pg`truncate table refresh_tokens restart identity cascade`;
-  });
-
   test("Email is not provided", async () => {
     let request = generateRequest(
       "http://localhost/auth/reset-password",
@@ -437,12 +383,11 @@ describe("Forgot password test", () => {
 });
 
 describe("Reset password tests", () => {
-  const resetPasswordRoute = "http://localhost/auth/reset-password";
-  afterEach(async () => {
-    await redis.send("FLUSHDB", []);
-    await pg`truncate table users restart identity cascade`;
-    await pg`truncate table refresh_tokens restart identity cascade`;
+  beforeEach(async () => {
+    await resetDb();
   });
+
+  const resetPasswordRoute = "http://localhost/auth/reset-password";
 
   test("No token passed in", async () => {
     let request = generateRequest(resetPasswordRoute, "POST", {
@@ -556,11 +501,9 @@ describe("Reset password tests", () => {
 });
 
 describe("Logout tests", () => {
-  afterEach(async () => {
-    await pg`truncate table users restart identity cascade`;
-    await pg`truncate table refresh_tokens restart identity cascade`;
+  beforeEach(async () => {
+    await resetDb();
   });
-  const logoutRoute = "http://localhost/auth/logout";
 
   test("User successfully logged out", async () => {
     let request = generateRequest(registerRoute, "POST", {
@@ -636,9 +579,8 @@ describe("Logout tests", () => {
 });
 
 describe("Logout-all tests", () => {
-  afterEach(async () => {
-    await pg`truncate table users restart identity cascade`;
-    await pg`truncate table refresh_tokens restart identity cascade`;
+  beforeEach(async () => {
+    await resetDb();
   });
 
   test("User is not authorised to logout", async () => {
@@ -668,17 +610,20 @@ describe("Logout-all tests", () => {
   });
 
   test("All sessions logged out", async () => {
+    const uniqueEmail = `logout-all-${crypto.randomUUID()}@test.com`;
     let request = generateRequest(registerRoute, "POST", {
-      email: "testing@gmail.com",
+      email: uniqueEmail,
       username: "test",
       password: "password123",
     });
 
     const registerResponse = await register(request);
     const registerBody = await registerResponse.json();
+    expect(registerResponse.status).toBe(201);
+    const userId = registerBody.user;
 
     request = generateRequest(loginRoute, "POST", {
-      email: "testing@gmail.com",
+      email: uniqueEmail,
       password: "password123",
     });
 
@@ -686,7 +631,7 @@ describe("Logout-all tests", () => {
     const loginBody = await loginResponse.json();
 
     request = generateRequest(loginRoute, "POST", {
-      email: "testing@gmail.com",
+      email: uniqueEmail,
       password: "password123",
     });
 
@@ -708,14 +653,223 @@ describe("Logout-all tests", () => {
     expect(logoutAllResponse.status).toBe(200);
     expect(logoutAllResponseBody.message).toBe("All sessions logged out");
 
-    const email = registerBody.user;
     const findTokens =
-      await pg`select * from refresh_tokens where user_id = ${email}`;
+      await pg`select * from refresh_tokens where user_id = ${userId}`;
     expect(findTokens.length).toBe(2);
 
     for (const refresh of findTokens) {
       expect(refresh.revoked).toBe(true);
     }
+  });
+});
+
+describe("GET /users/:userId/purchases", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  test("returns 200 and empty orders when user has no purchases", async () => {
+    const { userId, accessToken } = await registerAndLogin(
+      "buyer@test.com",
+      "buyer",
+      "password123",
+    );
+
+    const req = generateAuthenticatedRequest(
+      `/users/${userId}/purchases`,
+      "GET",
+      undefined,
+      accessToken,
+    );
+    const response = await getUserPurchases(req);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({ orders: [] });
+  });
+
+  test("returns 200 and list of orders when user has purchases", async () => {
+    const { userId, accessToken } = await registerAndLogin(
+      "buyer@test.com",
+      "buyer",
+      "password123",
+    );
+
+    const seller = await insertUser();
+    await insertOrder({ buyer_id: userId, seller_id: seller.user_id });
+    await insertOrder({ buyer_id: userId, seller_id: seller.user_id });
+
+    const req = generateAuthenticatedRequest(
+      `/users/${userId}/purchases`,
+      "GET",
+      undefined,
+      accessToken,
+    );
+    const response = await getUserPurchases(req);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.orders).toBeDefined();
+    expect(body.orders.length).toBe(2);
+  });
+
+  test("returns 401 when Authorization header is missing", async () => {
+    const { userId } = await registerOnly(
+      "buyer@test.com",
+      "buyer",
+      "password123",
+    );
+
+    const req = generateRequest(`/users/${userId}/purchases`, "GET", undefined);
+    const response = await getUserPurchases(req);
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body?.error).toBeDefined();
+  });
+
+  test("returns 401 when token is for a different user than path", async () => {
+    const { accessToken: accessTokenA } = await registerAndLogin(
+      "userA@test.com",
+      "userA",
+      "password123",
+    );
+    const { userId: userIdB } = await registerOnly(
+      "userB@test.com",
+      "userB",
+      "password123",
+    );
+
+    const req = generateAuthenticatedRequest(
+      `/users/${userIdB}/purchases`,
+      "GET",
+      undefined,
+      accessTokenA,
+    );
+    const response = await getUserPurchases(req);
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body?.error).toBeDefined();
+  });
+
+  test("returns 404 when path user does not exist", async () => {
+    const nonExistentUserId = crypto.randomUUID();
+    const token = await createAccessToken(
+      nonExistentUserId,
+      "nonexistent@test.com",
+    );
+    const req = generateAuthenticatedRequest(
+      `/users/${nonExistentUserId}/purchases`,
+      "GET",
+      undefined,
+      token,
+    );
+    const response = await getUserPurchases(req);
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body?.error).toBe("User not found!");
+  });
+});
+
+describe("GET /users/:userId/sales", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  test("returns 200 and empty orders when user has no sales", async () => {
+    const { userId, accessToken } = await registerAndLogin(
+      "seller@test.com",
+      "seller",
+      "password123",
+    );
+
+    const req = generateAuthenticatedRequest(
+      `/users/${userId}/sales`,
+      "GET",
+      undefined,
+      accessToken,
+    );
+    const response = await getUserSales(req);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({ orders: [] });
+  });
+
+  test("returns 200 and list of orders when user has sales", async () => {
+    const { userId, accessToken } = await registerAndLogin(
+      "seller@test.com",
+      "seller",
+      "password123",
+    );
+
+    const buyer = await insertUser();
+    await insertOrder({ buyer_id: buyer.user_id, seller_id: userId });
+    await insertOrder({ buyer_id: buyer.user_id, seller_id: userId });
+
+    const req = generateAuthenticatedRequest(
+      `/users/${userId}/sales`,
+      "GET",
+      undefined,
+      accessToken,
+    );
+    const response = await getUserSales(req);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.orders).toBeDefined();
+    expect(body.orders.length).toBe(2);
+  });
+
+  test("returns 401 when Authorization header is missing", async () => {
+    const { userId } = await registerOnly(
+      "seller@test.com",
+      "seller",
+      "password123",
+    );
+
+    const req = generateRequest(`/users/${userId}/sales`, "GET", undefined);
+    const response = await getUserSales(req);
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body?.error).toBeDefined();
+  });
+
+  test("returns 401 when token is for a different user than path", async () => {
+    const { accessToken: accessTokenA } = await registerAndLogin(
+      "userA@test.com",
+      "userA",
+      "password123",
+    );
+    const { userId: userIdB } = await registerOnly(
+      "userB@test.com",
+      "userB",
+      "password123",
+    );
+
+    const req = generateAuthenticatedRequest(
+      `/users/${userIdB}/sales`,
+      "GET",
+      undefined,
+      accessTokenA,
+    );
+    const response = await getUserSales(req);
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body?.error).toBeDefined();
+  });
+
+  test("returns 404 when path user does not exist", async () => {
+    const nonExistentUserId = crypto.randomUUID();
+    const token = await createAccessToken(
+      nonExistentUserId,
+      "nonexistent@test.com",
+    );
+    const req = generateAuthenticatedRequest(
+      `/users/${nonExistentUserId}/sales`,
+      "GET",
+      undefined,
+      token,
+    );
+    const response = await getUserSales(req);
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body?.error).toBe("User not found!");
   });
 });
 
