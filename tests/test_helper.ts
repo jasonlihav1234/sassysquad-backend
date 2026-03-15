@@ -184,6 +184,16 @@ export async function insertItem(overrides: InsertItemOverrides): Promise<{
   };
 }
 
+// Create a buyer and seller for query/order tests (no auth)
+export async function createBuyerAndSeller(opts?: {
+  buyerOverrides?: InsertUserOverrides;
+  sellerOverrides?: InsertUserOverrides;
+}): Promise<{ buyer: User; seller: User }> {
+  const buyer = await insertUser(opts?.buyerOverrides);
+  const seller = await insertUser(opts?.sellerOverrides);
+  return { buyer, seller };
+}
+
 // Create purchases from random sellers
 export async function seedUserWithRandomBuyerOrders(
   orderCount: number,
