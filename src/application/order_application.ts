@@ -21,6 +21,10 @@ import {
 import nodemailer from "nodemailer";
 import path from "path";
 import {
+  getOrderById,
+  deleteOrdersById
+} from "../database/queries/order_queries";
+import {
   getUserBuyerOrders,
   getUserSellerOrders,
   isUserIdValid,
@@ -146,4 +150,47 @@ export const updateCartItem = authHelper(
       );
     }
   },
+);
+
+export const deleteOrder = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const userId = req.user?.subject_claim;
+    const orderId = req.url?.split("/").at(3) as string;
+
+    if (!orderId) {
+      return jsonHelper(
+        {
+          message: "OrderID invalid.",
+          error: "Bad Request",
+        },
+        400,
+      );
+    }
+
+    const order = await getOrderById(orderId);
+
+    if (!order) {
+      return jsonHelper(
+        {
+          message: "Order not found.",
+          error: "Not Found",
+        },
+        404,
+      );
+    }
+
+    if (userId !== order.buyerId) {
+      return jsonHelper(
+        {
+          message: "User does not have permission to delete order.",
+          error: "Unauthorised",
+        },
+        403,
+      );
+    }
+
+    deleteOrdersById(orderId);
+    
+    return jsonHelper({ message: "Order successfully deleted" })
+  }
 );
