@@ -505,9 +505,55 @@ describe("Post order tests", () => {
     const response = await postOrder(request);
     const body = await response.json();
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(422);
     expect(body.error).toBe(
       "orderLines is required and must be a non-empty array",
     );
+  });
+
+  test("Invalid order line", async () => {
+    const rl = await registerAndLogin(
+      "testing@gmail.com",
+      "testing",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/order",
+      "POST",
+      {
+        orderName: "test",
+        buyerId: "test",
+        sellerId: "test",
+        documentCurrencyCode: "test",
+        pricingCurrencyCode: "test",
+        taxCurrencyCode: "test",
+        requestedInvoiceCurrencyCode: "test",
+        accountingCost: 1.5,
+        paymentMethodCode: "test",
+        destinationCountryCode: "test",
+        orderLines: [
+          {
+            invalidId: "test",
+            passingTheTime: "awd",
+          }
+        ]
+      },
+      rl.accessToken,
+    );
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${rl.accessToken}`,
+    };
+
+    const response = await postOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(body.error).toBe(
+      "VALIDATION_FAILED",
+    );  
+    expect(body.message).toBe("The request body is missing mandatory fields");
   });
 });
