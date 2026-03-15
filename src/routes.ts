@@ -24,6 +24,7 @@ import { handleHealthRoutes } from "./routes/health_routes";
 import {
   addItemToCart,
   deleteItemFromCart,
+  deleteOrder,
   updateCartItem,
   checkCheckoutSessionStatus,
   createCheckoutSession,
@@ -192,14 +193,20 @@ export async function handleRequest(req: any, res: any) {
     const responseBody = await response.json();
     return res.status(response.status).json(responseBody);
   }
-
-  // GET/orders/{id}
   if (method === "GET" && /\/orders\/[^/]+/.test(url)) {
     const response = await getOrder(req);
     const body = await response.json();
 
     return res.tatus(response.status).json(body);
   }
+
+  if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
+    const response = await deleteOrder(req);
+    
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   // PUT /orders
   if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
     const response = await updateOrder(req);
