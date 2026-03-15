@@ -162,7 +162,7 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
   if (!Array.isArray(orderLines) || orderLines.length === 0) {
     return jsonHelper({
       error: "orderLines is required and must be a non-empty array",
-    });
+    }, 422);
   }
 
   for (const line of orderLines) {
@@ -179,7 +179,7 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
       return jsonHelper({
         error: "VALIDATION_FAILED",
         message: "The request body is missing mandatory fields",
-      });
+      }, 422);
     }
   }
 
@@ -687,7 +687,7 @@ export const updateCartItem = authHelper(
     }
     const numAvailable = query[0].quantity_available;
     // checkout should have a final check as well
-    if (body.length === 0 || body.quantity === undefined) {
+    if (Object.keys(body).length === 0 || body.quantity === undefined) {
       return jsonHelper(
         {
           message: "Quantity not provided to update cart item",

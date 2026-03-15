@@ -221,9 +221,10 @@ export async function handleRequest(req: any, res: any) {
       return res.status(404).json({ error: "Order not found!" });
     }
 
-    return await updateOrdersById(orderId, updates);
+    const response = await updateOrdersById(orderId, updates);
+    const body = await response.json();
 
-    return res.status(200);
+    return res.status(response.status).json(body);
   }
 
   if (url === "/profile" && method === "PATCH") {

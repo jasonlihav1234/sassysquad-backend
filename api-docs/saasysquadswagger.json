@@ -15,6 +15,17 @@
     {
       "name": "item",
       "description": "Operations about items"
+<<<<<<< HEAD
+    },
+    {
+      "name": "order",
+      "description": "Operations about orders"
+    },
+    {
+      "name": "cart",
+      "description": "Operations about the cart"
+=======
+>>>>>>> 4eb2f708a6ffd2161aed93053fe047e9ba893781
     }
   ],
   "schemes": ["https", "http"],
@@ -1503,6 +1514,760 @@
                 "message": {
                   "type": "string",
                   "example": "Getting all items failed to fetch"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/validate": {
+      "post": {
+        "tags": ["order"],
+        "summary": "Validates an order payload",
+        "description": "Checks if the provided order data meets all structural and type requirements, including nested order lines.",
+        "operationId": "validate-order",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "The order data payload to be validated",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "orderName",
+                "sellerId",
+                "documentCurrencyCode",
+                "pricingCurrencyCode",
+                "taxCurrencyCode",
+                "requestedInvoiceCurrencyCode",
+                "accountingCost",
+                "paymentMethodCode",
+                "destinationCountryCode",
+                "orderLines"
+              ],
+              "properties": {
+                "orderName": {
+                  "type": "string",
+                  "example": "Bulk Office Supplies"
+                },
+                "sellerId": {
+                  "type": "string",
+                  "example": "seller_98765"
+                },
+                "documentCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "pricingCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "taxCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "requestedInvoiceCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "accountingCost": {
+                  "type": "number",
+                  "example": 150.5
+                },
+                "paymentMethodCode": {
+                  "type": "string",
+                  "example": "CREDIT_CARD"
+                },
+                "destinationCountryCode": {
+                  "type": "string",
+                  "example": "AU"
+                },
+                "orderLines": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "List of items in the order",
+                  "items": {
+                    "type": "object",
+                    "required": ["itemID", "quantity", "priceAtPurchase"],
+                    "properties": {
+                      "itemID": {
+                        "type": "string",
+                        "example": "item_12345"
+                      },
+                      "quantity": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "example": 5
+                      },
+                      "priceAtPurchase": {
+                        "type": "number",
+                        "minimum": 0,
+                        "example": 25.99
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order payload is valid",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order payload is valid"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type (Missing or invalid Content-Type)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "UNSUPPORTED_TYPE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This content type is not supported"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Failed (Missing fields, wrong types, or invalid order lines)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "VALIDATION_FAILED"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "The request body is missing mandatory fields"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders": {
+      "post": {
+        "tags": ["order"],
+        "summary": "Create a new order and generate UBL XML",
+        "description": "Validates the order payload, creates the order in the database, and returns a UBL formatted XML document representing the order.",
+        "operationId": "create-order",
+        "consumes": ["application/json"],
+        "produces": ["application/xml"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "The order data payload to create an order",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "orderName",
+                "sellerId",
+                "documentCurrencyCode",
+                "pricingCurrencyCode",
+                "taxCurrencyCode",
+                "requestedInvoiceCurrencyCode",
+                "accountingCost",
+                "paymentMethodCode",
+                "destinationCountryCode",
+                "orderLines"
+              ],
+              "properties": {
+                "orderName": {
+                  "type": "string",
+                  "example": "Bulk Office Supplies"
+                },
+                "sellerId": {
+                  "type": "string",
+                  "example": "seller_98765"
+                },
+                "documentCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "pricingCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "taxCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "requestedInvoiceCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "accountingCost": {
+                  "type": "number",
+                  "example": 150.5
+                },
+                "paymentMethodCode": {
+                  "type": "string",
+                  "example": "CREDIT_CARD"
+                },
+                "destinationCountryCode": {
+                  "type": "string",
+                  "example": "AU"
+                },
+                "orderLines": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "List of items in the order",
+                  "items": {
+                    "type": "object",
+                    "required": ["itemID", "quantity", "priceAtPurchase"],
+                    "properties": {
+                      "itemID": {
+                        "type": "string",
+                        "example": "item_12345"
+                      },
+                      "quantity": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "example": 5
+                      },
+                      "priceAtPurchase": {
+                        "type": "number",
+                        "minimum": 0,
+                        "example": 25.99
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order successfully created. Returns the UBL XML document.",
+            "schema": {
+              "type": "string",
+              "example": "<?xml version=\"1.0\"?>\n<Order xmlns=\"urn:oasis:names:specification:ubl:schema:xsd:Order-2\">\n  ...\n</Order>"
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type (Missing or invalid Content-Type)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "UNSUPPORTED_TYPE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This content type is not supported"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Failed (Missing fields, wrong types, or invalid order lines)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "VALIDATION_FAILED"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "The request body is missing mandatory fields"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error during order or XML creation",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order creation failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{orderId}": {
+      "put": {
+        "tags": ["order"],
+        "summary": "Updates an existing order",
+        "description": "Updates an order based on the provided order ID and update payload. The user making the request must be the buyer of the order.",
+        "operationId": "update-order-by-id",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the order to update",
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the user ID and the updates to be applied",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["userId", "updates"],
+              "properties": {
+                "userId": {
+                  "type": "string",
+                  "description": "The ID of the user requesting the update (must match the buyerId of the order)",
+                  "example": "buyer_12345"
+                },
+                "updates": {
+                  "type": "object",
+                  "description": "The fields to update on the order",
+                  "properties": {
+                    "orderName": {
+                      "type": "string",
+                      "example": "Updated Order Name"
+                    },
+                    "accountingCost": {
+                      "type": "number",
+                      "example": 200.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order successfully updated",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order successfully updated"
+                },
+                "response": {
+                  "type": "object",
+                  "description": "Details of the updated order"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing orderId in path)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Bad Request"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (User is not the buyer of the order)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Forbidden"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Order does not exist)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Order not found!"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart/items": {
+      "post": {
+        "tags": ["cart"],
+        "summary": "Adds an item to the user's shopping cart",
+        "description": "Validates item availability and adds the specified quantity of an item to the user's cart in Redis. The cart expires after 24 hours.",
+        "operationId": "add-item-to-cart",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the item ID and the quantity to add to the cart",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["itemId", "quantity"],
+              "properties": {
+                "itemId": {
+                  "type": "string",
+                  "description": "The unique identifier of the item",
+                  "example": "item_12345"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "description": "The number of items to add to the cart",
+                  "minimum": 1,
+                  "example": 2
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item successfully added to cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item successfully added to cart"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing fields or insufficient stock)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Not enough items in stock"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Item does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Item does not exist"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failing to add the item to the cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item failed to add to cart"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart/items/{itemId}": {
+      "patch": {
+        "tags": ["cart"],
+        "summary": "Updates the quantity of an item in the cart",
+        "description": "Updates the quantity of a specific item in the user's cart. Validates that the requested quantity is greater than zero and does not exceed available stock.",
+        "operationId": "update-cart-item",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the item in the cart to update",
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the new quantity for the item",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["quantity"],
+              "properties": {
+                "quantity": {
+                  "type": "integer",
+                  "description": "The new quantity for the item (must be greater than 0)",
+                  "minimum": 1,
+                  "example": 5
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item successfully updated in the cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item successfully updated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing quantity, zero/negative quantity, or requested quantity exceeds stock)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Invalid quantity to set"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Item does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item does not exist"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failing to update the cart in Redis",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item failed to update"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["cart"],
+        "summary": "Removes a specific item from the cart",
+        "description": "Deletes a specific item from the authenticated user's shopping cart using its item ID.",
+        "operationId": "delete-cart-item",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the item to remove from the cart",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item successfully removed from cart, or it was not in the cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s successfully removed from cart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error failing to remove the item from Redis",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s failed to remove from cart"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart": {
+      "delete": {
+        "tags": ["cart"],
+        "summary": "Clears the entire cart",
+        "description": "Removes all items from the authenticated user's shopping cart.",
+        "operationId": "clear-cart",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cart successfully cleared, or it was already empty",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s successfully removed from cart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error failing to clear the cart in Redis",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s failed to remove from cart"
                 },
                 "error": {
                   "type": "string"
