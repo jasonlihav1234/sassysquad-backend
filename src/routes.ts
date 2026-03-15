@@ -30,6 +30,7 @@ import {
   postOrder,
   serverWebhook,
   listOrder,
+  validateOrder,
 } from "./application/order_application";
 import { deleteItem } from "./application/item_application";
 import { updateItem } from "./application/item_application";
@@ -167,68 +168,10 @@ export async function handleRequest(req: any, res: any) {
 
   // POST /orders/validate
   if (url === "/orders/validate" && method === "POST") {
-    const contentType =
-      req.headers?.get?.("content-type") || req.headers?.["content-type"];
+    const response = await validateOrder(req);
 
-    if (!contentType || !contentType.includes("application/json")) {
-      return res.status(415).json({
-        error: "UNSUPPORTED_TYPE",
-        message: "This content type is not supported",
-      });
-    }
-
-    let parsedBody = body;
-
-    try {
-      if (!parsedBody && req.json) {
-        parsedBody = await req.json();
-      }
-    } catch (error) {
-      return res.status(400).json({
-        error: "INVALID_INPUT",
-        message: "The request body is not valid",
-      });
-    }
-
-    const { issueDate, buyer, seller, orderLines } = parsedBody || {};
-
-    if (
-      !issueDate ||
-      typeof issueDate !== "string" ||
-      !buyer ||
-      typeof buyer !== "string" ||
-      !seller ||
-      typeof seller !== "string" ||
-      !Array.isArray(orderLines) ||
-      orderLines.length === 0
-    ) {
-      return res.status(422).json({
-        error: "VALIDATION_FAILED",
-        message: "The request body is missing mandatory fields",
-      });
-    }
-
-    for (const line of orderLines) {
-      if (
-        !line ||
-        typeof line !== "object" ||
-        !line.itemID ||
-        typeof line.itemID !== "string" ||
-        typeof line.quantity !== "number" ||
-        line.quantity <= 0 ||
-        typeof line.priceAtPurchase !== "number" ||
-        line.priceAtPurchase < 0
-      ) {
-        return res.status(422).json({
-          error: "VALIDATION_FAILED",
-          message: "The request body is missing mandatory fields",
-        });
-      }
-    }
-
-    return res.status(200).json({
-      message: "Order payload is valid",
-    });
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   // POST /orders - need a seller id should be easy to obtain
@@ -345,3 +288,77 @@ export async function handleRequest(req: any, res: any) {
   // 404 if no roiutes match
   return res.status(404).json({ error: "Not found" });
 }
+
+  // POST /items
+  if (url === "/items" && method === "POST") {
+    const contentType =
+      req.headers?.get?.("content-type") || req.headers?.["content-type"];
+
+    if (!contentType || !contentType.includes("application/json")) {
+      return res.status(415).json({
+        error: "UNSUPPORTED_TYPE",
+        message: "This content type is not supported",
+      });
+    }
+
+    let parsedBody = body;
+
+    try {
+      if (!parsedBody && req.json) {
+        parsedBody = await req.json();
+      }
+    } catch (error) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Invalid/missing items fields",
+      });
+    }
+
+    const authHeader =
+      req.headers?.get?.("authorization") ||
+      req.headers?.get?.("Authorization") ||
+      req.headers?.authorization ||
+      req.headers?.Authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        error: "Unauthorised",
+        message: "Access Token invalid",
+      });
+    }
+
+    const { itemName, description, price, quantityAvailable, imageUrl } =
+      parsedBody || {};
+
+    if (
+      !itemName ||
+      typeof itemName !== "string" ||
+      typeof price !== "number" ||
+      price < 0 ||
+      typeof quantityAvailable !== "number" ||
+      quantityAvailable < 0 ||
+      (description !== undefined && typeof description !== "string") ||
+      (imageUrl !== undefined && typeof imageUrl !== "string")
+    ) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Invalid/missing items fields",
+      });
+    }
+
+    const newItem = {
+      itemId: crypto.randomUUID(),
+      itemName,
+      description: description || null,
+      price,
+      quantityAvailable,
+      imageUrl: imageUrl || null,
+      createdAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+    };
+
+    return res.status(201).json({
+      message: "Item created successfully",
+      item: newItem,
+    });
+  }
