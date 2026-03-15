@@ -1,7 +1,7 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import { getHealth } from "../src/application/health_application";
-import * as healthQueries from "../src/database/queries/health_queries";
-import { generateRequest } from "./test_helper";
+import { getHealth } from "../../src/application/health_application";
+import * as healthQueries from "../../src/database/queries/health_queries";
+import { generateRequest } from "../test_helper";
 
 describe("GET /health", () => {
   test("returns 200 when database is healthy", async () => {

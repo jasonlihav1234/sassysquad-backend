@@ -15,11 +15,11 @@ import {
   updateProfile,
   deleteUser,
   getUserSessions,
-} from "../src/application/user_application";
+} from "../../src/application/user_application";
 import { afterEach, beforeEach } from "node:test";
-import pg, { redis } from "../src/utils/db";
+import pg, { redis } from "../../src/utils/db";
 import { createHash } from "node:crypto";
-import { verifyRefreshToken, createAccessToken } from "../src/utils/jwt_config";
+import { verifyRefreshToken, createAccessToken } from "../../src/utils/jwt_config";
 import {
   generateRequest,
   generateAuthenticatedRequest,
@@ -28,7 +28,7 @@ import {
   resetDb,
   registerAndLogin,
   registerOnly,
-} from "./test_helper";
+} from "../test_helper";
 
 const registerRoute = "http://localhost/auth/register";
 const logoutRoute = "http://localhost/auth/logout";
