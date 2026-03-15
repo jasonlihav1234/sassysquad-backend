@@ -2453,6 +2453,78 @@
           }
         }
       }
+    },
+    "/webhook": {
+      "post": {
+        "tags": ["webhook"],
+        "summary": "Handles Stripe webhook events",
+        "description": "Receives asynchronous event notifications from Stripe (e.g., checkout.session.completed). The payload is verified using the stripe-signature header. If verified and the event type matches, it fulfills the checkout.",
+        "operationId": "server-webhook",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "stripe-signature",
+            "description": "The signature sent by Stripe to verify the webhook payload",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "The raw Stripe Event object payload",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "description": "See Stripe API documentation for the Event object structure"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook received, verified, and checkout successfully fulfilled",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Checkout successfully fulfilled"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing body, missing signature, invalid signature, or invalid event type during fulfillment)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "No signature provided"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Provided if the webhook construction fails",
+                  "example": "Webhook error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (The event type received is not handled by this webhook)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "No event types match"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
