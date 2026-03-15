@@ -29,6 +29,7 @@ import {
   createCheckoutSession,
   postOrder,
   serverWebhook,
+  validateOrder,
 } from "./application/order_application";
 import { deleteItem } from "./application/item_application";
 import { updateItem } from "./application/item_application";
@@ -166,68 +167,10 @@ export async function handleRequest(req: any, res: any) {
 
   // POST /orders/validate
   if (url === "/orders/validate" && method === "POST") {
-    const contentType =
-      req.headers?.get?.("content-type") || req.headers?.["content-type"];
+    const response = await validateOrder(req);
 
-    if (!contentType || !contentType.includes("application/json")) {
-      return res.status(415).json({
-        error: "UNSUPPORTED_TYPE",
-        message: "This content type is not supported",
-      });
-    }
-
-    let parsedBody = body;
-
-    try {
-      if (!parsedBody && req.json) {
-        parsedBody = await req.json();
-      }
-    } catch (error) {
-      return res.status(400).json({
-        error: "INVALID_INPUT",
-        message: "The request body is not valid",
-      });
-    }
-
-    const { issueDate, buyer, seller, orderLines } = parsedBody || {};
-
-    if (
-      !issueDate ||
-      typeof issueDate !== "string" ||
-      !buyer ||
-      typeof buyer !== "string" ||
-      !seller ||
-      typeof seller !== "string" ||
-      !Array.isArray(orderLines) ||
-      orderLines.length === 0
-    ) {
-      return res.status(422).json({
-        error: "VALIDATION_FAILED",
-        message: "The request body is missing mandatory fields",
-      });
-    }
-
-    for (const line of orderLines) {
-      if (
-        !line ||
-        typeof line !== "object" ||
-        !line.itemID ||
-        typeof line.itemID !== "string" ||
-        typeof line.quantity !== "number" ||
-        line.quantity <= 0 ||
-        typeof line.priceAtPurchase !== "number" ||
-        line.priceAtPurchase < 0
-      ) {
-        return res.status(422).json({
-          error: "VALIDATION_FAILED",
-          message: "The request body is missing mandatory fields",
-        });
-      }
-    }
-
-    return res.status(200).json({
-      message: "Order payload is valid",
-    });
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   // POST /orders - need a seller id should be easy to obtain
