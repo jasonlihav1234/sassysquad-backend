@@ -10,7 +10,23 @@
   "tags": [
     {
       "name": "user",
-      "description": "Operations about user"
+      "description": "Operations about the user"
+    },
+    {
+      "name": "item",
+      "description": "Operations about items"
+    },
+    {
+      "name": "order",
+      "description": "Operations about orders"
+    },
+    {
+      "name": "cart",
+      "description": "Operations about the cart"
+    },
+    {
+      "name": "checkout",
+      "description": "Operations about the checkout of items"
     }
   ],
   "schemes": ["https", "http"],
@@ -150,7 +166,7 @@
                 },
                 "password": {
                   "type": "string",
-                  "exmaple": "password1234"
+                  "example": "password1234"
                 }
               }
             }
@@ -571,6 +587,1938 @@
                 },
                 "message": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profile": {
+      "get": {
+        "tags": ["user"],
+        "summary": "Fetches the details of logged in user",
+        "description": "",
+        "operationId": "get-profile",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Profile details successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "response": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "user_id": {
+                        "type": "string"
+                      },
+                      "user_name": {
+                        "type": "string"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "password_hash": {
+                        "type": "string"
+                      },
+                      "created_at": {
+                        "type": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error to fail getting user details",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["user"],
+        "summary": "Updates the details of logged in user",
+        "description": "",
+        "operationId": "patch-profile",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Profile object needs atleast a email or password or username and an access token",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "testing@gmail.com"
+                },
+                "username": {
+                  "type": "string",
+                  "example": "test_username"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "new_password"
+                },
+                "accessToken": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User details successfully updated",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No fields to update for the user",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized to make request",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failure to update profile",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["user"],
+        "summary": "Deletes the logged in users account",
+        "description": "",
+        "operationId": "delete-profile",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "User successfully deleted",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "interger",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "response": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "user_id": {
+                        "type": "string"
+                      },
+                      "user_name": {
+                        "type": "string"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "password_hash": {
+                        "type": "string"
+                      },
+                      "created_at": {
+                        "type": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General failure to delete user error",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sessions": {
+      "get": {
+        "tags": ["user"],
+        "summary": "Gets all active sessions of a user",
+        "description": "",
+        "operationId": "sessions",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Getting all user sessions successful",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "deviceInfo": {
+                  "type": "object"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "expiresAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}": {
+      "get": {
+        "tags": ["user"],
+        "summary": "Retrieves the details of a user given a user ID",
+        "description": "",
+        "operationId": "user-userId",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of user",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User details successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "response": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "user_id": {
+                        "type": "string"
+                      },
+                      "user_name": {
+                        "type": "string"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "password_hash": {
+                        "type": "string"
+                      },
+                      "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failed fetching of user details",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}/items": {
+      "get": {
+        "tags": ["item", "user"],
+        "summary": "Retrieves all items for a specific user",
+        "description": "Fetches a list of items associated with a given user ID.",
+        "operationId": "get-items-by-user-id",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the user whose items are being fetched",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User's items successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Items found"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "itemId": {
+                        "type": "string"
+                      },
+                      "itemName": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number",
+                        "format": "float"
+                      },
+                      "quantity_available": {
+                        "type": "integer"
+                      },
+                      "image_url": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No items found for this user",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No items found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failed fetching of user items",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Getting items by user id failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/{itemId}": {
+      "get": {
+        "tags": ["item"],
+        "summary": "Retrieves the details of a specific item",
+        "description": "Fetches a specific item from the system using its unique item ID.",
+        "operationId": "get-item-by-id",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the item to retrieve",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item details successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Items found"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "itemId": {
+                        "type": "string"
+                      },
+                      "itemName": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number",
+                        "format": "float"
+                      },
+                      "quantity_available": {
+                        "type": "integer"
+                      },
+                      "image_url": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Item not found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No items found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failed fetching of the item",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Items fetch failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["item"],
+        "summary": "Updates the details of an item",
+        "description": "",
+        "operationId": "patch-item",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of item",
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Item object that to contains fields that needs to be changed",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "itemName": {
+                  "type": "string",
+                  "example": "new_item_name"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "test description"
+                },
+                "price": {
+                  "type": "number",
+                  "example": "12.50"
+                },
+                "quantity_available": {
+                  "type": "number",
+                  "example": "20"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item has been successfully updated",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "response": {
+                  "type": "object",
+                  "properties": {
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "itemName": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "quantity_available": {
+                      "type": "integer"
+                    },
+                    "image_url": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General update item failure",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["item"],
+        "summary": "Deletes an item",
+        "description": "Removes an item from the system using its unique item ID.",
+        "operationId": "delete-item",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the item to be deleted",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item has been successfully deleted",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item deleted"
+                },
+                "response": {
+                  "type": "object",
+                  "description": "Details of the deleted item or a confirmation object",
+                  "properties": {
+                    "itemId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General delete item failure",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Deleting item failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items": {
+      "post": {
+        "tags": ["item"],
+        "summary": "Creates a new item",
+        "description": "Validates the payload and creates a new item in the system, returning the newly created item details with a generated UUID.",
+        "operationId": "create-item",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Item details required for creation",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["itemName", "price", "quantityAvailable"],
+              "properties": {
+                "itemName": {
+                  "type": "string",
+                  "example": "Wireless Mouse"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Ergonomic wireless mouse with 2.4GHz receiver"
+                },
+                "price": {
+                  "type": "number",
+                  "format": "float",
+                  "minimum": 0,
+                  "example": 29.99
+                },
+                "quantityAvailable": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "example": 100
+                },
+                "imageUrl": {
+                  "type": "string",
+                  "example": "https://example.com/images/mouse.png"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Item created successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item created successfully"
+                },
+                "item": {
+                  "type": "object",
+                  "properties": {
+                    "itemId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "itemName": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "quantityAvailable": {
+                      "type": "integer"
+                    },
+                    "imageUrl": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "lastUpdated": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request due to invalid or missing fields",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Bad Request"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Invalid/missing items fields"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized access (missing or invalid token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Access Token invalid"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type (missing or invalid Content-Type)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "UNSUPPORTED_TYPE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This content type is not supported"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["item"],
+        "summary": "Retrieves a list of all items",
+        "description": "Fetches all items currently available in the system.",
+        "operationId": "get-all-items",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Items successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Items successfully fetched"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "itemId": {
+                        "type": "string"
+                      },
+                      "itemName": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number",
+                        "format": "float"
+                      },
+                      "quantity_available": {
+                        "type": "integer"
+                      },
+                      "image_url": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No items found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No items found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failed fetching of items",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Getting all items failed to fetch"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/validate": {
+      "post": {
+        "tags": ["order"],
+        "summary": "Validates an order payload",
+        "description": "Checks if the provided order data meets all structural and type requirements, including nested order lines.",
+        "operationId": "validate-order",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "The order data payload to be validated",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "orderName",
+                "sellerId",
+                "documentCurrencyCode",
+                "pricingCurrencyCode",
+                "taxCurrencyCode",
+                "requestedInvoiceCurrencyCode",
+                "accountingCost",
+                "paymentMethodCode",
+                "destinationCountryCode",
+                "orderLines"
+              ],
+              "properties": {
+                "orderName": {
+                  "type": "string",
+                  "example": "Bulk Office Supplies"
+                },
+                "sellerId": {
+                  "type": "string",
+                  "example": "seller_98765"
+                },
+                "documentCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "pricingCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "taxCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "requestedInvoiceCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "accountingCost": {
+                  "type": "number",
+                  "example": 150.5
+                },
+                "paymentMethodCode": {
+                  "type": "string",
+                  "example": "CREDIT_CARD"
+                },
+                "destinationCountryCode": {
+                  "type": "string",
+                  "example": "AU"
+                },
+                "orderLines": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "List of items in the order",
+                  "items": {
+                    "type": "object",
+                    "required": ["itemID", "quantity", "priceAtPurchase"],
+                    "properties": {
+                      "itemID": {
+                        "type": "string",
+                        "example": "item_12345"
+                      },
+                      "quantity": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "example": 5
+                      },
+                      "priceAtPurchase": {
+                        "type": "number",
+                        "minimum": 0,
+                        "example": 25.99
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order payload is valid",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order payload is valid"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type (Missing or invalid Content-Type)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "UNSUPPORTED_TYPE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This content type is not supported"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Failed (Missing fields, wrong types, or invalid order lines)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "VALIDATION_FAILED"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "The request body is missing mandatory fields"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders": {
+      "post": {
+        "tags": ["order"],
+        "summary": "Create a new order and generate UBL XML",
+        "description": "Validates the order payload, creates the order in the database, and returns a UBL formatted XML document representing the order.",
+        "operationId": "create-order",
+        "consumes": ["application/json"],
+        "produces": ["application/xml"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "The order data payload to create an order",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "orderName",
+                "sellerId",
+                "documentCurrencyCode",
+                "pricingCurrencyCode",
+                "taxCurrencyCode",
+                "requestedInvoiceCurrencyCode",
+                "accountingCost",
+                "paymentMethodCode",
+                "destinationCountryCode",
+                "orderLines"
+              ],
+              "properties": {
+                "orderName": {
+                  "type": "string",
+                  "example": "Bulk Office Supplies"
+                },
+                "sellerId": {
+                  "type": "string",
+                  "example": "seller_98765"
+                },
+                "documentCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "pricingCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "taxCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "requestedInvoiceCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "accountingCost": {
+                  "type": "number",
+                  "example": 150.5
+                },
+                "paymentMethodCode": {
+                  "type": "string",
+                  "example": "CREDIT_CARD"
+                },
+                "destinationCountryCode": {
+                  "type": "string",
+                  "example": "AU"
+                },
+                "orderLines": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "List of items in the order",
+                  "items": {
+                    "type": "object",
+                    "required": ["itemID", "quantity", "priceAtPurchase"],
+                    "properties": {
+                      "itemID": {
+                        "type": "string",
+                        "example": "item_12345"
+                      },
+                      "quantity": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "example": 5
+                      },
+                      "priceAtPurchase": {
+                        "type": "number",
+                        "minimum": 0,
+                        "example": 25.99
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order successfully created. Returns the UBL XML document.",
+            "schema": {
+              "type": "string",
+              "example": "<?xml version=\"1.0\"?>\n<Order xmlns=\"urn:oasis:names:specification:ubl:schema:xsd:Order-2\">\n  ...\n</Order>"
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type (Missing or invalid Content-Type)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "UNSUPPORTED_TYPE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This content type is not supported"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Failed (Missing fields, wrong types, or invalid order lines)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "VALIDATION_FAILED"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "The request body is missing mandatory fields"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error during order or XML creation",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order creation failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{orderId}": {
+      "put": {
+        "tags": ["order"],
+        "summary": "Updates an existing order",
+        "description": "Updates an order based on the provided order ID and update payload. The user making the request must be the buyer of the order.",
+        "operationId": "update-order-by-id",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the order to update",
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the user ID and the updates to be applied",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["userId", "updates"],
+              "properties": {
+                "userId": {
+                  "type": "string",
+                  "description": "The ID of the user requesting the update (must match the buyerId of the order)",
+                  "example": "buyer_12345"
+                },
+                "updates": {
+                  "type": "object",
+                  "description": "The fields to update on the order",
+                  "properties": {
+                    "orderName": {
+                      "type": "string",
+                      "example": "Updated Order Name"
+                    },
+                    "accountingCost": {
+                      "type": "number",
+                      "example": 200.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order successfully updated",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order successfully updated"
+                },
+                "response": {
+                  "type": "object",
+                  "description": "Details of the updated order"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing orderId in path)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Bad Request"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (User is not the buyer of the order)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Forbidden"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Order does not exist)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Order not found!"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart/items": {
+      "post": {
+        "tags": ["cart"],
+        "summary": "Adds an item to the user's shopping cart",
+        "description": "Validates item availability and adds the specified quantity of an item to the user's cart in Redis. The cart expires after 24 hours.",
+        "operationId": "add-item-to-cart",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the item ID and the quantity to add to the cart",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["itemId", "quantity"],
+              "properties": {
+                "itemId": {
+                  "type": "string",
+                  "description": "The unique identifier of the item",
+                  "example": "item_12345"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "description": "The number of items to add to the cart",
+                  "minimum": 1,
+                  "example": 2
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item successfully added to cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item successfully added to cart"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing fields or insufficient stock)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Not enough items in stock"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Item does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Item does not exist"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failing to add the item to the cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item failed to add to cart"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart/items/{itemId}": {
+      "patch": {
+        "tags": ["cart"],
+        "summary": "Updates the quantity of an item in the cart",
+        "description": "Updates the quantity of a specific item in the user's cart. Validates that the requested quantity is greater than zero and does not exceed available stock.",
+        "operationId": "update-cart-item",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the item in the cart to update",
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the new quantity for the item",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["quantity"],
+              "properties": {
+                "quantity": {
+                  "type": "integer",
+                  "description": "The new quantity for the item (must be greater than 0)",
+                  "minimum": 1,
+                  "example": 5
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item successfully updated in the cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item successfully updated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing quantity, zero/negative quantity, or requested quantity exceeds stock)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Invalid quantity to set"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Item does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item does not exist"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failing to update the cart in Redis",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item failed to update"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["cart"],
+        "summary": "Removes a specific item from the cart",
+        "description": "Deletes a specific item from the authenticated user's shopping cart using its item ID.",
+        "operationId": "delete-cart-item",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the item to remove from the cart",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item successfully removed from cart, or it was not in the cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s successfully removed from cart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error failing to remove the item from Redis",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s failed to remove from cart"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart": {
+      "delete": {
+        "tags": ["cart"],
+        "summary": "Clears the entire cart",
+        "description": "Removes all items from the authenticated user's shopping cart.",
+        "operationId": "clear-cart",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cart successfully cleared, or it was already empty",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s successfully removed from cart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error failing to clear the cart in Redis",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s failed to remove from cart"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/create-checkout-session": {
+      "post": {
+        "tags": ["checkout"],
+        "summary": "Creates a Stripe checkout session",
+        "description": "Retrieves the user's cart from Redis, validates the items against the database, and creates an embedded Stripe checkout session for payment processing.",
+        "operationId": "create-checkout-session",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the seller ID and the buyer's email for the checkout session",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["sellerId", "email"],
+              "properties": {
+                "sellerId": {
+                  "type": "string",
+                  "description": "The unique identifier of the seller",
+                  "example": "seller_12345"
+                },
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "description": "The email address of the buyer for the checkout session",
+                  "example": "buyer@example.com"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Checkout session successfully created or an early return message",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "clientSecret": {
+                  "type": "string",
+                  "description": "The Stripe client secret required to initialize the embedded checkout on the frontend",
+                  "example": "cs_test_a1b2c3d4e5f6g7h8i9j0"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Message returned if the cart is empty or no items are found",
+                  "example": "Cart is empty"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing email or sellerId)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Missing email or sellerId"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General server error or Stripe API failure",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/checkout-session-status/{sessionId}": {
+      "get": {
+        "tags": ["checkout"],
+        "summary": "Retrieves the status of a Stripe checkout session",
+        "description": "Fetches the current status and customer email of a specific Stripe checkout session using its session ID provided in the URL path.",
+        "operationId": "check-checkout-session-status",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the Stripe checkout session",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session status successfully retrieved",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "description": "The current status of the Stripe checkout session (e.g., 'complete', 'open', 'expired')",
+                  "example": "complete"
+                },
+                "customer_email": {
+                  "type": "string",
+                  "description": "The email address provided by the customer during checkout",
+                  "example": "buyer@example.com"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Session ID is missing from the URL path)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Session ID is missing from the request path"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error (Failed to retrieve session from Stripe)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Failed to retrieve session status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook": {
+      "post": {
+        "tags": ["webhook"],
+        "summary": "Handles Stripe webhook events",
+        "description": "Receives asynchronous event notifications from Stripe (e.g., checkout.session.completed). The payload is verified using the stripe-signature header. If verified and the event type matches, it fulfills the checkout.",
+        "operationId": "server-webhook",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "stripe-signature",
+            "description": "The signature sent by Stripe to verify the webhook payload",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "The raw Stripe Event object payload",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "description": "See Stripe API documentation for the Event object structure"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook received, verified, and checkout successfully fulfilled",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Checkout successfully fulfilled"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing body, missing signature, invalid signature, or invalid event type during fulfillment)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "No signature provided"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Provided if the webhook construction fails",
+                  "example": "Webhook error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (The event type received is not handled by this webhook)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "No event types match"
                 }
               }
             }

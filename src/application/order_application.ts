@@ -5,13 +5,16 @@ import { url } from "node:inspector";
 import pg, { redis } from "../utils/db";
 import { AuthReq } from "../utils/jwt_helpers";
 import { create } from "xmlbuilder2";
-<<<<<<< HEAD
-import { createOrderQuery, getOrderById, deleteOrdersById } from "../database/queries/order_queries";
-=======
-import { getOrderById, createOrderQuery } from "../database/queries/order_queries";
->>>>>>> 9df37886e4cfe0f881a022696ea9dbc24bc70c35
+import {
+  getOrderById,
+  createOrderQuery,
+  updateOrdersById,
+  deleteOrdersById,
+} from "../database/queries/order_queries";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY!)
+  : null;
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export const validateOrder = authHelper(
@@ -164,9 +167,12 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
   }
 
   if (!Array.isArray(orderLines) || orderLines.length === 0) {
-    return jsonHelper({
-      error: "orderLines is required and must be a non-empty array",
-    });
+    return jsonHelper(
+      {
+        error: "orderLines is required and must be a non-empty array",
+      },
+      422,
+    );
   }
 
   for (const line of orderLines) {
@@ -180,10 +186,13 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
       typeof line.priceAtPurchase !== "number" ||
       line.priceAtPurchase < 0
     ) {
-      return jsonHelper({
-        error: "VALIDATION_FAILED",
-        message: "The request body is missing mandatory fields",
-      });
+      return jsonHelper(
+        {
+          error: "VALIDATION_FAILED",
+          message: "The request body is missing mandatory fields",
+        },
+        422,
+      );
     }
   }
 
@@ -324,7 +333,7 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
   const sellerId = session.metadata?.sellerId as string;
   const sessionId = session.id;
 
-  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
+  const checkoutSession = await stripe!.checkout.sessions.retrieve(sessionId, {
     expand: ["line_items.data.price.product", "payment_intent.payment_method"],
   });
 
@@ -459,7 +468,7 @@ export const createCheckoutSession = authHelper(
       lineItems.push(newObject);
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await stripe!.checkout.sessions.create({
       metadata: {
         userId: userId ?? "",
         sellerId: sellerId ?? "",
@@ -497,7 +506,7 @@ export const checkCheckoutSessionStatus = authHelper(
     const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
 
     try {
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      const session = await stripe!.checkout.sessions.retrieve(sessionId);
 
       return jsonHelper({
         status: session.status,
@@ -537,7 +546,7 @@ export async function serverWebhook(req: VercelRequest): Promise<Response> {
   let event = null;
 
   try {
-    event = await stripe.webhooks.constructEventAsync(
+    event = await stripe!.webhooks.constructEventAsync(
       body,
       signature,
       endpointSecret,
@@ -691,7 +700,7 @@ export const updateCartItem = authHelper(
     }
     const numAvailable = query[0].quantity_available;
     // checkout should have a final check as well
-    if (body.length === 0 || body.quantity === undefined) {
+    if (Object.keys(body).length === 0 || body.quantity === undefined) {
       return jsonHelper(
         {
           message: "Quantity not provided to update cart item",
@@ -766,24 +775,64 @@ export const deleteOrder = authHelper(
         403,
       );
     }
-    
+
     deleteOrdersById(orderId);
-    
-    return jsonHelper({ message: "Order successfully deleted" })
-  }
+
+    return jsonHelper({ message: "Order successfully deleted" });
+  },
 );
 
 // gets an order given its id
-export const listOrder = authHelper(
+export const listOrder = authHelper(async (req: AuthReq): Promise<Response> => {
+  const orderId = req.url?.split("/").at(3) as string;
+  const userId = req.user?.subject_claim;
+
+  if (!orderId) {
+    return jsonHelper(
+      {
+        message: "OrderID invalid.",
+        error: "Bad Request",
+      },
+      400,
+    );
+  }
+
+  const order = await getOrderById(orderId);
+
+  if (!order) {
+    return jsonHelper(
+      {
+        message: "Order not found.",
+        error: "Not Found",
+      },
+      404,
+    );
+  }
+
+  if (userId !== order.buyerId) {
+    return jsonHelper(
+      {
+        message: "User does not have permission to delete order.",
+        error: "Unauthorised",
+      },
+      403,
+    );
+  }
+
+  return jsonHelper({
+    order: order,
+  });
+});
+
+export const updateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
-    const orderId = req.url?.split("/").at(3) as string;
-    const userId = req.user?.subject_claim;
+    const { userId, updates } = req.body || {};
+    const orderId = req.url?.split("/").pop();
 
     if (!orderId) {
       return jsonHelper(
         {
-          message: "OrderID invalid.",
-          error: "Bad Request",
+          error: "Bad request",
         },
         400,
       );
@@ -791,28 +840,101 @@ export const listOrder = authHelper(
 
     const order = await getOrderById(orderId);
 
+    if (userId !== order.buyerId) {
+      return jsonHelper(
+        {
+          error: "Forbidden",
+        },
+        403,
+      );
+    }
+
     if (!order) {
       return jsonHelper(
         {
-          message: "Order not found.",
-          error: "Not Found",
+          error: "Order not found!",
         },
         404,
       );
     }
 
-    if (userId !== order.buyerId) {
+    try {
+      await updateOrdersById(orderId, updates);
+
+      return jsonHelper({
+        message: "Order update successful",
+      });
+    } catch (error) {
+      console.log(error);
+
       return jsonHelper(
         {
-          message: "User does not have permission to delete order.",
-          error: "Unauthorised",
+          error: "Order update failed",
         },
-        403,
+        500,
       );
     }
-    
-    return jsonHelper({
-      order: order
-    });
   },
 );
+
+export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
+  // get accept header from req
+  const accept =
+    (req.headers as unknown as Headers)?.get?.("accept") ||
+    req.headers?.["accept"];
+
+  //  unsupported accept type as response must be returned in UBL XML format
+  // -- idk if the response must be a UBL XML format? cause if you are getting an order you might want to know the status of the order which the XML won't show --
+
+  // if (!accept || !accept.includes("application/xml")) {
+  //   return res.status(406).json({
+  //     error: "UNSUPPORTED_TYPE",
+  //     message: "The response type is unsupported",
+  //   });
+  // }
+
+  // get orderId from URL
+  const orderId = req.url?.split("/").pop();
+
+  // Synytax validation
+  if (!orderId || orderId.length > 100) {
+    return jsonHelper(
+      {
+        error: "INVALID_ID",
+        message: "The id provided is syntactically invalid",
+      },
+      400,
+    );
+  }
+
+  try {
+    // query databse for order using orderID provided
+    const order = await getOrderById(orderId);
+
+    // order doesnt exist in databse
+    if (!order) {
+      return jsonHelper({
+        error: "ID_NOT_FOUND",
+        message: "Id does not exist or is invalid",
+      });
+    }
+
+    // return previously generated UBL XML stored in databse - we should probably send the whole response cause there are fields in the order that we might need
+
+    //   return res
+    // .status(200)
+    // .setHeader("Content-Type", "application/xml")
+    // .send(order.ubl_xml_content); // return stored UBL XML
+
+    return jsonHelper({
+      message: "Order successfully retrieved",
+      order: order,
+    });
+  } catch (error) {
+    // unexpected errors such as interval server issues por databse
+    return jsonHelper({
+      error: "INTERNAL_ERROR",
+      message: "An internal error occured while executing the operation",
+    });
+  }
+});
