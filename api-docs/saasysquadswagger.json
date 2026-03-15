@@ -19,6 +19,10 @@
     {
       "name": "order",
       "description": "Operations about orders"
+    },
+    {
+      "name": "cart",
+      "description": "Opeations about the cart"
     }
   ],
   "schemes": ["https", "http"],
@@ -1935,6 +1939,114 @@
                 "error": {
                   "type": "string",
                   "example": "Order not found!"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart/items": {
+      "post": {
+        "tags": ["cart"],
+        "summary": "Adds an item to the user's shopping cart",
+        "description": "Validates item availability and adds the specified quantity of an item to the user's cart in Redis. The cart expires after 24 hours.",
+        "operationId": "add-item-to-cart",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the item ID and the quantity to add to the cart",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "itemId",
+                "quantity"
+              ],
+              "properties": {
+                "itemId": {
+                  "type": "string",
+                  "description": "The unique identifier of the item",
+                  "example": "item_12345"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "description": "The number of items to add to the cart",
+                  "minimum": 1,
+                  "example": 2
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item successfully added to cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item successfully added to cart"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing fields or insufficient stock)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Not enough items in stock"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Item does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Item does not exist"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failing to add the item to the cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item failed to add to cart"
+                },
+                "error": {
+                  "type": "string"
                 }
               }
             }
