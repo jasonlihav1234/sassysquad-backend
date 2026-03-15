@@ -197,7 +197,7 @@ export async function handleRequest(req: any, res: any) {
     const response = await getOrder(req);
     const body = await response.json();
 
-    return res.tatus(response.status).json(body);
+    return res.status(response.status).json(body);
   }
 
   if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {

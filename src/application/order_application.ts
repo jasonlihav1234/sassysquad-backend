@@ -916,7 +916,7 @@ export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
       return jsonHelper({
         error: "ID_NOT_FOUND",
         message: "Id does not exist or is invalid",
-      });
+      }, 404);
     }
 
     // return previously generated UBL XML stored in databse - we should probably send the whole response cause there are fields in the order that we might need
@@ -935,6 +935,6 @@ export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     return jsonHelper({
       error: "INTERNAL_ERROR",
       message: "An internal error occured while executing the operation",
-    });
+    }, 500);
   }
 });
