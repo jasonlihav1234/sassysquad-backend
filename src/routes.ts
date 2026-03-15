@@ -193,10 +193,55 @@ export async function handleRequest(req: any, res: any) {
 
   // GET/orders/{id}
   if (method === "GET" && /\/orders\/[^/]+/.test(url)) {
-    const response = await listOrder(req);
+    // get accept header from req
+    const accept =
+    req.headers?.get?.("accept") || req.headers?.["accept"];
 
-    const body = await response.json();
-    return res.status(response.status).json(body);
+  //  unsupported accept type as response must be returned in UBL XML format
+  if (!accept || !accept.includes("application/xml")) {
+    return res.status(406).json({
+      error: "UNSUPPORTED_TYPE",
+      message: "The response type is unsupported",
+    });
+  }
+
+  // get orderId from URL
+  const orderId = url.split("/")[2];
+
+  // Synytax validation
+  if (!orderId || orderId.length > 100) {
+    return res.status(400).json({
+      error: "INVALID_ID",
+      message: "The id provided is syntactically invalid",
+    });
+  }
+
+  try {
+    // query databse for order using orderID provided
+    const order = await getOrderById(orderId);
+
+    // order doesnt exist in databse
+    if (!order) {
+      return res.status(404).json({
+        error: "ID_NOT_FOUND",
+        message: "Id does not exist or is invalid",
+      });
+    }
+
+    // return previously generated UBL XML stored in databse
+    return res
+      .status(200)
+      .setHeader("Content-Type", "application/xml")
+      .send(order.ubl_xml_content); // return stored UBL XML
+
+  } catch (error) {
+    // unexpected errors such as interval server issues por databse
+    return res.status(500).json({
+      error: "INTERNAL_ERROR",
+      message:
+        "An internal error occurred while executing the operation",
+    });
+  }
   }
   // PUT /orders
   if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
