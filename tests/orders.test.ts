@@ -440,4 +440,74 @@ describe("Post order tests", () => {
     expect(body.error).toBe("UNSUPPORTED_TYPE");
     expect(body.message).toBe("This content type is not supported");
   });
+
+  test("missing mandatory fields", async () => {
+    const rl = await registerAndLogin(
+      "testing@gmail.com",
+      "testing",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = {
+      url: "/order",
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${rl.accessToken}`,
+      },
+      body: {
+        test: "yes",
+      },
+      json: async () => {
+        test: "yes";
+      },
+    } as any;
+
+    const response = await postOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(body.error).toBe("VALIDATION_FAILED");
+    expect(body.message).toBe("The request body is missing mandatory fields");
+  });
+
+  test("Missing order line", async () => {
+    const rl = await registerAndLogin(
+      "testing@gmail.com",
+      "testing",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/order",
+      "POST",
+      {
+        orderName: "test",
+        buyerId: "test",
+        sellerId: "test",
+        documentCurrencyCode: "test",
+        pricingCurrencyCode: "test",
+        taxCurrencyCode: "test",
+        requestedInvoiceCurrencyCode: "test",
+        accountingCost: 1.5,
+        paymentMethodCode: "test",
+        destinationCountryCode: "test",
+      },
+      rl.accessToken,
+    );
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${rl.accessToken}`,
+    };
+
+    const response = await postOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.error).toBe(
+      "orderLines is required and must be a non-empty array",
+    );
+  });
 });
