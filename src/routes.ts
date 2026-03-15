@@ -24,6 +24,7 @@ import { handleHealthRoutes } from "./routes/health_routes";
 import {
   addItemToCart,
   deleteItemFromCart,
+  deleteOrder,
   updateCartItem,
   checkCheckoutSessionStatus,
   createCheckoutSession,
@@ -31,6 +32,8 @@ import {
   serverWebhook,
   listOrder,
   validateOrder,
+  updateOrder,
+  getOrder,
 } from "./application/order_application";
 import {
   createItem,
@@ -45,9 +48,38 @@ export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
 
   if (url === "/" && method === "GET") {
-    return res.status(200).json({
-      test: "hello",
-    });
+    res.setHeader("Content-Type", "text/html");
+
+    return res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>SaasySquad</title>
+          <style>
+            body {
+              font-family: sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              background-color: #f9fafb;
+            }
+            h1 { color: #333; }
+            .gif-container { margin-top: 20px; }
+            img { max-width: 300px; margin: 0 10px; border-radius: 8px; }
+          </style>
+        </head>
+        <body>
+          <h1>You've Reached The Root Of SaasySquad :O</h1>
+          <div class="gif-container">
+            <img src="https://media1.tenor.com/m/JHuU14ekU3EAAAAd/ishowspeed-deglove.gif" alt="SaasySquad GIF 1" />
+            <img src="https://i.makeagif.com/media/11-08-2024/HSMtFe.gif" alt="SaasySquad GIF 2" />
+          </div>
+        </body>
+      </html>
+    `);
   }
   if (url === "/auth/register" && method === "POST") {
     const response = await register(req);
@@ -200,40 +232,26 @@ export async function handleRequest(req: any, res: any) {
     const responseBody = await response.json();
     return res.status(response.status).json(responseBody);
   }
-
-  // GET/orders/{id}
   if (method === "GET" && /\/orders\/[^/]+/.test(url)) {
-    const response = await listOrder(req);
+    const response = await getOrder(req);
+    const body = await response.json();
+
+    return res.status(response.status).json(body);
+  }
+
+  if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
+    const response = await deleteOrder(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
   }
+
   // PUT /orders
   if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
-    const { userId, updates } = body || {};
-    const orderId = url.split("/")[1];
+    const response = await updateOrder(req);
+    const body = await response.json();
 
-    if (!orderId) {
-      return res.status(400).json({ error: "Bad Request" });
-    }
-
-    // if () { // TODO: invalid access token
-    //   return res.status(401).json({ error: "Unauthorised" });
-    // }
-
-    const order = await getOrderById(orderId);
-
-    if (userId !== order.buyerId) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    if (!order) {
-      return res.status(404).json({ error: "Order not found!" });
-    }
-
-    return await updateOrdersById(orderId, updates);
-
-    return res.status(200);
+    return res.status(response.status).json(body);
   }
 
   if (url === "/profile" && method === "PATCH") {
