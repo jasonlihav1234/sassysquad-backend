@@ -758,6 +758,55 @@
           }
         }
       }
+    },
+    "/users/{userId}/sales": {
+      "get": {
+        "tags": ["user"],
+        "summary": "Get sales for a user",
+        "description": "Returns orders where the user is the seller. Requires authentication: the authenticated user may only request their own sales, path userId must match the token subject.",
+        "operationId": "getUserSales",
+        "produces": ["application/json", "application/xml"],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "The user ID whose sales are requested, must match the authenticated user",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "orders": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Order"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid sales route path"
+          },
+          "401": {
+            "description": "User is not logged on or lacks authorization to access orders"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "406": {
+            "description": "Unsupported formatting type"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
     }
   },
   "securityDefinitions": {
