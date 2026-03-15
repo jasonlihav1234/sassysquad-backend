@@ -47,9 +47,38 @@ export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
 
   if (url === "/" && method === "GET") {
-    return res.status(200).json({
-      test: "hello",
-    });
+    res.setHeader("Content-Type", "text/html");
+
+    return res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>SaasySquad</title>
+          <style>
+            body {
+              font-family: sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              background-color: #f9fafb;
+            }
+            h1 { color: #333; }
+            .gif-container { margin-top: 20px; }
+            img { max-width: 300px; margin: 0 10px; border-radius: 8px; }
+          </style>
+        </head>
+        <body>
+          <h1>You've Reached The Root Of SaasySquad :O</h1>
+          <div class="gif-container">
+            <img src="https://media1.tenor.com/m/JHuU14ekU3EAAAAd/ishowspeed-deglove.gif" alt="SaasySquad GIF 1" />
+            <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExb3JtN3NuZ2d1YjFzYzJtMWhhZm1yM2czdWVpMWQ5cXBheTl5cnNpdCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/EnWwa8d1Qewr46GeMb/giphy.gif" alt="SaasySquad GIF 2" />
+          </div>
+        </body>
+      </html>
+    `);
   }
   if (url === "/auth/register" && method === "POST") {
     const response = await register(req);
@@ -202,7 +231,7 @@ export async function handleRequest(req: any, res: any) {
 
   if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
     const response = await deleteOrder(req);
-    
+
     const body = await response.json();
     return res.status(response.status).json(body);
   }
