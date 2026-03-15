@@ -1287,6 +1287,151 @@
       }
     },
     "/items": {
+      "post": {
+        "tags": ["item"],
+        "summary": "Creates a new item",
+        "description": "Validates the payload and creates a new item in the system, returning the newly created item details with a generated UUID.",
+        "operationId": "create-item",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Item details required for creation",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["itemName", "price", "quantityAvailable"],
+              "properties": {
+                "itemName": {
+                  "type": "string",
+                  "example": "Wireless Mouse"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Ergonomic wireless mouse with 2.4GHz receiver"
+                },
+                "price": {
+                  "type": "number",
+                  "format": "float",
+                  "minimum": 0,
+                  "example": 29.99
+                },
+                "quantityAvailable": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "example": 100
+                },
+                "imageUrl": {
+                  "type": "string",
+                  "example": "https://example.com/images/mouse.png"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Item created successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item created successfully"
+                },
+                "item": {
+                  "type": "object",
+                  "properties": {
+                    "itemId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "itemName": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "quantityAvailable": {
+                      "type": "integer"
+                    },
+                    "imageUrl": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "lastUpdated": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request due to invalid or missing fields",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Bad Request"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Invalid/missing items fields"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized access (missing or invalid token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Access Token invalid"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type (missing or invalid Content-Type)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "UNSUPPORTED_TYPE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This content type is not supported"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": ["item"],
         "summary": "Retrieves a list of all items",
