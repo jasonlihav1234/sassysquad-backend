@@ -398,6 +398,75 @@ describe("deleteOrdersById", () => {
 });
 
 describe("updateOrdersById", () => {
+  test("create an order and then update it", async () => {
+    const buyer = await insertUser();
+    const seller = await insertUser();
+    const item1 = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `create-update-1-${crypto.randomUUID()}`,
+      price: 10.5,
+      quantity_available: 10000,
+    });
+    const item2 = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `create-update-2-${crypto.randomUUID()}`,
+      price: 7.5,
+      quantity_available: 10000,
+    });
+    const item3 = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `create-update-3-${crypto.randomUUID()}`,
+      price: 2.5,
+      quantity_available: 10000,
+    });
+
+    const orderId = crypto.randomUUID();
+    const orderName = `order-${orderId}`;
+    const createRes = await createOrderQuery(
+      orderId,
+      orderName,
+      buyer.user_id,
+      seller.user_id,
+      "AUD",
+      "AUD",
+      "AUD",
+      "AUD",
+      0,
+      "visa",
+      "AU",
+      "",
+      [
+        { itemId: item1.item_id, quantity: 20, priceAtPurchase: 10.5 },
+        { itemId: item2.item_id, quantity: 10, priceAtPurchase: 7.5 },
+        { itemId: item3.item_id, quantity: 3, priceAtPurchase: 2.5 },
+      ],
+    );
+    expect(createRes.status).toBe(200);
+
+    const [orderBefore] = await pg`select * from orders where order_id = ${orderId}`;
+
+    const updateRes = await updateOrdersById(orderId, {
+      status: "paid",
+      items: [
+        { itemId: item1.item_id, quantity: 10, priceAtPurchase: 10.5 },
+        { itemId: item2.item_id, quantity: 5, priceAtPurchase: 7.5 },
+        { itemId: item3.item_id, quantity: 1, priceAtPurchase: 2.5 },
+      ],
+    });
+    const updateBody = await updateRes.json();
+    expect(updateRes.status).toBe(200);
+    expect(updateBody.message).toBe("Update successful");
+
+    const [orderAfter] = await pg`select * from orders where order_id = ${orderId}`;
+    expect(Number(orderAfter.total_cost)).not.toBe(Number(orderBefore.total_cost));
+
+    await deleteTestData({
+      orderIds: [orderId],
+      itemIds: [item1.item_id, item2.item_id, item3.item_id],
+      userIds: [buyer.user_id, seller.user_id],
+    });
+  });
+
   test("returns 400 when increasing item quantity beyond available", async () => {
     const buyer = await insertUser();
     const seller = await insertUser();
