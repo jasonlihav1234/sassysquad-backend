@@ -15,6 +15,10 @@
     {
       "name": "item",
       "description": "Operations about items"
+    },
+    {
+      "name": "order",
+      "description": "Operations about orders"
     }
   ],
   "schemes": ["https", "http"],
@@ -1506,6 +1510,153 @@
                 },
                 "error": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/validate": {
+      "post": {
+        "tags": ["order"],
+        "summary": "Validates an order payload",
+        "description": "Checks if the provided order data meets all structural and type requirements, including nested order lines.",
+        "operationId": "validate-order",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "The order data payload to be validated",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "orderName",
+                "sellerId",
+                "documentCurrencyCode",
+                "pricingCurrencyCode",
+                "taxCurrencyCode",
+                "requestedInvoiceCurrencyCode",
+                "accountingCost",
+                "paymentMethodCode",
+                "destinationCountryCode",
+                "orderLines"
+              ],
+              "properties": {
+                "orderName": {
+                  "type": "string",
+                  "example": "Bulk Office Supplies"
+                },
+                "sellerId": {
+                  "type": "string",
+                  "example": "seller_98765"
+                },
+                "documentCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "pricingCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "taxCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "requestedInvoiceCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "accountingCost": {
+                  "type": "number",
+                  "example": 150.5
+                },
+                "paymentMethodCode": {
+                  "type": "string",
+                  "example": "CREDIT_CARD"
+                },
+                "destinationCountryCode": {
+                  "type": "string",
+                  "example": "AU"
+                },
+                "orderLines": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "List of items in the order",
+                  "items": {
+                    "type": "object",
+                    "required": ["itemID", "quantity", "priceAtPurchase"],
+                    "properties": {
+                      "itemID": {
+                        "type": "string",
+                        "example": "item_12345"
+                      },
+                      "quantity": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "example": 5
+                      },
+                      "priceAtPurchase": {
+                        "type": "number",
+                        "minimum": 0,
+                        "example": 25.99
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order payload is valid",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order payload is valid"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type (Missing or invalid Content-Type)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "UNSUPPORTED_TYPE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This content type is not supported"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Failed (Missing fields, wrong types, or invalid order lines)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "VALIDATION_FAILED"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "The request body is missing mandatory fields"
                 }
               }
             }
