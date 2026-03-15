@@ -15,6 +15,7 @@
     {
       "name": "item",
       "description": "Operations about items"
+<<<<<<< HEAD
     },
     {
       "name": "order",
@@ -23,6 +24,8 @@
     {
       "name": "cart",
       "description": "Operations about the cart"
+=======
+>>>>>>> 4eb2f708a6ffd2161aed93053fe047e9ba893781
     }
   ],
   "schemes": ["https", "http"],
