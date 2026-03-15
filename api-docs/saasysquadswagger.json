@@ -869,9 +869,11 @@
         "description": "",
         "operationId": "user-userId",
         "produces": ["application/json"],
-        "security": {
-          "bearerAuth": []
-        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "userId",
@@ -888,7 +890,7 @@
             "description": "User details successfully fetched",
             "schema": {
               "type": "object",
-              "propeties": {
+              "properties": {
                 "message": {
                   "type": "string"
                 },
@@ -910,7 +912,8 @@
                         "type": "string"
                       },
                       "created_at": {
-                        "type": "date-time"
+                        "type": "string",
+                        "format": "date-time"
                       }
                     }
                   }
