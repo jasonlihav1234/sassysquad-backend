@@ -23,6 +23,10 @@
     {
       "name": "cart",
       "description": "Operations about the cart"
+    },
+    {
+      "name": "checkout",
+      "description": "Operations about the checkout of items"
     }
   ],
   "schemes": ["https", "http"],
@@ -2364,6 +2368,85 @@
                 "message": {
                   "type": "string",
                   "example": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/checkout-session-status/{sessionId}": {
+      "get": {
+        "tags": ["checkout"],
+        "summary": "Retrieves the status of a Stripe checkout session",
+        "description": "Fetches the current status and customer email of a specific Stripe checkout session using its session ID provided in the URL path.",
+        "operationId": "check-checkout-session-status",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the Stripe checkout session",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session status successfully retrieved",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "description": "The current status of the Stripe checkout session (e.g., 'complete', 'open', 'expired')",
+                  "example": "complete"
+                },
+                "customer_email": {
+                  "type": "string",
+                  "description": "The email address provided by the customer during checkout",
+                  "example": "buyer@example.com"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Session ID is missing from the URL path)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Session ID is missing from the request path"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error (Failed to retrieve session from Stripe)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Failed to retrieve session status"
                 }
               }
             }
