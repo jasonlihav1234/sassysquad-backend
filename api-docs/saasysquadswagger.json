@@ -960,6 +960,15 @@
         ],
         "parameters": [
           {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of item",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "in": "body",
             "name": "body",
             "description": "Item object that to contains fields that needs to be changed",
