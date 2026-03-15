@@ -11,8 +11,97 @@ import {
   getItemsUserQuery,
   updateItemQuery,
   deleteItemFromIdQuery,
+  createItemQuery,
 } from "../database/queries/item_queries";
 import { updateProfileQuery } from "../database/queries/user_queries";
+
+export const createItem = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const contentType = req.headers?.["content-type"];
+
+      if (!contentType || !contentType.includes("application/json")) {
+        return jsonHelper(
+          {
+            error: "UNSUPPORTED_TYPE",
+            message: "This content type is not supported",
+          },
+          415,
+        );
+      }
+
+      const sellerId = req.user?.subject_claim as string;
+      const body = req.body || {};
+
+      const { itemName, description, price, quantityAvailable, imageUrl } =
+        body;
+
+      if (
+        !itemName ||
+        typeof itemName !== "string" ||
+        typeof price !== "number" ||
+        price < 0 ||
+        typeof quantityAvailable !== "number" ||
+        quantityAvailable < 0
+      ) {
+        return jsonHelper(
+          {
+            error: "Bad Request",
+            message: "Invalid/missing items fields",
+          },
+          400,
+        );
+      }
+
+      if (description !== undefined && typeof description !== "string") {
+        return jsonHelper(
+          {
+            error: "Bad Request",
+            message: "Invalid/missing items fields",
+          },
+          400,
+        );
+      }
+
+      if (imageUrl !== undefined && typeof imageUrl !== "string") {
+        return jsonHelper(
+          {
+            error: "Bad Request",
+            message: "Invalid/missing items fields",
+          },
+          400,
+        );
+      }
+
+      const itemId = crypto.randomUUID();
+      const response = await createItemQuery(
+        itemId,
+        sellerId,
+        itemName,
+        description ?? null,
+        price,
+        quantityAvailable,
+        imageUrl ?? null,
+      );
+
+      return jsonHelper(
+        {
+          message: "Item created successfully",
+          item: response,
+        },
+        201,
+      );
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Creating item failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
 
 // look into responses
 export const getItemsById = authHelper(
