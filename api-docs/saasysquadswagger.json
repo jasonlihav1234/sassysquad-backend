@@ -10,7 +10,11 @@
   "tags": [
     {
       "name": "user",
-      "description": "Operations about user"
+      "description": "Operations about the user"
+    },
+    {
+      "name": "item",
+      "description": "Operations about items"
     }
   ],
   "schemes": ["https", "http"],
@@ -758,7 +762,7 @@
       },
       "delete": {
         "tags": ["user"],
-        "summary": "Deletes a user",
+        "summary": "Deletes the logged in users account",
         "description": "",
         "operationId": "delete-profile",
         "produces": ["application/json"],
@@ -930,6 +934,100 @@
                   "type": "integer",
                   "format": "int32"
                 },
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/{itemId}": {
+      "patch": {
+        "tags": ["item"],
+        "summary": "Updates the details of an item",
+        "description": "",
+        "operationId": "patch-item",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Item object that to contains fields that needs to be changed",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "itemName": {
+                  "type": "string",
+                  "example": "new_item_name"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "test description"
+                },
+                "price": {
+                  "type": "number",
+                  "example": "12.50"
+                },
+                "quantity_available": {
+                  "type": "number",
+                  "example": "20"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item has been successfully updated",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "response": {
+                  "type": "object",
+                  "properties": {
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "itemName": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "quantity_available": {
+                      "type": "integer"
+                    },
+                    "image_url": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General update item failure",
+            "schema": {
+              "type": "object",
+              "properties": {
                 "message": {
                   "type": "string"
                 },
