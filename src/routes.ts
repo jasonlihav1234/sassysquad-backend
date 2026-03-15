@@ -31,6 +31,8 @@ import {
   serverWebhook,
   listOrder,
   validateOrder,
+  updateOrder,
+  getOrder,
 } from "./application/order_application";
 import { deleteItem } from "./application/item_application";
 import { updateItem } from "./application/item_application";
@@ -193,37 +195,17 @@ export async function handleRequest(req: any, res: any) {
 
   // GET/orders/{id}
   if (method === "GET" && /\/orders\/[^/]+/.test(url)) {
-    const response = await listOrder(req);
-
+    const response = await getOrder(req);
     const body = await response.json();
-    return res.status(response.status).json(body);
+
+    return res.tatus(response.status).json(body);
   }
   // PUT /orders
   if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
-    const { userId, updates } = body || {};
-    const orderId = url.split("/")[1];
+    const response = await updateOrder(req);
+    const body = await response.json();
 
-    if (!orderId) {
-      return res.status(400).json({ error: "Bad Request" });
-    }
-
-    // if () { // TODO: invalid access token
-    //   return res.status(401).json({ error: "Unauthorised" });
-    // }
-
-    const order = await getOrderById(orderId);
-
-    if (userId !== order.buyerId) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    if (!order) {
-      return res.status(404).json({ error: "Order not found!" });
-    }
-
-    return await updateOrdersById(orderId, updates);
-
-    return res.status(200);
+    return res.status(response.status).json(body);
   }
 
   if (url === "/profile" && method === "PATCH") {
@@ -289,76 +271,76 @@ export async function handleRequest(req: any, res: any) {
   return res.status(404).json({ error: "Not found" });
 }
 
-  // POST /items
-  if (url === "/items" && method === "POST") {
-    const contentType =
-      req.headers?.get?.("content-type") || req.headers?.["content-type"];
+// POST /items
+if (url === "/items" && method === "POST") {
+  const contentType =
+    req.headers?.get?.("content-type") || req.headers?.["content-type"];
 
-    if (!contentType || !contentType.includes("application/json")) {
-      return res.status(415).json({
-        error: "UNSUPPORTED_TYPE",
-        message: "This content type is not supported",
-      });
-    }
-
-    let parsedBody = body;
-
-    try {
-      if (!parsedBody && req.json) {
-        parsedBody = await req.json();
-      }
-    } catch (error) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "Invalid/missing items fields",
-      });
-    }
-
-    const authHeader =
-      req.headers?.get?.("authorization") ||
-      req.headers?.get?.("Authorization") ||
-      req.headers?.authorization ||
-      req.headers?.Authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({
-        error: "Unauthorised",
-        message: "Access Token invalid",
-      });
-    }
-
-    const { itemName, description, price, quantityAvailable, imageUrl } =
-      parsedBody || {};
-
-    if (
-      !itemName ||
-      typeof itemName !== "string" ||
-      typeof price !== "number" ||
-      price < 0 ||
-      typeof quantityAvailable !== "number" ||
-      quantityAvailable < 0 ||
-      (description !== undefined && typeof description !== "string") ||
-      (imageUrl !== undefined && typeof imageUrl !== "string")
-    ) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "Invalid/missing items fields",
-      });
-    }
-
-    const newItem = {
-      itemId: crypto.randomUUID(),
-      itemName,
-      description: description || null,
-      price,
-      quantityAvailable,
-      imageUrl: imageUrl || null,
-      createdAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-    };
-
-    return res.status(201).json({
-      message: "Item created successfully",
-      item: newItem,
+  if (!contentType || !contentType.includes("application/json")) {
+    return res.status(415).json({
+      error: "UNSUPPORTED_TYPE",
+      message: "This content type is not supported",
     });
   }
+
+  let parsedBody = body;
+
+  try {
+    if (!parsedBody && req.json) {
+      parsedBody = await req.json();
+    }
+  } catch (error) {
+    return res.status(400).json({
+      error: "Bad Request",
+      message: "Invalid/missing items fields",
+    });
+  }
+
+  const authHeader =
+    req.headers?.get?.("authorization") ||
+    req.headers?.get?.("Authorization") ||
+    req.headers?.authorization ||
+    req.headers?.Authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      error: "Unauthorised",
+      message: "Access Token invalid",
+    });
+  }
+
+  const { itemName, description, price, quantityAvailable, imageUrl } =
+    parsedBody || {};
+
+  if (
+    !itemName ||
+    typeof itemName !== "string" ||
+    typeof price !== "number" ||
+    price < 0 ||
+    typeof quantityAvailable !== "number" ||
+    quantityAvailable < 0 ||
+    (description !== undefined && typeof description !== "string") ||
+    (imageUrl !== undefined && typeof imageUrl !== "string")
+  ) {
+    return res.status(400).json({
+      error: "Bad Request",
+      message: "Invalid/missing items fields",
+    });
+  }
+
+  const newItem = {
+    itemId: crypto.randomUUID(),
+    itemName,
+    description: description || null,
+    price,
+    quantityAvailable,
+    imageUrl: imageUrl || null,
+    createdAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString(),
+  };
+
+  return res.status(201).json({
+    message: "Item created successfully",
+    item: newItem,
+  });
+}

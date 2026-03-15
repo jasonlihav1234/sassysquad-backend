@@ -5,6 +5,7 @@ import {
   insertOrder,
   insertItem,
   deleteTestData,
+  createBuyerAndSeller,
 } from "../test_helper";
 import {
   getOrderIdByName,
@@ -26,8 +27,7 @@ describe("getOrderIdByName", () => {
   });
 
   test("returns order_id when order with given name exists", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const orderName = `order-${crypto.randomUUID()}`;
     const order = await insertOrder({
       buyer_id: buyer.user_id,
@@ -53,8 +53,7 @@ describe("getOrderById", () => {
   });
 
   test("returns order when order exists", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const order = await insertOrder({
       buyer_id: buyer.user_id,
       seller_id: seller.user_id,
@@ -77,8 +76,7 @@ describe("getOrderById", () => {
 
 describe("createOrderQuery", () => {
   test("creates order with mastercard payment method", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const item = await insertItem({
       seller_id: seller.user_id,
       item_name: `createOrder-mastercard-${crypto.randomUUID()}`,
@@ -124,8 +122,7 @@ describe("createOrderQuery", () => {
   });
 
   test("creates order with default payment method (non visa/mastercard)", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const item = await insertItem({
       seller_id: seller.user_id,
       item_name: `createOrder-default-pm-${crypto.randomUUID()}`,
@@ -172,8 +169,7 @@ describe("createOrderQuery", () => {
   });
 
   test("returns 400 when item has insufficient inventory", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const item = await insertItem({
       seller_id: seller.user_id,
       item_name: `createOrder-low-qty-${crypto.randomUUID()}`,
@@ -213,8 +209,7 @@ describe("createOrderQuery", () => {
   });
 
   test("returns 500 when insertion fails with non-inventory error", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const item = await insertItem({
       seller_id: seller.user_id,
       item_name: `createOrder-dup-${crypto.randomUUID()}`,
@@ -271,8 +266,7 @@ describe("createOrderQuery", () => {
 
 describe("createOrderlineQuery", () => {
   test("returns total item price and creates order line when order and item exist", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const order = await insertOrder({
       buyer_id: buyer.user_id,
       seller_id: seller.user_id,
@@ -345,8 +339,7 @@ describe("getOrdersByUserId", () => {
 
 describe("deleteOrdersById", () => {
   test("deletes order and returns 200 with message", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const order = await insertOrder({
       buyer_id: buyer.user_id,
       seller_id: seller.user_id,
@@ -367,8 +360,7 @@ describe("deleteOrdersById", () => {
   });
 
   test("returns 500 when delete fails", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const order = await insertOrder({
       buyer_id: buyer.user_id,
       seller_id: seller.user_id,
@@ -398,9 +390,76 @@ describe("deleteOrdersById", () => {
 });
 
 describe("updateOrdersById", () => {
+  test("create an order and then update it", async () => {
+    const { buyer, seller } = await createBuyerAndSeller();
+    const item1 = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `create-update-1-${crypto.randomUUID()}`,
+      price: 10.5,
+      quantity_available: 10000,
+    });
+    const item2 = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `create-update-2-${crypto.randomUUID()}`,
+      price: 7.5,
+      quantity_available: 10000,
+    });
+    const item3 = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `create-update-3-${crypto.randomUUID()}`,
+      price: 2.5,
+      quantity_available: 10000,
+    });
+
+    const orderId = crypto.randomUUID();
+    const orderName = `order-${orderId}`;
+    const createRes = await createOrderQuery(
+      orderId,
+      orderName,
+      buyer.user_id,
+      seller.user_id,
+      "AUD",
+      "AUD",
+      "AUD",
+      "AUD",
+      0,
+      "visa",
+      "AU",
+      "",
+      [
+        { itemId: item1.item_id, quantity: 20, priceAtPurchase: 10.5 },
+        { itemId: item2.item_id, quantity: 10, priceAtPurchase: 7.5 },
+        { itemId: item3.item_id, quantity: 3, priceAtPurchase: 2.5 },
+      ],
+    );
+    expect(createRes.status).toBe(200);
+
+    const [orderBefore] = await pg`select * from orders where order_id = ${orderId}`;
+
+    const updateRes = await updateOrdersById(orderId, {
+      status: "paid",
+      items: [
+        { itemId: item1.item_id, quantity: 10, priceAtPurchase: 10.5 },
+        { itemId: item2.item_id, quantity: 5, priceAtPurchase: 7.5 },
+        { itemId: item3.item_id, quantity: 1, priceAtPurchase: 2.5 },
+      ],
+    });
+    const updateBody = await updateRes.json();
+    expect(updateRes.status).toBe(200);
+    expect(updateBody.message).toBe("Update successful");
+
+    const [orderAfter] = await pg`select * from orders where order_id = ${orderId}`;
+    expect(Number(orderAfter.total_cost)).not.toBe(Number(orderBefore.total_cost));
+
+    await deleteTestData({
+      orderIds: [orderId],
+      itemIds: [item1.item_id, item2.item_id, item3.item_id],
+      userIds: [buyer.user_id, seller.user_id],
+    });
+  });
+
   test("returns 400 when increasing item quantity beyond available", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const item = await insertItem({
       seller_id: seller.user_id,
       item_name: `update-not-enough-${crypto.randomUUID()}`,
@@ -445,8 +504,7 @@ describe("updateOrdersById", () => {
   });
 
   test("updates order with mastercard payment method", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const item = await insertItem({
       seller_id: seller.user_id,
       item_name: `update-mastercard-${crypto.randomUUID()}`,
@@ -491,8 +549,7 @@ describe("updateOrdersById", () => {
   });
 
   test("updates order with default payment method", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const item = await insertItem({
       seller_id: seller.user_id,
       item_name: `update-default-pm-${crypto.randomUUID()}`,
@@ -547,8 +604,7 @@ describe("updateOrdersById", () => {
   });
 
   test("updates only status without items, uses existing order totals for totalCost", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const item = await insertItem({
       seller_id: seller.user_id,
       item_name: `update-status-only-${crypto.randomUUID()}`,
@@ -742,8 +798,7 @@ describe("deleteItem", () => {
   });
 
   test("returns 500 when delete fails", async () => {
-    const buyer = await insertUser();
-    const seller = await insertUser();
+    const { buyer, seller } = await createBuyerAndSeller();
     const order = await insertOrder({
       buyer_id: buyer.user_id,
       seller_id: seller.user_id,

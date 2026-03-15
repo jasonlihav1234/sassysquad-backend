@@ -19,6 +19,14 @@
     {
       "name": "order",
       "description": "Operations about orders"
+    },
+    {
+      "name": "cart",
+      "description": "Operations about the cart"
+    },
+    {
+      "name": "checkout",
+      "description": "Operations about the checkout of items"
     }
   ],
   "schemes": ["https", "http"],
@@ -1935,6 +1943,582 @@
                 "error": {
                   "type": "string",
                   "example": "Order not found!"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart/items": {
+      "post": {
+        "tags": ["cart"],
+        "summary": "Adds an item to the user's shopping cart",
+        "description": "Validates item availability and adds the specified quantity of an item to the user's cart in Redis. The cart expires after 24 hours.",
+        "operationId": "add-item-to-cart",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the item ID and the quantity to add to the cart",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["itemId", "quantity"],
+              "properties": {
+                "itemId": {
+                  "type": "string",
+                  "description": "The unique identifier of the item",
+                  "example": "item_12345"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "description": "The number of items to add to the cart",
+                  "minimum": 1,
+                  "example": 2
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item successfully added to cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item successfully added to cart"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing fields or insufficient stock)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Not enough items in stock"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Item does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Item does not exist"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failing to add the item to the cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item failed to add to cart"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart/items/{itemId}": {
+      "patch": {
+        "tags": ["cart"],
+        "summary": "Updates the quantity of an item in the cart",
+        "description": "Updates the quantity of a specific item in the user's cart. Validates that the requested quantity is greater than zero and does not exceed available stock.",
+        "operationId": "update-cart-item",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the item in the cart to update",
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the new quantity for the item",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["quantity"],
+              "properties": {
+                "quantity": {
+                  "type": "integer",
+                  "description": "The new quantity for the item (must be greater than 0)",
+                  "minimum": 1,
+                  "example": 5
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item successfully updated in the cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item successfully updated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing quantity, zero/negative quantity, or requested quantity exceeds stock)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Invalid quantity to set"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Item does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item does not exist"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failing to update the cart in Redis",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item failed to update"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["cart"],
+        "summary": "Removes a specific item from the cart",
+        "description": "Deletes a specific item from the authenticated user's shopping cart using its item ID.",
+        "operationId": "delete-cart-item",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the item to remove from the cart",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item successfully removed from cart, or it was not in the cart",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s successfully removed from cart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error failing to remove the item from Redis",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s failed to remove from cart"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cart": {
+      "delete": {
+        "tags": ["cart"],
+        "summary": "Clears the entire cart",
+        "description": "Removes all items from the authenticated user's shopping cart.",
+        "operationId": "clear-cart",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cart successfully cleared, or it was already empty",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s successfully removed from cart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error failing to clear the cart in Redis",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item/s failed to remove from cart"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/create-checkout-session": {
+      "post": {
+        "tags": ["checkout"],
+        "summary": "Creates a Stripe checkout session",
+        "description": "Retrieves the user's cart from Redis, validates the items against the database, and creates an embedded Stripe checkout session for payment processing.",
+        "operationId": "create-checkout-session",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Payload containing the seller ID and the buyer's email for the checkout session",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["sellerId", "email"],
+              "properties": {
+                "sellerId": {
+                  "type": "string",
+                  "description": "The unique identifier of the seller",
+                  "example": "seller_12345"
+                },
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "description": "The email address of the buyer for the checkout session",
+                  "example": "buyer@example.com"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Checkout session successfully created or an early return message",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "clientSecret": {
+                  "type": "string",
+                  "description": "The Stripe client secret required to initialize the embedded checkout on the frontend",
+                  "example": "cs_test_a1b2c3d4e5f6g7h8i9j0"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Message returned if the cart is empty or no items are found",
+                  "example": "Cart is empty"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing email or sellerId)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Missing email or sellerId"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General server error or Stripe API failure",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/checkout-session-status/{sessionId}": {
+      "get": {
+        "tags": ["checkout"],
+        "summary": "Retrieves the status of a Stripe checkout session",
+        "description": "Fetches the current status and customer email of a specific Stripe checkout session using its session ID provided in the URL path.",
+        "operationId": "check-checkout-session-status",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the Stripe checkout session",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session status successfully retrieved",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "description": "The current status of the Stripe checkout session (e.g., 'complete', 'open', 'expired')",
+                  "example": "complete"
+                },
+                "customer_email": {
+                  "type": "string",
+                  "description": "The email address provided by the customer during checkout",
+                  "example": "buyer@example.com"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Session ID is missing from the URL path)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Session ID is missing from the request path"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error (Failed to retrieve session from Stripe)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Failed to retrieve session status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook": {
+      "post": {
+        "tags": ["webhook"],
+        "summary": "Handles Stripe webhook events",
+        "description": "Receives asynchronous event notifications from Stripe (e.g., checkout.session.completed). The payload is verified using the stripe-signature header. If verified and the event type matches, it fulfills the checkout.",
+        "operationId": "server-webhook",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "stripe-signature",
+            "description": "The signature sent by Stripe to verify the webhook payload",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "The raw Stripe Event object payload",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "description": "See Stripe API documentation for the Event object structure"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook received, verified, and checkout successfully fulfilled",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Checkout successfully fulfilled"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing body, missing signature, invalid signature, or invalid event type during fulfillment)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "No signature provided"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Provided if the webhook construction fails",
+                  "example": "Webhook error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (The event type received is not handled by this webhook)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "No event types match"
                 }
               }
             }
