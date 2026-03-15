@@ -58,7 +58,7 @@ jobs:
           GOOGLE_APP_PASSWORD: ${{ secrets.GOOGLE_APP_PASSWORD }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-        run: bun test --concurrency 1 --timeout 20000 tests/items.test.ts tests/queries.test.ts tests/users.test.ts
+        run: bun test --concurrency 1 --timeout 20000 tests/application/* tests/queries/*
 
       - name: Upload analysis results to GitHub
         uses: github/codeql-action/upload-sarif@v4
