@@ -30,6 +30,7 @@ import {
   createCheckoutSession,
   postOrder,
   serverWebhook,
+  listOrder,
   validateOrder,
 } from "./application/order_application";
 import { deleteItem } from "./application/item_application";
@@ -190,14 +191,20 @@ export async function handleRequest(req: any, res: any) {
     const responseBody = await response.json();
     return res.status(response.status).json(responseBody);
   }
-
-  if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
-    const response = await deleteOrder(req);
+  if (method === "GET" && /\/orders\/[^/]+/.test(url)) {
+    const response = await listOrder(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
   }
-  
+
+  if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
+    const response = await deleteOrder(req);
+    
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   // PUT /orders
   if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
     const { userId, updates } = body || {};
