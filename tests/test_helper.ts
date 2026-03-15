@@ -1,7 +1,10 @@
 import { expect } from "bun:test";
 import pg from "../src/utils/db";
 import type { User, InsertUserOverrides } from "../src/types/user";
-import type { Order, InsertOrderOverrides } from "../src/types/order";
+import type {
+  Order,
+  InsertOrderOverrides,
+} from "../src/types/order";
 import type { InsertItemOverrides } from "../src/types/item";
 import type { DeleteTestDataOptions } from "../src/types/combined_types";
 import { register, login } from "../src/application/user_application";
