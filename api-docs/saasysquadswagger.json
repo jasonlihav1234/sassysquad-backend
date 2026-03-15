@@ -2036,6 +2036,101 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": ["order"],
+        "summary": "Deletes an existing order",
+        "description": "Deletes an order based on the provided order ID. The user making the request must be the original buyer of the order.",
+        "operationId": "delete-order-by-id",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the order to delete",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order successfully deleted",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order successfully deleted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing or invalid orderId)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "OrderID invalid."
+                },
+                "error": {
+                  "type": "string",
+                  "example": "Bad Request"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (User is not the buyer of the order)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "User does not have permission to delete order."
+                },
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Order does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order not found."
+                },
+                "error": {
+                  "type": "string",
+                  "example": "Not Found"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/cart/items": {
