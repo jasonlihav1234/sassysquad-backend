@@ -537,6 +537,58 @@ describe("updateOrdersById", () => {
       userIds: [buyer.user_id, seller.user_id],
     });
   });
+
+  test("returns 500 when order does not exist", async () => {
+    const res = await updateOrdersById(crypto.randomUUID(), {
+      status: "paid",
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error_msg).toBe("Update failed");
+  });
+
+  test("updates only status without items, uses existing order totals for totalCost", async () => {
+    const buyer = await insertUser();
+    const seller = await insertUser();
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `update-status-only-${crypto.randomUUID()}`,
+      quantity_available: 100,
+    });
+    const orderId = crypto.randomUUID();
+    const orderName = `order-${orderId}`;
+    const items = [{ itemId: item.item_id, quantity: 2, priceAtPurchase: 10 }];
+    await createOrderQuery(
+      orderId,
+      orderName,
+      buyer.user_id,
+      seller.user_id,
+      "AUD",
+      "AUD",
+      "AUD",
+      "AUD",
+      0,
+      "visa",
+      "AU",
+      "",
+      items,
+    );
+
+    const res = await updateOrdersById(orderId, { status: "paid" });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.message).toBe("Update successful");
+    const rows = await pg`select status, total_cost from orders where order_id = ${orderId}`;
+    expect(rows[0].status).toBe("paid");
+
+    await deleteTestData({
+      orderIds: [orderId],
+      itemIds: [item.item_id],
+      userIds: [buyer.user_id, seller.user_id],
+    });
+  });
 });
 
 describe("createItem", () => {
