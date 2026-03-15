@@ -13,6 +13,7 @@ import {
   serverWebhook,
   processOrderCreation,
   postOrder,
+  updateOrder,
 } from "../../src/application/order_application";
 import * as OrderApp from "../../src/application/order_application";
 import * as db from "../../src/database/queries/order_queries";

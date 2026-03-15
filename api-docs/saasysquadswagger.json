@@ -5,8 +5,8 @@
     "version": "1.0.0",
     "title": "SaasySquad API"
   },
-  "host": "https://jasonlihav1234.github.io/sassysquad-backend",
-  "basePath": "/api-docs",
+  "host": "sassysquad-backend.vercel.app",
+  "basePath": "",
   "tags": [
     {
       "name": "user",
@@ -31,11 +31,11 @@
   ],
   "schemes": ["https", "http"],
   "securityDefinitions": {
-    "accessToken": {
+    "bearerAuth": {
       "type": "apiKey",
       "name": "Authorization",
       "in": "header",
-      "description": "Enter your bearer token in the format **Bearer token**"
+      "description": "Enter your bearer token in the format **Bearer &lt;token>**"
     }
   },
   "paths": {
@@ -1830,6 +1830,94 @@
       }
     },
     "/orders/{orderId}": {
+      "get": {
+        "tags": ["order"],
+        "summary": "Retrieves an order by ID",
+        "description": "Fetches the details of a specific order using its unique order ID. Returns the full order JSON object.",
+        "operationId": "get-order-by-id",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the order to retrieve",
+            "type": "string",
+            "maxLength": 100
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order successfully retrieved",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order successfully retrieved"
+                },
+                "order": {
+                  "type": "object",
+                  "description": "The full order details, including metadata and UBL XML content if applicable"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Order ID is syntactically invalid or exceeds 100 characters)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "INVALID_ID"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "The id provided is syntactically invalid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (The order does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "ID_NOT_FOUND"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Id does not exist or is invalid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error (Unexpected database or server issues)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "INTERNAL_ERROR"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "An internal error occured while executing the operation"
+                }
+              }
+            }
+          }
+        }
+      },
       "put": {
         "tags": ["order"],
         "summary": "Updates an existing order",
@@ -1943,6 +2031,101 @@
                 "error": {
                   "type": "string",
                   "example": "Order not found!"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["order"],
+        "summary": "Deletes an existing order",
+        "description": "Deletes an order based on the provided order ID. The user making the request must be the original buyer of the order.",
+        "operationId": "delete-order-by-id",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "description": "The unique identifier of the order to delete",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order successfully deleted",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order successfully deleted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing or invalid orderId)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "OrderID invalid."
+                },
+                "error": {
+                  "type": "string",
+                  "example": "Bad Request"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (User is not the buyer of the order)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "User does not have permission to delete order."
+                },
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Order does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order not found."
+                },
+                "error": {
+                  "type": "string",
+                  "example": "Not Found"
                 }
               }
             }

@@ -24,6 +24,7 @@ import { handleHealthRoutes } from "./routes/health_routes";
 import {
   addItemToCart,
   deleteItemFromCart,
+  deleteOrder,
   updateCartItem,
   checkCheckoutSessionStatus,
   createCheckoutSession,
@@ -31,6 +32,8 @@ import {
   serverWebhook,
   listOrder,
   validateOrder,
+  updateOrder,
+  getOrder,
 } from "./application/order_application";
 import { deleteItem } from "./application/item_application";
 import { updateItem } from "./application/item_application";
@@ -44,9 +47,38 @@ export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
 
   if (url === "/" && method === "GET") {
-    return res.status(200).json({
-      test: "hello",
-    });
+    res.setHeader("Content-Type", "text/html");
+
+    return res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>SaasySquad</title>
+          <style>
+            body {
+              font-family: sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              background-color: #f9fafb;
+            }
+            h1 { color: #333; }
+            .gif-container { margin-top: 20px; }
+            img { max-width: 300px; margin: 0 10px; border-radius: 8px; }
+          </style>
+        </head>
+        <body>
+          <h1>You've Reached The Root Of SaasySquad :O</h1>
+          <div class="gif-container">
+            <img src="https://media1.tenor.com/m/JHuU14ekU3EAAAAd/ishowspeed-deglove.gif" alt="SaasySquad GIF 1" />
+            <img src="https://i.makeagif.com/media/11-08-2024/HSMtFe.gif" alt="SaasySquad GIF 2" />
+          </div>
+        </body>
+      </html>
+    `);
   }
   if (url === "/auth/register" && method === "POST") {
     const response = await register(req);
@@ -190,83 +222,23 @@ export async function handleRequest(req: any, res: any) {
     const responseBody = await response.json();
     return res.status(response.status).json(responseBody);
   }
-
-  // GET/orders/{id}
   if (method === "GET" && /\/orders\/[^/]+/.test(url)) {
-    // get accept header from req
-    const accept =
-    req.headers?.get?.("accept") || req.headers?.["accept"];
+    const response = await getOrder(req);
+    const body = await response.json();
 
-  //  unsupported accept type as response must be returned in UBL XML format
-  if (!accept || !accept.includes("application/xml")) {
-    return res.status(406).json({
-      error: "UNSUPPORTED_TYPE",
-      message: "The response type is unsupported",
-    });
+    return res.status(response.status).json(body);
   }
 
-  // get orderId from URL
-  const orderId = url.split("/")[2];
+  if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
+    const response = await deleteOrder(req);
 
-  // Synytax validation
-  if (!orderId || orderId.length > 100) {
-    return res.status(400).json({
-      error: "INVALID_ID",
-      message: "The id provided is syntactically invalid",
-    });
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
-  try {
-    // query databse for order using orderID provided
-    const order = await getOrderById(orderId);
-
-    // order doesnt exist in databse
-    if (!order) {
-      return res.status(404).json({
-        error: "ID_NOT_FOUND",
-        message: "Id does not exist or is invalid",
-      });
-    }
-
-    // return previously generated UBL XML stored in databse
-    return res
-      .status(200)
-      .setHeader("Content-Type", "application/xml")
-      .send(order.ubl_xml_content); // return stored UBL XML
-
-  } catch (error) {
-    // unexpected errors such as interval server issues por databse
-    return res.status(500).json({
-      error: "INTERNAL_ERROR",
-      message:
-        "An internal error occurred while executing the operation",
-    });
-  }
-  }
   // PUT /orders
   if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
-    const { userId, updates } = body || {};
-    const orderId = url.split("/")[1];
-
-    if (!orderId) {
-      return res.status(400).json({ error: "Bad Request" });
-    }
-
-    // if () { // TODO: invalid access token
-    //   return res.status(401).json({ error: "Unauthorised" });
-    // }
-
-    const order = await getOrderById(orderId);
-
-    if (userId !== order.buyerId) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    if (!order) {
-      return res.status(404).json({ error: "Order not found!" });
-    }
-
-    const response = await updateOrdersById(orderId, updates);
+    const response = await updateOrder(req);
     const body = await response.json();
 
     return res.status(response.status).json(body);
@@ -334,77 +306,3 @@ export async function handleRequest(req: any, res: any) {
   // 404 if no roiutes match
   return res.status(404).json({ error: "Not found" });
 }
-
-  // POST /items
-  if (url === "/items" && method === "POST") {
-    const contentType =
-      req.headers?.get?.("content-type") || req.headers?.["content-type"];
-
-    if (!contentType || !contentType.includes("application/json")) {
-      return res.status(415).json({
-        error: "UNSUPPORTED_TYPE",
-        message: "This content type is not supported",
-      });
-    }
-
-    let parsedBody = body;
-
-    try {
-      if (!parsedBody && req.json) {
-        parsedBody = await req.json();
-      }
-    } catch (error) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "Invalid/missing items fields",
-      });
-    }
-
-    const authHeader =
-      req.headers?.get?.("authorization") ||
-      req.headers?.get?.("Authorization") ||
-      req.headers?.authorization ||
-      req.headers?.Authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({
-        error: "Unauthorised",
-        message: "Access Token invalid",
-      });
-    }
-
-    const { itemName, description, price, quantityAvailable, imageUrl } =
-      parsedBody || {};
-
-    if (
-      !itemName ||
-      typeof itemName !== "string" ||
-      typeof price !== "number" ||
-      price < 0 ||
-      typeof quantityAvailable !== "number" ||
-      quantityAvailable < 0 ||
-      (description !== undefined && typeof description !== "string") ||
-      (imageUrl !== undefined && typeof imageUrl !== "string")
-    ) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "Invalid/missing items fields",
-      });
-    }
-
-    const newItem = {
-      itemId: crypto.randomUUID(),
-      itemName,
-      description: description || null,
-      price,
-      quantityAvailable,
-      imageUrl: imageUrl || null,
-      createdAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-    };
-
-    return res.status(201).json({
-      message: "Item created successfully",
-      item: newItem,
-    });
-  }
