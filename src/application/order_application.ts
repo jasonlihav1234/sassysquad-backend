@@ -5,7 +5,10 @@ import { url } from "node:inspector";
 import pg, { redis } from "../utils/db";
 import { AuthReq } from "../utils/jwt_helpers";
 import { create } from "xmlbuilder2";
-import { createOrderQuery } from "../database/queries/order_queries";
+import {
+  getOrderById,
+  createOrderQuery,
+} from "../database/queries/order_queries";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -725,3 +728,45 @@ export const updateCartItem = authHelper(
     }
   },
 );
+
+// gets an order given its id
+export const listOrder = authHelper(async (req: AuthReq): Promise<Response> => {
+  const orderId = req.url?.split("/").at(3) as string;
+  const userId = req.user?.subject_claim;
+
+  if (!orderId) {
+    return jsonHelper(
+      {
+        message: "OrderID invalid.",
+        error: "Bad Request",
+      },
+      400,
+    );
+  }
+
+  const order = await getOrderById(orderId);
+
+  if (!order) {
+    return jsonHelper(
+      {
+        message: "Order not found.",
+        error: "Not Found",
+      },
+      404,
+    );
+  }
+
+  if (userId !== order.buyerId) {
+    return jsonHelper(
+      {
+        message: "User does not have permission to delete order.",
+        error: "Unauthorised",
+      },
+      403,
+    );
+  }
+
+  return jsonHelper({
+    order: order,
+  });
+});

@@ -29,6 +29,7 @@ import {
   createCheckoutSession,
   postOrder,
   serverWebhook,
+  listOrder,
   validateOrder,
 } from "./application/order_application";
 import { deleteItem } from "./application/item_application";
@@ -190,6 +191,13 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(responseBody);
   }
 
+  // GET/orders/{id}
+  if (method === "GET" && /\/orders\/[^/]+/.test(url)) {
+    const response = await listOrder(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
   // PUT /orders
   if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
     const { userId, updates } = body || {};
