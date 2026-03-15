@@ -74,7 +74,7 @@ export async function handleRequest(req: any, res: any) {
           <h1>You've Reached The Root Of SaasySquad :O</h1>
           <div class="gif-container">
             <img src="https://media1.tenor.com/m/JHuU14ekU3EAAAAd/ishowspeed-deglove.gif" alt="SaasySquad GIF 1" />
-            <img src="https://www.reddit.com/media?url=https%3A%2F%2Fi.redd.it%2F4xylkbb131xd1.gif" alt="SaasySquad GIF 2" />
+            <img src="https://i.makeagif.com/media/11-08-2024/HSMtFe.gif" alt="SaasySquad GIF 2" />
           </div>
         </body>
       </html>
