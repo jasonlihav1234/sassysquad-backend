@@ -14,7 +14,7 @@ import {
   deleteUser,
   updateProfile,
 } from "./application/user_application";
-import { authHelper, deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
+import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
 import { handleHealthRoutes } from "./routes/health_routes";
 import {
