@@ -880,9 +880,7 @@
             "in": "path",
             "required": true,
             "description": "Unique identifier of user",
-            "schema": {
-              "type": "string"
-            }
+            "type": "string"
           }
         ],
         "responses": {
