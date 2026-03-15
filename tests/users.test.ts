@@ -137,6 +137,10 @@ describe("Register User", () => {
 });
 
 describe("Login User", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
   test("User does not exist", async () => {
     const request = generateRequest(loginRoute, "POST", {
       email: "testing@gmail.com",
@@ -606,17 +610,20 @@ describe("Logout-all tests", () => {
   });
 
   test("All sessions logged out", async () => {
+    const uniqueEmail = `logout-all-${crypto.randomUUID()}@test.com`;
     let request = generateRequest(registerRoute, "POST", {
-      email: "testing@gmail.com",
+      email: uniqueEmail,
       username: "test",
       password: "password123",
     });
 
     const registerResponse = await register(request);
     const registerBody = await registerResponse.json();
+    expect(registerResponse.status).toBe(201);
+    const userId = registerBody.user;
 
     request = generateRequest(loginRoute, "POST", {
-      email: "testing@gmail.com",
+      email: uniqueEmail,
       password: "password123",
     });
 
@@ -624,7 +631,7 @@ describe("Logout-all tests", () => {
     const loginBody = await loginResponse.json();
 
     request = generateRequest(loginRoute, "POST", {
-      email: "testing@gmail.com",
+      email: uniqueEmail,
       password: "password123",
     });
 
@@ -646,9 +653,8 @@ describe("Logout-all tests", () => {
     expect(logoutAllResponse.status).toBe(200);
     expect(logoutAllResponseBody.message).toBe("All sessions logged out");
 
-    const email = registerBody.user;
     const findTokens =
-      await pg`select * from refresh_tokens where user_id = ${email}`;
+      await pg`select * from refresh_tokens where user_id = ${userId}`;
     expect(findTokens.length).toBe(2);
 
     for (const refresh of findTokens) {
