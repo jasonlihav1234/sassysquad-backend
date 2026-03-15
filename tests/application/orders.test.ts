@@ -393,7 +393,7 @@ describe("Testing processOrderCreation", () => {
       accountingCost: 1.5,
       destinationCountryCode: "string",
     });
-    console.log(result);
+
     expect(querySpy).toHaveBeenCalled();
     expect(result.xml).not.toBe(undefined);
     expect(result.response).not.toBe(undefined);
@@ -537,8 +537,8 @@ describe("Post order tests", () => {
           {
             invalidId: "test",
             passingTheTime: "awd",
-          }
-        ]
+          },
+        ],
       },
       rl.accessToken,
     );
@@ -551,9 +551,109 @@ describe("Post order tests", () => {
     const body = await response.json();
 
     expect(response.status).toBe(422);
-    expect(body.error).toBe(
-      "VALIDATION_FAILED",
-    );  
+    expect(body.error).toBe("VALIDATION_FAILED");
     expect(body.message).toBe("The request body is missing mandatory fields");
+  });
+
+  test("Successful order creation returns xml", async () => {
+    const querySpy = spyOn(db, "createOrderQuery").mockResolvedValue(
+      new Response(JSON.stringify({ test: "Hello" })),
+    );
+
+    const rl = await registerAndLogin(
+      "testing@gmail.com",
+      "testing",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/order",
+      "POST",
+      {
+        orderName: "test",
+        buyerId: "test",
+        sellerId: "test",
+        documentCurrencyCode: "test",
+        pricingCurrencyCode: "test",
+        taxCurrencyCode: "test",
+        requestedInvoiceCurrencyCode: "test",
+        accountingCost: 1.5,
+        paymentMethodCode: "test",
+        destinationCountryCode: "test",
+        orderLines: [
+          {
+            itemID: "test",
+            quantity: 20,
+            priceAtPurchase: 2.5,
+          },
+        ],
+      },
+      rl.accessToken,
+    );
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${rl.accessToken}`,
+    };
+
+    const response = await postOrder(request);
+    const text = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(text).not.toBe(null);
+    expect(text).not.toBe(undefined);
+
+    querySpy.mockRestore();
+  });
+
+  test("Returns 500 on general error", async () => {
+    const querySpy = spyOn(db, "createOrderQuery").mockImplementation(() => {
+      throw new Error("Test");
+    });
+
+    const rl = await registerAndLogin(
+      "testing@gmail.com",
+      "testing",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/order",
+      "POST",
+      {
+        orderName: "test",
+        buyerId: "test",
+        sellerId: "test",
+        documentCurrencyCode: "test",
+        pricingCurrencyCode: "test",
+        taxCurrencyCode: "test",
+        requestedInvoiceCurrencyCode: "test",
+        accountingCost: 1.5,
+        paymentMethodCode: "test",
+        destinationCountryCode: "test",
+        orderLines: [
+          {
+            itemID: "test",
+            quantity: 20,
+            priceAtPurchase: 2.5,
+          },
+        ],
+      },
+      rl.accessToken,
+    );
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${rl.accessToken}`,
+    };
+
+    const response = await postOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Order creation failed");
+    expect(body.error).not.toBe(undefined);
+
+    querySpy.mockRestore();
   });
 });
