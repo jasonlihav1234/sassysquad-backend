@@ -946,7 +946,187 @@
         }
       }
     },
+    "/users/{userId}/items": {
+      "get": {
+        "tags": ["item", "user"],
+        "summary": "Retrieves all items for a specific user",
+        "description": "Fetches a list of items associated with a given user ID.",
+        "operationId": "get-items-by-user-id",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the user whose items are being fetched",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User's items successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Items found"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "itemId": {
+                        "type": "string"
+                      },
+                      "itemName": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number",
+                        "format": "float"
+                      },
+                      "quantity_available": {
+                        "type": "integer"
+                      },
+                      "image_url": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No items found for this user",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No items found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failed fetching of user items",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Getting items by user id failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/items/{itemId}": {
+      "get": {
+        "tags": ["item"],
+        "summary": "Retrieves the details of a specific item",
+        "description": "Fetches a specific item from the system using its unique item ID.",
+        "operationId": "get-item-by-id",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the item to retrieve",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item details successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Items found"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "itemId": {
+                        "type": "string"
+                      },
+                      "itemName": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number",
+                        "format": "float"
+                      },
+                      "quantity_available": {
+                        "type": "integer"
+                      },
+                      "image_url": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Item not found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No items found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failed fetching of the item",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Items fetch failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": ["item"],
         "summary": "Updates the details of an item",
@@ -1037,6 +1217,292 @@
               "properties": {
                 "message": {
                   "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["item"],
+        "summary": "Deletes an item",
+        "description": "Removes an item from the system using its unique item ID.",
+        "operationId": "delete-item",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the item to be deleted",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item has been successfully deleted",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item deleted"
+                },
+                "response": {
+                  "type": "object",
+                  "description": "Details of the deleted item or a confirmation object",
+                  "properties": {
+                    "itemId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General delete item failure",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Deleting item failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items": {
+      "post": {
+        "tags": ["item"],
+        "summary": "Creates a new item",
+        "description": "Validates the payload and creates a new item in the system, returning the newly created item details with a generated UUID.",
+        "operationId": "create-item",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Item details required for creation",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["itemName", "price", "quantityAvailable"],
+              "properties": {
+                "itemName": {
+                  "type": "string",
+                  "example": "Wireless Mouse"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Ergonomic wireless mouse with 2.4GHz receiver"
+                },
+                "price": {
+                  "type": "number",
+                  "format": "float",
+                  "minimum": 0,
+                  "example": 29.99
+                },
+                "quantityAvailable": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "example": 100
+                },
+                "imageUrl": {
+                  "type": "string",
+                  "example": "https://example.com/images/mouse.png"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Item created successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item created successfully"
+                },
+                "item": {
+                  "type": "object",
+                  "properties": {
+                    "itemId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "itemName": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "quantityAvailable": {
+                      "type": "integer"
+                    },
+                    "imageUrl": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "lastUpdated": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request due to invalid or missing fields",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Bad Request"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Invalid/missing items fields"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized access (missing or invalid token)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorised"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Access Token invalid"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type (missing or invalid Content-Type)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "UNSUPPORTED_TYPE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This content type is not supported"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["item"],
+        "summary": "Retrieves a list of all items",
+        "description": "Fetches all items currently available in the system.",
+        "operationId": "get-all-items",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Items successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Items successfully fetched"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "itemId": {
+                        "type": "string"
+                      },
+                      "itemName": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number",
+                        "format": "float"
+                      },
+                      "quantity_available": {
+                        "type": "integer"
+                      },
+                      "image_url": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No items found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No items found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failed fetching of items",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Getting all items failed to fetch"
                 },
                 "error": {
                   "type": "string"
