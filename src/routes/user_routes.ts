@@ -4,13 +4,15 @@ export async function handleUserRoutes(req: any, res: any) {
   const { method, url } = req;
 
   if (method === "GET" && url.match(/^\/users\/[^/]+\/purchases$/)) {
-    await getUserPurchases(req, res);
-    return;
+    const response = await getUserPurchases(req);
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (method === "GET" && url.match(/^\/users\/[^/]+\/sales$/)) {
-    await getUserSales(req, res);
-    return;
+    const response = await getUserSales(req);
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   res.status(404).json({ error: "Path not found" });
