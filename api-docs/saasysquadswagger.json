@@ -946,6 +946,97 @@
         }
       }
     },
+    "/users/{userId}/items": {
+      "get": {
+        "tags": ["item", "user"],
+        "summary": "Retrieves all items for a specific user",
+        "description": "Fetches a list of items associated with a given user ID.",
+        "operationId": "get-items-by-user-id",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the user whose items are being fetched",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User's items successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Items found"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "itemId": {
+                        "type": "string"
+                      },
+                      "itemName": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number",
+                        "format": "float"
+                      },
+                      "quantity_available": {
+                        "type": "integer"
+                      },
+                      "image_url": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No items found for this user",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No items found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failed fetching of user items",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Getting items by user id failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/items/{itemId}": {
       "get": {
         "tags": ["item"],
