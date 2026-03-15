@@ -10,6 +10,98 @@ import { createOrderQuery } from "../database/queries/order_queries";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
+export const validateOrder = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const contentType = req.headers?.["content-type"];
+
+    if (!contentType || !contentType.includes("application/json")) {
+      return jsonHelper(
+        {
+          error: "UNSUPPORTED_TYPE",
+          message: "This content type is not supported",
+        },
+        415,
+      );
+    }
+
+    const {
+      orderName,
+      sellerId,
+      documentCurrencyCode,
+      pricingCurrencyCode,
+      taxCurrencyCode,
+      requestedInvoiceCurrencyCode,
+      accountingCost,
+      paymentMethodCode,
+      destinationCountryCode,
+      orderLines,
+    } = req.body || {};
+
+    if (
+      !orderName ||
+      typeof orderName !== "string" ||
+      !sellerId ||
+      typeof sellerId !== "string" ||
+      !documentCurrencyCode ||
+      typeof documentCurrencyCode !== "string" ||
+      !pricingCurrencyCode ||
+      typeof pricingCurrencyCode !== "string" ||
+      !taxCurrencyCode ||
+      typeof taxCurrencyCode !== "string" ||
+      !requestedInvoiceCurrencyCode ||
+      typeof requestedInvoiceCurrencyCode !== "string" ||
+      typeof accountingCost !== "number" ||
+      !paymentMethodCode ||
+      typeof paymentMethodCode !== "string" ||
+      !destinationCountryCode ||
+      typeof destinationCountryCode !== "string"
+    ) {
+      return jsonHelper(
+        {
+          error: "VALIDATION_FAILED",
+          message: "The request body is missing mandatory fields",
+        },
+        422,
+      );
+    }
+
+    if (!Array.isArray(orderLines) || orderLines.length === 0) {
+      return jsonHelper(
+        {
+          error: "VALIDATION_FAILED",
+          message: "The request body is missing mandatory fields",
+        },
+        422,
+      );
+    }
+
+    for (const line of orderLines) {
+      if (
+        !line ||
+        typeof line !== "object" ||
+        !line.itemID ||
+        typeof line.itemID !== "string" ||
+        typeof line.quantity !== "number" ||
+        line.quantity <= 0 ||
+        typeof line.priceAtPurchase !== "number" ||
+        line.priceAtPurchase < 0
+      ) {
+        return jsonHelper(
+          {
+            error: "VALIDATION_FAILED",
+            message: "The request body is missing mandatory fields",
+          },
+          422,
+        );
+      }
+    }
+
+    return jsonHelper({
+      message: "Order payload is valid",
+    });
+  },
+);
+
 export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
   const contentType = req.headers?.["content-type"];
 
