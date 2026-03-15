@@ -1,7 +1,6 @@
 import Stripe from "stripe";
 import { VercelRequest } from "@vercel/node";
 import { authHelper, jsonHelper } from "../utils/jwt_helpers";
-import { url } from "node:inspector";
 import pg, { redis } from "../utils/db";
 import { AuthReq } from "../utils/jwt_helpers";
 import { create } from "xmlbuilder2";
@@ -742,7 +741,7 @@ export const updateCartItem = authHelper(
 export const deleteOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim;
-    const orderId = req.url?.split("/").at(3) as string;
+    const orderId = req.url?.split("/").pop() as string;
 
     if (!orderId) {
       return jsonHelper(
@@ -776,7 +775,7 @@ export const deleteOrder = authHelper(
       );
     }
 
-    deleteOrdersById(orderId);
+    await deleteOrdersById(orderId);
 
     return jsonHelper({ message: "Order successfully deleted" });
   },
@@ -913,10 +912,13 @@ export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
 
     // order doesnt exist in databse
     if (!order) {
-      return jsonHelper({
-        error: "ID_NOT_FOUND",
-        message: "Id does not exist or is invalid",
-      });
+      return jsonHelper(
+        {
+          error: "ID_NOT_FOUND",
+          message: "Id does not exist or is invalid",
+        },
+        404,
+      );
     }
 
     // return previously generated UBL XML stored in databse - we should probably send the whole response cause there are fields in the order that we might need
@@ -932,9 +934,12 @@ export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     });
   } catch (error) {
     // unexpected errors such as interval server issues por databse
-    return jsonHelper({
-      error: "INTERNAL_ERROR",
-      message: "An internal error occured while executing the operation",
-    });
+    return jsonHelper(
+      {
+        error: "INTERNAL_ERROR",
+        message: "An internal error occured while executing the operation",
+      },
+      500,
+    );
   }
 });

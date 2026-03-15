@@ -47,9 +47,38 @@ export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
 
   if (url === "/" && method === "GET") {
-    return res.status(200).json({
-      test: "hello",
-    });
+    res.setHeader("Content-Type", "text/html");
+
+    return res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>SaasySquad</title>
+          <style>
+            body {
+              font-family: sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              background-color: #f9fafb;
+            }
+            h1 { color: #333; }
+            .gif-container { margin-top: 20px; }
+            img { max-width: 300px; margin: 0 10px; border-radius: 8px; }
+          </style>
+        </head>
+        <body>
+          <h1>You've Reached The Root Of SaasySquad :O</h1>
+          <div class="gif-container">
+            <img src="https://media1.tenor.com/m/JHuU14ekU3EAAAAd/ishowspeed-deglove.gif" alt="SaasySquad GIF 1" />
+            <img src="https://i.makeagif.com/media/11-08-2024/HSMtFe.gif" alt="SaasySquad GIF 2" />
+          </div>
+        </body>
+      </html>
+    `);
   }
   if (url === "/auth/register" && method === "POST") {
     const response = await register(req);
@@ -197,12 +226,12 @@ export async function handleRequest(req: any, res: any) {
     const response = await getOrder(req);
     const body = await response.json();
 
-    return res.tatus(response.status).json(body);
+    return res.status(response.status).json(body);
   }
 
   if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
     const response = await deleteOrder(req);
-    
+
     const body = await response.json();
     return res.status(response.status).json(body);
   }
@@ -276,78 +305,4 @@ export async function handleRequest(req: any, res: any) {
 
   // 404 if no roiutes match
   return res.status(404).json({ error: "Not found" });
-}
-
-// POST /items
-if (url === "/items" && method === "POST") {
-  const contentType =
-    req.headers?.get?.("content-type") || req.headers?.["content-type"];
-
-  if (!contentType || !contentType.includes("application/json")) {
-    return res.status(415).json({
-      error: "UNSUPPORTED_TYPE",
-      message: "This content type is not supported",
-    });
-  }
-
-  let parsedBody = body;
-
-  try {
-    if (!parsedBody && req.json) {
-      parsedBody = await req.json();
-    }
-  } catch (error) {
-    return res.status(400).json({
-      error: "Bad Request",
-      message: "Invalid/missing items fields",
-    });
-  }
-
-  const authHeader =
-    req.headers?.get?.("authorization") ||
-    req.headers?.get?.("Authorization") ||
-    req.headers?.authorization ||
-    req.headers?.Authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({
-      error: "Unauthorised",
-      message: "Access Token invalid",
-    });
-  }
-
-  const { itemName, description, price, quantityAvailable, imageUrl } =
-    parsedBody || {};
-
-  if (
-    !itemName ||
-    typeof itemName !== "string" ||
-    typeof price !== "number" ||
-    price < 0 ||
-    typeof quantityAvailable !== "number" ||
-    quantityAvailable < 0 ||
-    (description !== undefined && typeof description !== "string") ||
-    (imageUrl !== undefined && typeof imageUrl !== "string")
-  ) {
-    return res.status(400).json({
-      error: "Bad Request",
-      message: "Invalid/missing items fields",
-    });
-  }
-
-  const newItem = {
-    itemId: crypto.randomUUID(),
-    itemName,
-    description: description || null,
-    price,
-    quantityAvailable,
-    imageUrl: imageUrl || null,
-    createdAt: new Date().toISOString(),
-    lastUpdated: new Date().toISOString(),
-  };
-
-  return res.status(201).json({
-    message: "Item created successfully",
-    item: newItem,
-  });
 }
