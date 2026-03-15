@@ -331,7 +331,7 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
   const sellerId = session.metadata?.sellerId as string;
   const sessionId = session.id;
 
-  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
+  const checkoutSession = await stripe!.checkout.sessions.retrieve(sessionId, {
     expand: ["line_items.data.price.product", "payment_intent.payment_method"],
   });
 
@@ -466,7 +466,7 @@ export const createCheckoutSession = authHelper(
       lineItems.push(newObject);
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await stripe!.checkout.sessions.create({
       metadata: {
         userId: userId ?? "",
         sellerId: sellerId ?? "",
@@ -504,7 +504,7 @@ export const checkCheckoutSessionStatus = authHelper(
     const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
 
     try {
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      const session = await stripe!.checkout.sessions.retrieve(sessionId);
 
       return jsonHelper({
         status: session.status,
@@ -544,7 +544,7 @@ export async function serverWebhook(req: VercelRequest): Promise<Response> {
   let event = null;
 
   try {
-    event = await stripe.webhooks.constructEventAsync(
+    event = await stripe!.webhooks.constructEventAsync(
       body,
       signature,
       endpointSecret,
