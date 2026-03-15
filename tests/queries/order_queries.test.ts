@@ -277,7 +277,10 @@ describe("createOrderlineQuery", () => {
       buyer_id: buyer.user_id,
       seller_id: seller.user_id,
     });
-    const item = await insertItem({ seller_id: seller.user_id });
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `orderline-${crypto.randomUUID()}`,
+    });
 
     const quantity = 3;
     const priceAtPurchase = 10.5;
@@ -373,7 +376,10 @@ describe("deleteOrdersById", () => {
       buyer_id: buyer.user_id,
       seller_id: seller.user_id,
     });
-    const item = await insertItem({ seller_id: seller.user_id });
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `delete-order-fail-${crypto.randomUUID()}`,
+    });
 
     await createOrderlineQuery(
       order.order_id,
@@ -637,7 +643,10 @@ describe("createItem", () => {
 describe("editItem", () => {
   test("returns 200 with no-update message when all fields are null", async () => {
     const seller = await insertUser();
-    const item = await insertItem({ seller_id: seller.user_id });
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `edit-no-update-${crypto.randomUUID()}`,
+    });
 
     const res = await editItem(
       item.item_id,
@@ -693,7 +702,10 @@ describe("editItem", () => {
 
   test("returns 500 when update fails", async () => {
     const seller = await insertUser();
-    const item = await insertItem({ seller_id: seller.user_id });
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `edit-update-fail-${crypto.randomUUID()}`,
+    });
 
     const res = await editItem(
       item.item_id,
@@ -727,7 +739,10 @@ describe("deleteItem", () => {
 
   test("deletes item and returns 200 with message", async () => {
     const seller = await insertUser();
-    const item = await insertItem({ seller_id: seller.user_id });
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `delete-item-${crypto.randomUUID()}`,
+    });
 
     const res = await deleteItem(item.item_id);
     const body = await res.json();
@@ -748,7 +763,10 @@ describe("deleteItem", () => {
       buyer_id: buyer.user_id,
       seller_id: seller.user_id,
     });
-    const item = await insertItem({ seller_id: seller.user_id });
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `delete-item-fail-${crypto.randomUUID()}`,
+    });
 
     await createOrderlineQuery(
       order.order_id,
