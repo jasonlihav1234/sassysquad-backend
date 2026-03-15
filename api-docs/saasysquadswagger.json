@@ -5,8 +5,8 @@
     "version": "1.0.0",
     "title": "SaasySquad API"
   },
-  "host": "https://jasonlihav1234.github.io/sassysquad-backend",
-  "basePath": "/api-docs",
+  "host": "sassysquad-backend.vercel.app",
+  "basePath": "",
   "tags": [
     {
       "name": "user",
