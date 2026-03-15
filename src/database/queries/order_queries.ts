@@ -49,6 +49,26 @@ export async function getOrderIdByName(
 }
 
 /**
+ * Fetches an orderID based on its name, make sure to prepend await since these are async functions
+ */
+export async function getOrderById(
+  orderId: string
+) {
+  const result = await pg`
+    SELECT *
+    FROM orders 
+    WHERE order_id = ${orderId}
+    LIMIT 1
+  `;
+
+  if (result.length === 0) {
+    return null;
+  }
+
+  return result[0];
+}
+
+/**
  * Creates an order in the database, make sure to prepend await since these are async functions
  * items should follow - [
  *  {

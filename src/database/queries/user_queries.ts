@@ -26,7 +26,7 @@ export async function getUserIdByName(
     return null;
   }
 
-  return result[0].id;
+  return result[0].user_id;
 }
 
 /**

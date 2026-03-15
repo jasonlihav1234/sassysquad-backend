@@ -2,11 +2,12 @@ DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS items CASCADE;
 DROP TABLE IF EXISTS order_lines CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS refresh_tokens CASCADE;
 
 -- User & Auth Management
 CREATE TABLE users (
     user_id UUID PRIMARY KEY,
-    user_name VARCHAR(255) UNIQUE, 
+    user_name VARCHAR(255), 
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -16,7 +17,7 @@ CREATE TABLE users (
 CREATE TABLE items (
     item_id UUID PRIMARY KEY,
     seller_id UUID REFERENCES users(user_id),
-    item_name VARCHAR(255) UNIQUE NOT NULL,
+    item_name VARCHAR(255) NOT NULL,
     description TEXT,
     price DECIMAL NOT NULL,
     quantity_available INT NOT NULL,
@@ -28,7 +29,7 @@ CREATE TABLE items (
 -- Order Headers
 CREATE TABLE orders (
     order_id UUID PRIMARY KEY,
-    order_name VARCHAR(255) UNIQUE, 
+    order_name VARCHAR(255), 
     buyer_id UUID REFERENCES users(user_id),
     seller_id UUID REFERENCES users(user_id),
     issue_date DATE NOT NULL,

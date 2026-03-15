@@ -13,7 +13,6 @@ import {
   getRefreshToken,
   revokeRefreshTokenSession,
   revokeRefreshToken,
-  getAuthenticatedUserId,
   authHelper,
   AuthReq,
   revokeAllUserRefreshTokens,
@@ -407,95 +406,105 @@ export async function resetPassword(request: VercelRequest) {
 
 // For GET users/{userId}/purchases
 
-export async function getUserPurchases(req: any, res: any) {
-  // Example: /users/abc-123/purchases?page=1&limit=10
-  const pathname = req.url?.split("?")[0] ?? "";
-  const components = pathname.split("/").filter(Boolean);
+export const getUserPurchases = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const pathname = req.url?.split("?")[0] ?? "";
+    const components = pathname.split("/").filter(Boolean);
 
-  if (
-    components.length !== 3 ||
-    components[0] !== "users" ||
-    components[2] !== "purchases"
-  ) {
-    return res.status(400).json({ error: "Invalid purchases route path!" });
-  }
+    if (
+      components.length !== 3 ||
+      components[0] !== "users" ||
+      components[2] !== "purchases"
+    ) {
+      return jsonHelper({ error: "Invalid purchases route path!" }, 400);
+    }
 
-  const pathUserId = components[1];
-  // Helper in jwt_helpers
-  const tokenUserId = await getAuthenticatedUserId(req, res, pathUserId);
-  if (tokenUserId === null) return;
+    const pathUserId = components[1];
+    if (req.user!.subject_claim !== pathUserId) {
+      return jsonHelper(
+        {
+          error:
+            "User is not logged on or lacks authorization to access orders",
+        },
+        401,
+      );
+    }
 
-  const userRows = await isUserIdValid(pathUserId);
-  if (!userRows) {
-    return res.status(404).json({ error: "User not found!" });
-  }
+    const userRows = await isUserIdValid(pathUserId);
+    if (!userRows) {
+      return jsonHelper({ error: "User not found!" }, 404);
+    }
 
-  const accept =
-    req.headers?.accept || req.headers?.Accept || "application/json";
-  const wantsJson =
-    String(accept).includes("application/json") || String(accept) === "*/*";
-  const wantsXml =
-    String(accept).includes("application/xml") ||
-    String(accept).includes("text/xml");
-  if (!wantsJson && !wantsXml) {
-    return res.status(406).json({ error: "Unsupported formatting type" });
-  }
+    const accept =
+      req.headers?.accept || req.headers?.Accept || "application/json";
+    const wantsJson =
+      String(accept).includes("application/json") || String(accept) === "*/*";
+    const wantsXml =
+      String(accept).includes("application/xml") ||
+      String(accept).includes("text/xml");
+    if (!wantsJson && !wantsXml) {
+      return jsonHelper({ error: "Unsupported formatting type" }, 406);
+    }
 
-  try {
-    const orders = await getUserBuyerOrders(tokenUserId);
-    res.status(200).json({ orders });
-  } catch {
-    res.status(500).json({
-      error: "Internal Server Error",
-    });
-  }
-}
+    try {
+      const orders = await getUserBuyerOrders(req.user!.subject_claim);
+      return jsonHelper({ orders }, 200);
+    } catch {
+      return jsonHelper({ error: "Internal Server Error" }, 500);
+    }
+  },
+);
 
 // For GET users/{userId}/sales
 
-export async function getUserSales(req: any, res: any) {
-  const pathname = req.url?.split("?")[0] ?? "";
-  const components = pathname.split("/").filter(Boolean);
+export const getUserSales = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const pathname = req.url?.split("?")[0] ?? "";
+    const components = pathname.split("/").filter(Boolean);
 
-  // Defensive check if application function is called from elsewhere in code
-  // other than route handler
-  if (
-    components.length !== 3 ||
-    components[0] !== "users" ||
-    components[2] !== "sales"
-  ) {
-    return res.status(400).json({ error: "Invalid sales route path!" });
-  }
+    if (
+      components.length !== 3 ||
+      components[0] !== "users" ||
+      components[2] !== "sales"
+    ) {
+      return jsonHelper({ error: "Invalid sales route path!" }, 400);
+    }
 
-  const pathUserId = components[1];
-  const tokenUserId = await getAuthenticatedUserId(req, res, pathUserId);
-  if (tokenUserId === null) return;
+    const pathUserId = components[1];
+    if (req.user!.subject_claim !== pathUserId) {
+      return jsonHelper(
+        {
+          error:
+            "User is not logged on or lacks authorization to access orders",
+        },
+        401,
+      );
+    }
 
-  const userRows = await isUserIdValid(pathUserId);
-  if (!userRows) {
-    return res.status(404).json({ error: "User not found!" });
-  }
+    const userRows = await isUserIdValid(pathUserId);
+    if (!userRows) {
+      return jsonHelper({ error: "User not found!" }, 404);
+    }
 
-  const accept =
-    req.headers?.accept || req.headers?.Accept || "application/json";
-  const wantsJson =
-    String(accept).includes("application/json") || String(accept) === "*/*";
-  const wantsXml =
-    String(accept).includes("application/xml") ||
-    String(accept).includes("text/xml");
-  if (!wantsJson && !wantsXml) {
-    return res.status(406).json({ error: "Unsupported formatting type" });
-  }
+    const accept =
+      req.headers?.accept || req.headers?.Accept || "application/json";
+    const wantsJson =
+      String(accept).includes("application/json") || String(accept) === "*/*";
+    const wantsXml =
+      String(accept).includes("application/xml") ||
+      String(accept).includes("text/xml");
+    if (!wantsJson && !wantsXml) {
+      return jsonHelper({ error: "Unsupported formatting type" }, 406);
+    }
 
-  try {
-    const orders = await getUserSellerOrders(tokenUserId);
-    res.status(200).json({ orders });
-  } catch {
-    res.status(500).json({
-      error: "Internal Server Error",
-    });
-  }
-}
+    try {
+      const orders = await getUserSellerOrders(req.user!.subject_claim);
+      return jsonHelper({ orders }, 200);
+    } catch {
+      return jsonHelper({ error: "Internal Server Error" }, 500);
+    }
+  },
+);
 
 export const getUserSessions = authHelper(
   async (req: AuthReq): Promise<Response> => {
