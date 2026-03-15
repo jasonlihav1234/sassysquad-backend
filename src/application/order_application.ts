@@ -5,9 +5,14 @@ import { url } from "node:inspector";
 import pg, { redis } from "../utils/db";
 import { AuthReq } from "../utils/jwt_helpers";
 import { create } from "xmlbuilder2";
-import { getOrderById, createOrderQuery } from "../database/queries/order_queries";
+import {
+  getOrderById,
+  createOrderQuery,
+} from "../database/queries/order_queries";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY!)
+  : null;
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export const validateOrder = authHelper(
@@ -160,9 +165,12 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
   }
 
   if (!Array.isArray(orderLines) || orderLines.length === 0) {
-    return jsonHelper({
-      error: "orderLines is required and must be a non-empty array",
-    }, 422);
+    return jsonHelper(
+      {
+        error: "orderLines is required and must be a non-empty array",
+      },
+      422,
+    );
   }
 
   for (const line of orderLines) {
@@ -176,10 +184,13 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
       typeof line.priceAtPurchase !== "number" ||
       line.priceAtPurchase < 0
     ) {
-      return jsonHelper({
-        error: "VALIDATION_FAILED",
-        message: "The request body is missing mandatory fields",
-      }, 422);
+      return jsonHelper(
+        {
+          error: "VALIDATION_FAILED",
+          message: "The request body is missing mandatory fields",
+        },
+        422,
+      );
     }
   }
 
@@ -320,7 +331,7 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
   const sellerId = session.metadata?.sellerId as string;
   const sessionId = session.id;
 
-  const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
+  const checkoutSession = await stripe!.checkout.sessions.retrieve(sessionId, {
     expand: ["line_items.data.price.product", "payment_intent.payment_method"],
   });
 
@@ -455,7 +466,7 @@ export const createCheckoutSession = authHelper(
       lineItems.push(newObject);
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await stripe!.checkout.sessions.create({
       metadata: {
         userId: userId ?? "",
         sellerId: sellerId ?? "",
@@ -493,7 +504,7 @@ export const checkCheckoutSessionStatus = authHelper(
     const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
 
     try {
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      const session = await stripe!.checkout.sessions.retrieve(sessionId);
 
       return jsonHelper({
         status: session.status,
@@ -533,7 +544,7 @@ export async function serverWebhook(req: VercelRequest): Promise<Response> {
   let event = null;
 
   try {
-    event = await stripe.webhooks.constructEventAsync(
+    event = await stripe!.webhooks.constructEventAsync(
       body,
       signature,
       endpointSecret,
@@ -727,45 +738,43 @@ export const updateCartItem = authHelper(
 );
 
 // gets an order given its id
-export const listOrder = authHelper(
-  async (req: AuthReq): Promise<Response> => {
-    const orderId = req.url?.split("/").at(3) as string;
-    const userId = req.user?.subject_claim;
+export const listOrder = authHelper(async (req: AuthReq): Promise<Response> => {
+  const orderId = req.url?.split("/").at(3) as string;
+  const userId = req.user?.subject_claim;
 
-    if (!orderId) {
-      return jsonHelper(
-        {
-          message: "OrderID invalid.",
-          error: "Bad Request",
-        },
-        400,
-      );
-    }
+  if (!orderId) {
+    return jsonHelper(
+      {
+        message: "OrderID invalid.",
+        error: "Bad Request",
+      },
+      400,
+    );
+  }
 
-    const order = await getOrderById(orderId);
+  const order = await getOrderById(orderId);
 
-    if (!order) {
-      return jsonHelper(
-        {
-          message: "Order not found.",
-          error: "Not Found",
-        },
-        404,
-      );
-    }
+  if (!order) {
+    return jsonHelper(
+      {
+        message: "Order not found.",
+        error: "Not Found",
+      },
+      404,
+    );
+  }
 
-    if (userId !== order.buyerId) {
-      return jsonHelper(
-        {
-          message: "User does not have permission to delete order.",
-          error: "Unauthorised",
-        },
-        403,
-      );
-    }
-    
-    return jsonHelper({
-      order: order
-    });
-  },
-);
+  if (userId !== order.buyerId) {
+    return jsonHelper(
+      {
+        message: "User does not have permission to delete order.",
+        error: "Unauthorised",
+      },
+      403,
+    );
+  }
+
+  return jsonHelper({
+    order: order,
+  });
+});

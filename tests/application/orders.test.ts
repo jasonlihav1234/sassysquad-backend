@@ -1,21 +1,21 @@
 import { describe, expect, spyOn } from "bun:test";
-import pg, { redis } from "../src/utils/db";
-import test, { afterEach, beforeEach } from "node:test";
+import pg, { redis } from "../../src/utils/db";
+import test, { beforeEach, afterEach } from "node:test";
 import {
   deleteTestData,
   generateAuthenticatedRequest,
   registerAndLogin,
   resetDb,
-} from "./test_helper";
+} from "../test_helper";
 import {
   checkCheckoutSessionStatus,
   createCheckoutSession,
   serverWebhook,
   processOrderCreation,
   postOrder,
-} from "../src/application/order_application";
-import * as OrderApp from "../src/application/order_application";
-import * as db from "../src/database/queries/order_queries";
+} from "../../src/application/order_application";
+import * as OrderApp from "../../src/application/order_application";
+import * as db from "../../src/database/queries/order_queries";
 import Stripe from "stripe";
 
 describe("Creating checkout session", () => {
