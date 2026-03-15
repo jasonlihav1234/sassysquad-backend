@@ -12,6 +12,7 @@ import {
   createCheckoutSession,
   serverWebhook,
   processOrderCreation,
+  postOrder,
 } from "../src/application/order_application";
 import * as OrderApp from "../src/application/order_application";
 import * as db from "../src/database/queries/order_queries";
@@ -398,5 +399,45 @@ describe("Testing processOrderCreation", () => {
     expect(result.response).not.toBe(undefined);
 
     querySpy.mockRestore();
+  });
+});
+
+describe("Post order tests", () => {
+  let userId: any = null;
+  afterEach(async () => {
+    await deleteTestData({
+      userIds: [userId],
+    });
+  });
+
+  test("wrong content type", async () => {
+    const rl = await registerAndLogin(
+      "testing@gmail.com",
+      "testing",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = {
+      url: "/order",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/not_json",
+        Authorization: `Bearer ${rl.accessToken}`,
+      },
+      body: {
+        test: "yes",
+      },
+      json: async () => {
+        test: "yes";
+      },
+    } as any;
+
+    const response = await postOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(415);
+    expect(body.error).toBe("UNSUPPORTED_TYPE");
+    expect(body.message).toBe("This content type is not supported");
   });
 });
