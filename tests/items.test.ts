@@ -1,8 +1,5 @@
-import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
-import {
-  register,
-  login,
-} from "../src/application/user_application";
+import { expect, test, describe, spyOn, afterAll } from "bun:test";
+import { register, login } from "../src/application/user_application";
 import pg, { redis } from "../src/utils/db";
 import {
   getItemsById,
@@ -11,7 +8,8 @@ import {
   updateItem,
   deleteItem,
 } from "../src/application/item_application";
-import { generateAuthenticatedRequest, generateRequest } from "./users.test";
+import { generateAuthenticatedRequest, generateRequest } from "./test_helper";
+import { beforeEach } from "node:test";
 
 const itemId1 = "537d8f9c-bd93-484a-b14c-ce1853456a15";
 const itemId2 = "99c1a581-510a-4467-91b5-112b78362f03";
@@ -19,7 +17,7 @@ const itemId3 = "ff44b3f7-0f88-413e-b359-bb6750fb0001";
 let sellerId: string | null = null;
 let sellerId2: string | null = null;
 
-beforeAll(async () => {
+beforeEach(async () => {
   await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
   await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
   await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
@@ -78,7 +76,7 @@ afterAll(async () => {
 });
 
 describe("Getting items tests", () => {
-  beforeAll(async () => {
+  beforeEach(async () => {
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
     await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
     await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
@@ -137,7 +135,6 @@ describe("Getting items tests", () => {
   });
 
   test("Getting item by item id", async () => {
-    const test = await pg`select * from users`;
     const request = generateRequest("http://localhost/auth/login", "POST", {
       email: "jasonli1234@gmail.com",
       password: "testing123",
@@ -326,7 +323,7 @@ describe("Getting items tests", () => {
 });
 
 describe("Update item tests", () => {
-  beforeAll(async () => {
+  beforeEach(async () => {
     // register users
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
     await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
@@ -477,7 +474,7 @@ describe("Update item tests", () => {
 });
 
 describe("Deleting item tests", () => {
-  beforeAll(async () => {
+  beforeEach(async () => {
     // register users
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
     await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
