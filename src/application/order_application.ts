@@ -9,6 +9,7 @@ import {
   getOrderById,
   createOrderQuery,
   updateOrdersById,
+  deleteOrdersById,
 } from "../database/queries/order_queries";
 
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -735,6 +736,49 @@ export const updateCartItem = authHelper(
         500,
       );
     }
+  },
+);
+
+export const deleteOrder = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const userId = req.user?.subject_claim;
+    const orderId = req.url?.split("/").at(3) as string;
+
+    if (!orderId) {
+      return jsonHelper(
+        {
+          message: "OrderID invalid.",
+          error: "Bad Request",
+        },
+        400,
+      );
+    }
+
+    const order = await getOrderById(orderId);
+
+    if (!order) {
+      return jsonHelper(
+        {
+          message: "Order not found.",
+          error: "Not Found",
+        },
+        404,
+      );
+    }
+
+    if (userId !== order.buyerId) {
+      return jsonHelper(
+        {
+          message: "User does not have permission to delete order.",
+          error: "Unauthorised",
+        },
+        403,
+      );
+    }
+
+    deleteOrdersById(orderId);
+
+    return jsonHelper({ message: "Order successfully deleted" });
   },
 );
 
