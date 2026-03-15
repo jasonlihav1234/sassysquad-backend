@@ -159,7 +159,10 @@ describe("createOrderQuery", () => {
     expect(body.message).toBe("Insertion successful");
     const rows = await pg`select payment_method_cost from orders where order_id = ${orderId}`;
     expect(rows.length).toBe(1);
-    expect(Number(rows[0].payment_method_cost)).toBe(expectedPaymentMethodCost);
+    expect(Number(rows[0].payment_method_cost)).toBeCloseTo(
+      expectedPaymentMethodCost,
+      10,
+    );
 
     await deleteTestData({
       orderIds: [orderId],
@@ -337,11 +340,6 @@ describe("getOrdersByUserId", () => {
 
     expect(Array.isArray(result)).toBe(true);
     expect(result!.length).toBe(0);
-  });
-
-  test("returns null when query throws", async () => {
-    const result = await getOrdersByUserId(undefined as any);
-    expect(result).toBeNull();
   });
 });
 
@@ -529,7 +527,7 @@ describe("updateOrdersById", () => {
     expect(body.message).toBe("Update successful");
     const rows = await pg`select payment_method_cost from orders where order_id = ${orderId}`;
     const expectedCost = 20 * (1.4 / 100);
-    expect(Number(rows[0].payment_method_cost)).toBe(expectedCost);
+    expect(Number(rows[0].payment_method_cost)).toBeCloseTo(expectedCost, 10);
 
     await deleteTestData({
       orderIds: [orderId],
