@@ -398,7 +398,7 @@ describe("deleteOrdersById", () => {
 });
 
 describe("updateOrdersById", () => {
-  test("returns 400 when increasing item quantity beyond available (Not enough quantity)", async () => {
+  test("returns 400 when increasing item quantity beyond available", async () => {
     const buyer = await insertUser();
     const seller = await insertUser();
     const item = await insertItem({
@@ -490,7 +490,7 @@ describe("updateOrdersById", () => {
     });
   });
 
-  test("updates order with default payment method (non visa/mastercard)", async () => {
+  test("updates order with default payment method", async () => {
     const buyer = await insertUser();
     const seller = await insertUser();
     const item = await insertItem({
