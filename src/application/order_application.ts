@@ -8,6 +8,7 @@ import { create } from "xmlbuilder2";
 import {
   getOrderById,
   createOrderQuery,
+  updateOrdersById,
 } from "../database/queries/order_queries";
 
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -777,4 +778,119 @@ export const listOrder = authHelper(async (req: AuthReq): Promise<Response> => {
   return jsonHelper({
     order: order,
   });
+});
+
+export const updateOrder = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const { userId, updates } = req.body || {};
+    const orderId = req.url?.split("/").pop();
+
+    if (!orderId) {
+      return jsonHelper(
+        {
+          error: "Bad request",
+        },
+        400,
+      );
+    }
+
+    const order = await getOrderById(orderId);
+
+    if (userId !== order.buyerId) {
+      return jsonHelper(
+        {
+          error: "Forbidden",
+        },
+        403,
+      );
+    }
+
+    if (!order) {
+      return jsonHelper(
+        {
+          error: "Order not found!",
+        },
+        404,
+      );
+    }
+
+    try {
+      await updateOrdersById(orderId, updates);
+
+      return jsonHelper({
+        message: "Order update successful",
+      });
+    } catch (error) {
+      console.log(error);
+
+      return jsonHelper(
+        {
+          error: "Order update failed",
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
+  // get accept header from req
+  const accept =
+    (req.headers as unknown as Headers)?.get?.("accept") ||
+    req.headers?.["accept"];
+
+  //  unsupported accept type as response must be returned in UBL XML format
+  // -- idk if the response must be a UBL XML format? cause if you are getting an order you might want to know the status of the order which the XML won't show --
+
+  // if (!accept || !accept.includes("application/xml")) {
+  //   return res.status(406).json({
+  //     error: "UNSUPPORTED_TYPE",
+  //     message: "The response type is unsupported",
+  //   });
+  // }
+
+  // get orderId from URL
+  const orderId = req.url?.split("/").pop();
+
+  // Synytax validation
+  if (!orderId || orderId.length > 100) {
+    return jsonHelper(
+      {
+        error: "INVALID_ID",
+        message: "The id provided is syntactically invalid",
+      },
+      400,
+    );
+  }
+
+  try {
+    // query databse for order using orderID provided
+    const order = await getOrderById(orderId);
+
+    // order doesnt exist in databse
+    if (!order) {
+      return jsonHelper({
+        error: "ID_NOT_FOUND",
+        message: "Id does not exist or is invalid",
+      });
+    }
+
+    // return previously generated UBL XML stored in databse - we should probably send the whole response cause there are fields in the order that we might need
+
+    //   return res
+    // .status(200)
+    // .setHeader("Content-Type", "application/xml")
+    // .send(order.ubl_xml_content); // return stored UBL XML
+
+    return jsonHelper({
+      message: "Order successfully retrieved",
+      order: order,
+    });
+  } catch (error) {
+    // unexpected errors such as interval server issues por databse
+    return jsonHelper({
+      error: "INTERNAL_ERROR",
+      message: "An internal error occured while executing the operation",
+    });
+  }
 });
