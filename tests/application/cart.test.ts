@@ -2,11 +2,11 @@ import {
   addItemToCart,
   deleteItemFromCart,
   updateCartItem,
-} from "../src/application/order_application";
+} from "../../src/application/order_application";
 import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
-import pg, { redis } from "../src/utils/db";
-import { generateAuthenticatedRequest, generateRequest } from "./test_helper";
-import { register, login } from "../src/application/user_application";
+import pg, { redis } from "../../src/utils/db";
+import { generateAuthenticatedRequest, generateRequest } from "../test_helper";
+import { register, login } from "../../src/application/user_application";
 
 const itemId1 = "537d8f9c-bd93-484a-b14c-ce1853456a15";
 const itemId2 = "99c1a581-510a-4467-91b5-112b78362f03";
