@@ -191,13 +191,13 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(responseBody);
   }
 
-<<<<<<< HEAD
   if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
     const response = await deleteOrder(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
-=======
+  }
+  
   // PUT /orders
   if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
     const { userId, updates } = body || {};
@@ -224,7 +224,6 @@ export async function handleRequest(req: any, res: any) {
     return await updateOrdersById(orderId, updates);
 
     return res.status(200);
->>>>>>> 2e6bf5a66991cc71bb70937875a2d69bdb0e3233
   }
 
   if (url === "/profile" && method === "PATCH") {
