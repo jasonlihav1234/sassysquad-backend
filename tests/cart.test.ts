@@ -5,7 +5,7 @@ import {
 } from "../src/application/order_application";
 import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
 import pg, { redis } from "../src/utils/db";
-import { generateAuthenticatedRequest, generateRequest } from "./users.test";
+import { generateAuthenticatedRequest, generateRequest } from "./test_helper";
 import { register, login } from "../src/application/user_application";
 
 const itemId1 = "537d8f9c-bd93-484a-b14c-ce1853456a15";
