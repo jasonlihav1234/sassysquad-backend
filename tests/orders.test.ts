@@ -1,7 +1,8 @@
 import { describe, expect, spyOn } from "bun:test";
 import pg, { redis } from "../src/utils/db";
-import test, { beforeEach } from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 import {
+  deleteTestData,
   generateAuthenticatedRequest,
   registerAndLogin,
   resetDb,
@@ -10,8 +11,10 @@ import {
   checkCheckoutSessionStatus,
   createCheckoutSession,
   serverWebhook,
+  processOrderCreation,
 } from "../src/application/order_application";
 import * as OrderApp from "../src/application/order_application";
+import * as db from "../src/database/queries/order_queries";
 import Stripe from "stripe";
 
 describe("Creating checkout session", () => {
@@ -367,5 +370,33 @@ describe("Webhook tests", async () => {
 
     expect(response.status).toBe(404);
     expect(body.error).toBe("No event types match");
+  });
+});
+
+describe("Testing processOrderCreation", () => {
+  test("Order is created when inputting fields to function", async () => {
+    const querySpy = spyOn(db, "createOrderQuery").mockResolvedValue(
+      new Response(JSON.stringify({ test: "Hello" })),
+    );
+
+    const result = await processOrderCreation({
+      orderId: "1234",
+      buyerId: "1234",
+      sellerId: "1234",
+      orderLines: [],
+      paymentMethodCode: "1234",
+      documentCurrencyCode: "string",
+      pricingCurrencyCode: "string",
+      taxCurrencyCode: "string",
+      requestedInvoiceCurrencyCode: "string",
+      accountingCost: 1.5,
+      destinationCountryCode: "string",
+    });
+    console.log(result);
+    expect(querySpy).toHaveBeenCalled();
+    expect(result.xml).not.toBe(undefined);
+    expect(result.response).not.toBe(undefined);
+
+    querySpy.mockRestore();
   });
 });
