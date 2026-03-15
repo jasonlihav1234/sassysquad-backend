@@ -1045,6 +1045,65 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": ["item"],
+        "summary": "Deletes an item",
+        "description": "Removes an item from the system using its unique item ID.",
+        "operationId": "delete-item",
+        "produces": ["application/json"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the item to be deleted",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item has been successfully deleted",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item deleted"
+                },
+                "response": {
+                  "type": "object",
+                  "description": "Details of the deleted item or a confirmation object",
+                  "properties": {
+                    "itemId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General delete item failure",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Deleting item failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
