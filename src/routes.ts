@@ -29,6 +29,7 @@ import {
   createCheckoutSession,
   postOrder,
   serverWebhook,
+  listOrder,
 } from "./application/order_application";
 import { deleteItem } from "./application/item_application";
 import { updateItem } from "./application/item_application";
@@ -247,28 +248,26 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(responseBody);
   }
 
-<<<<<<< HEAD
   // GET/orders/{id}
-  if (method === "DELETE" && /\/orders\/[^/]+/.test(url)) {
-    const { userId } = body || {};
-=======
+  if (method === "GET" && /\/orders\/[^/]+/.test(url)) {
+    const response = await listOrder(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
   // PUT /orders
   if (method === "PUT" && /\/orders\/[^/]+/.test(url)) {
     const { userId, updates } = body || {};
->>>>>>> origin
     const orderId = url.split("/")[1];
 
     if (!orderId) {
       return res.status(400).json({ error: "Bad Request" });
     }
 
-<<<<<<< HEAD
-=======
     // if () { // TODO: invalid access token
     //   return res.status(401).json({ error: "Unauthorised" });
     // }
 
->>>>>>> origin
     const order = await getOrderById(orderId);
 
     if (userId !== order.buyerId) {
@@ -278,16 +277,10 @@ export async function handleRequest(req: any, res: any) {
     if (!order) {
       return res.status(404).json({ error: "Order not found!" });
     }
-<<<<<<< HEAD
-    
-    const xml = root.end({ prettyPrint: true });
-    return res.status(200).send(xml);
-=======
 
     return await updateOrdersById(orderId, updates);
 
     return res.status(200);
->>>>>>> origin
   }
 
   if (url === "/profile" && method === "PATCH") {
