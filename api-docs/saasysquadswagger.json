@@ -964,9 +964,7 @@
             "in": "path",
             "required": true,
             "description": "Unique identifier of item",
-            "schema": {
-              "type": "string"
-            }
+            "type": "string"
           },
           {
             "in": "body",
