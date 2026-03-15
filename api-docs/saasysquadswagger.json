@@ -1663,6 +1663,167 @@
           }
         }
       }
+    },
+    "/orders": {
+      "post": {
+        "tags": ["order"],
+        "summary": "Create a new order and generate UBL XML",
+        "description": "Validates the order payload, creates the order in the database, and returns a UBL formatted XML document representing the order.",
+        "operationId": "create-order",
+        "consumes": ["application/json"],
+        "produces": ["application/xml"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "The order data payload to create an order",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "orderName",
+                "sellerId",
+                "documentCurrencyCode",
+                "pricingCurrencyCode",
+                "taxCurrencyCode",
+                "requestedInvoiceCurrencyCode",
+                "accountingCost",
+                "paymentMethodCode",
+                "destinationCountryCode",
+                "orderLines"
+              ],
+              "properties": {
+                "orderName": {
+                  "type": "string",
+                  "example": "Bulk Office Supplies"
+                },
+                "sellerId": {
+                  "type": "string",
+                  "example": "seller_98765"
+                },
+                "documentCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "pricingCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "taxCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "requestedInvoiceCurrencyCode": {
+                  "type": "string",
+                  "example": "AUD"
+                },
+                "accountingCost": {
+                  "type": "number",
+                  "example": 150.50
+                },
+                "paymentMethodCode": {
+                  "type": "string",
+                  "example": "CREDIT_CARD"
+                },
+                "destinationCountryCode": {
+                  "type": "string",
+                  "example": "AU"
+                },
+                "orderLines": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "List of items in the order",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "itemID",
+                      "quantity",
+                      "priceAtPurchase"
+                    ],
+                    "properties": {
+                      "itemID": {
+                        "type": "string",
+                        "example": "item_12345"
+                      },
+                      "quantity": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "example": 5
+                      },
+                      "priceAtPurchase": {
+                        "type": "number",
+                        "minimum": 0,
+                        "example": 25.99
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order successfully created. Returns the UBL XML document.",
+            "schema": {
+              "type": "string",
+              "example": "<?xml version=\"1.0\"?>\n<Order xmlns=\"urn:oasis:names:specification:ubl:schema:xsd:Order-2\">\n  ...\n</Order>"
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type (Missing or invalid Content-Type)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "UNSUPPORTED_TYPE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This content type is not supported"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Failed (Missing fields, wrong types, or invalid order lines)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "VALIDATION_FAILED"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "The request body is missing mandatory fields"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error during order or XML creation",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Order creation failed"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
