@@ -49,7 +49,7 @@ export async function getOrderIdByName(
 }
 
 /**
- * Fetches an orderID based on its name, make sure to prepend await since these are async functions
+ * Fetches an order based on its ID, make sure to prepend await since these are async functions
  */
 export async function getOrderById(
   orderId: string
