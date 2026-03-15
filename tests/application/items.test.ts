@@ -427,7 +427,6 @@ describe("Update item tests", () => {
       },
       accessToken,
     );
-    console.log(await pg`select * from items`);
     const response = await updateItem(request2);
     const body = await response.json();
 
