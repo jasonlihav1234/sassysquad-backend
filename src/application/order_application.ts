@@ -839,7 +839,7 @@ export const updateOrder = authHelper(
 
     const order = await getOrderById(orderId);
 
-    if (userId !== order.buyerId) {
+    if (userId !== order.buyer_id && userId !== order.seller_id) {
       return jsonHelper(
         {
           error: "Forbidden",

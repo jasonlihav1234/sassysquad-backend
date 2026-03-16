@@ -1331,4 +1331,117 @@ describe("get order by id tests", () => {
     );
     expect(body.error).toBe("Unauthorised");
   });
+
+  test("Successful retrieval", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await listOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.order).not.toBe(undefined);
+  });
+});
+
+describe("Update order tests", () => {
+  let userId: any = null;
+  let userId2: any = null;
+  let userId3: any = null;
+  let orderId: any = null;
+
+  afterEach(async () => {
+    await deleteTestData({
+      orderIds: [orderId].filter(Boolean),
+      userIds: [userId, userId2, userId3].filter(Boolean),
+    });
+  });
+
+  test("Order id is not provided", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/order/awkhdjakdadw/",
+      "PUT",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await listOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Bad Request");
+  });
+
+  test("user is not authorised to retrieve order", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const rl3 = await registerAndLogin(
+      "testget3@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId3 = rl3.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {},
+      rl3.accessToken,
+    );
+
+    const response = await updateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toBe("Forbidden");
+  });
 });
