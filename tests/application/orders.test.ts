@@ -1,10 +1,11 @@
-import { describe, expect, spyOn } from "bun:test";
+import { describe, expect, spyOn, mock } from "bun:test";
 import pg, { redis } from "../../src/utils/db";
 import test, { beforeEach, afterEach } from "node:test";
 import {
   deleteTestData,
   generateAuthenticatedRequest,
   generateRequest,
+  insertOrder,
   registerAndLogin,
   resetDb,
 } from "../test_helper";
@@ -15,12 +16,22 @@ import {
   processOrderCreation,
   postOrder,
   updateOrder,
+  listOrder,
+  deleteOrder,
   getOrder,
   validateOrder,
+  stripe,
+  fulfillCheckout,
 } from "../../src/application/order_application";
 import * as OrderApp from "../../src/application/order_application";
 import * as db from "../../src/database/queries/order_queries";
 import Stripe from "stripe";
+import { randomBytes } from "node:crypto";
+import { NeonQueryPromise } from "@neondatabase/serverless";
+
+afterEach(() => {
+  mock.restore();
+});
 
 describe("Creating checkout session", () => {
   beforeEach(async () => {
@@ -947,7 +958,9 @@ describe("Get orders tests", () => {
       status: "pending",
     };
 
-    const querySpy = spyOn(db, "getOrderById").mockResolvedValue(fakeOrder as any);
+    const querySpy = spyOn(db, "getOrderById").mockResolvedValue(
+      fakeOrder as any,
+    );
 
     const request = generateAuthenticatedRequest(
       "/orders/123",
@@ -992,5 +1005,514 @@ describe("Get orders tests", () => {
     expect(body.error).toBe("INTERNAL_ERROR");
 
     querySpy.mockRestore();
+  });
+});
+
+describe("fullfill checkout tests", () => {
+  let userId: any = null;
+
+  afterEach(async () => {
+    await deleteTestData({
+      userIds: [userId],
+    });
+  });
+
+  test("successful checkout fulfillment", async () => {
+    const fakeIncomingSession = {
+      id: "cs_test_123",
+      metadata: {
+        buyerId: "buyer_123",
+        sellerId: "seller_456",
+      },
+    } as any;
+
+    const mockExpandedSession = {
+      payment_status: "paid",
+      shipping_details: { address: { country: "AU" } },
+      payment_intent: {
+        payment_method: { type: "card", card: { brand: "visa" } },
+      },
+      line_items: {
+        data: [
+          {
+            quantity: 2,
+            price: {
+              unit_amount: 2500, // 2500 cents = $25.00
+              product: { metadata: { item_id: "item_789" } },
+            },
+          },
+        ],
+      },
+    } as any;
+
+    const retrieveSpy = spyOn(
+      stripe!.checkout.sessions,
+      "retrieve",
+    ).mockResolvedValue(mockExpandedSession);
+
+    const processSpy = spyOn(
+      OrderApp,
+      "processOrderCreation",
+    ).mockResolvedValue({
+      xml: "<Order></Order>",
+      response: {},
+    } as any);
+
+    const result = await fulfillCheckout(fakeIncomingSession);
+
+    expect(result).toBe(true);
+
+    expect(retrieveSpy).toHaveBeenCalledWith("cs_test_123", {
+      expand: [
+        "line_items.data.price.product",
+        "payment_intent.payment_method",
+      ],
+    });
+
+    expect(processSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buyerId: "buyer_123",
+        sellerId: "seller_456",
+        paymentMethodCode: "visa",
+        destinationCountryCode: "AU",
+        orderLines: [
+          {
+            itemId: "item_789",
+            quantity: 2,
+            priceAtPurchase: 25,
+            taxPercentPer: 0,
+          },
+        ],
+      }),
+    );
+
+    retrieveSpy.mockRestore();
+    processSpy.mockRestore();
+  });
+});
+
+describe("delete order tests", () => {
+  let userId: any = null;
+  let userId2: any = null;
+  let userId3: any = null;
+  let orderId: any = null;
+
+  afterEach(async () => {
+    await deleteTestData({
+      orderIds: [orderId].filter(Boolean),
+      userIds: [userId, userId2, userId3].filter(Boolean),
+    });
+  });
+
+  test("order id is invalid", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/order/awkhdjakdadw/",
+      "DELETE",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await deleteOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe("OrderID invalid.");
+    expect(body.error).toBe("Bad Request");
+  });
+
+  test("order does not exist", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${crypto.randomUUID()}`,
+      "DELETE",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await deleteOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.message).toBe("Order not found.");
+    expect(body.error).toBe("Not Found");
+  });
+
+  test("user is not authorised to delete order", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const rl3 = await registerAndLogin(
+      "testget3@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId3 = rl3.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {},
+      rl3.accessToken,
+    );
+
+    const response = await deleteOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe("User does not have permission to delete order.");
+    expect(body.error).toBe("Unauthorised");
+  });
+
+  test("Successful deletion", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await deleteOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Order successfully deleted");
+
+    const query = await pg`select * from orders where order_id = ${orderId}`;
+    expect(query.length).toBe(0);
+  });
+});
+
+describe("get order by id tests", () => {
+  let userId: any = null;
+  let userId2: any = null;
+  let userId3: any = null;
+  let orderId: any = null;
+
+  afterEach(async () => {
+    await deleteTestData({
+      orderIds: [orderId].filter(Boolean),
+      userIds: [userId, userId2, userId3].filter(Boolean),
+    });
+  });
+
+  test("get order id is invalid", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/order/awkhdjakdadw/",
+      "GET",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await listOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe("OrderID invalid.");
+    expect(body.error).toBe("Bad Request");
+  });
+
+  test("order does not exist to view", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${crypto.randomUUID()}`,
+      "DELETE",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await listOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.message).toBe("Order not found.");
+    expect(body.error).toBe("Not Found");
+  });
+
+  test("user is not authorised to view order", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const rl3 = await registerAndLogin(
+      "testget3@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId3 = rl3.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {},
+      rl3.accessToken,
+    );
+
+    const response = await listOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe(
+      "User does not have permission to view this order.",
+    );
+    expect(body.error).toBe("Unauthorised");
+  });
+
+  test("Successful retrieval", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await listOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.order).not.toBe(undefined);
+  });
+});
+
+describe("Update order tests", () => {
+  let userId: any = null;
+  let userId2: any = null;
+  let userId3: any = null;
+  let orderId: any = null;
+
+  afterEach(async () => {
+    await deleteTestData({
+      orderIds: [orderId].filter(Boolean),
+      userIds: [userId, userId2, userId3].filter(Boolean),
+    });
+  });
+
+  test("Order id is not provided", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/order/awkhdjakdadw/",
+      "PUT",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await listOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Bad Request");
+  });
+
+  test("user is not authorised to retrieve order", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const rl3 = await registerAndLogin(
+      "testget3@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId3 = rl3.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {},
+      rl3.accessToken,
+    );
+
+    const response = await updateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toBe("Forbidden");
+  });
+
+  test("Order does not exist", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${crypto.randomUUID()}`,
+      "PUT",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await updateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe("Order not found!");
+  });
+
+  test("Order updates successfully", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {
+        updates: {
+          orderName: "new_name",
+        },
+      },
+      rl.accessToken,
+    );
+
+    const response = await updateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Order update successful");
+
+    const query =
+      await pg`select order_name from orders where order_id = ${orderId}`;
+
+    expect(query).not.toBe(null);
+    expect(query[0].order_name).toBe("new_name");
   });
 });
