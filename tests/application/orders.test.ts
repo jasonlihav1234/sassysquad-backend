@@ -1,5 +1,6 @@
-import { describe, test, expect, spyOn, beforeEach, afterEach } from "bun:test";
+import { describe, expect, spyOn } from "bun:test";
 import pg, { redis } from "../../src/utils/db";
+import test, { beforeEach, afterEach } from "node:test";
 import {
   deleteTestData,
   generateAuthenticatedRequest,
