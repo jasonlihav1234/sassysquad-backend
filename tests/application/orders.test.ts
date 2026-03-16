@@ -4,6 +4,7 @@ import test, { beforeEach, afterEach } from "node:test";
 import {
   deleteTestData,
   generateAuthenticatedRequest,
+  generateRequest,
   registerAndLogin,
   resetDb,
 } from "../test_helper";
@@ -15,6 +16,7 @@ import {
   postOrder,
   updateOrder,
   getOrder,
+  validateOrder,
 } from "../../src/application/order_application";
 import * as OrderApp from "../../src/application/order_application";
 import * as db from "../../src/database/queries/order_queries";
@@ -401,6 +403,221 @@ describe("Testing processOrderCreation", () => {
     expect(result.response).not.toBe(undefined);
 
     querySpy.mockRestore();
+  });
+});
+
+describe("Validate order tests", () => {
+  let userId: string | null = null;
+
+  afterEach(async () => {
+    if (userId) {
+      await deleteTestData({
+        userIds: [userId],
+      });
+    }
+    userId = null;
+  });
+
+  test("returns 401 when authorization header is missing", async () => {
+    const request = generateRequest("/orders/validate", "POST", {
+      orderName: "test-order",
+    });
+
+    request.headers = {
+      "content-type": "application/json",
+    };
+
+    const response = await validateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body.error).toBe("Authorization is header missing");
+  });
+
+  test("returns 415 for unsupported content type", async () => {
+    const rl = await registerAndLogin(
+      "validate1@gmail.com",
+      "validateuser1",
+      "password123",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/orders/validate",
+      "POST",
+      {},
+      rl.accessToken,
+    );
+
+    request.headers = {
+      "content-type": "text/plain",
+      Authorization: `Bearer ${rl.accessToken}`,
+    };
+
+    const response = await validateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(415);
+    expect(body.error).toBe("UNSUPPORTED_TYPE");
+    expect(body.message).toBe("This content type is not supported");
+  });
+
+  test("returns 422 when mandatory fields are missing", async () => {
+    const rl = await registerAndLogin(
+      "validate2@gmail.com",
+      "validateuser2",
+      "password123",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/orders/validate",
+      "POST",
+      {
+        orderName: "test-order",
+      },
+      rl.accessToken,
+    );
+
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${rl.accessToken}`,
+    };
+
+    const response = await validateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(body.error).toBe("VALIDATION_FAILED");
+    expect(body.message).toBe("The request body is missing mandatory fields");
+  });
+
+  test("returns 422 when orderLines is empty", async () => {
+    const rl = await registerAndLogin(
+      "validate3@gmail.com",
+      "validateuser3",
+      "password123",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/orders/validate",
+      "POST",
+      {
+        orderName: "test-order",
+        sellerId: crypto.randomUUID(),
+        documentCurrencyCode: "AUD",
+        pricingCurrencyCode: "AUD",
+        taxCurrencyCode: "AUD",
+        requestedInvoiceCurrencyCode: "AUD",
+        accountingCost: 1.5,
+        paymentMethodCode: "card",
+        destinationCountryCode: "AU",
+        orderLines: [],
+      },
+      rl.accessToken,
+    );
+
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${rl.accessToken}`,
+    };
+
+    const response = await validateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(body.error).toBe("VALIDATION_FAILED");
+    expect(body.message).toBe("The request body is missing mandatory fields");
+  });
+
+  test("returns 422 when order line is invalid", async () => {
+    const rl = await registerAndLogin(
+      "validate4@gmail.com",
+      "validateuser4",
+      "password123",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/orders/validate",
+      "POST",
+      {
+        orderName: "test-order",
+        sellerId: crypto.randomUUID(),
+        documentCurrencyCode: "AUD",
+        pricingCurrencyCode: "AUD",
+        taxCurrencyCode: "AUD",
+        requestedInvoiceCurrencyCode: "AUD",
+        accountingCost: 1.5,
+        paymentMethodCode: "card",
+        destinationCountryCode: "AU",
+        orderLines: [
+          {
+            itemID: "item-1",
+            quantity: 0,
+            priceAtPurchase: 10,
+          },
+        ],
+      },
+      rl.accessToken,
+    );
+
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${rl.accessToken}`,
+    };
+
+    const response = await validateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(body.error).toBe("VALIDATION_FAILED");
+    expect(body.message).toBe("The request body is missing mandatory fields");
+  });
+
+  test("returns 200 when order payload is valid", async () => {
+    const rl = await registerAndLogin(
+      "validate5@gmail.com",
+      "validateuser5",
+      "password123",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/orders/validate",
+      "POST",
+      {
+        orderName: "test-order",
+        sellerId: crypto.randomUUID(),
+        documentCurrencyCode: "AUD",
+        pricingCurrencyCode: "AUD",
+        taxCurrencyCode: "AUD",
+        requestedInvoiceCurrencyCode: "AUD",
+        accountingCost: 1.5,
+        paymentMethodCode: "card",
+        destinationCountryCode: "AU",
+        orderLines: [
+          {
+            itemID: "item-1",
+            quantity: 2,
+            priceAtPurchase: 10,
+          },
+        ],
+      },
+      rl.accessToken,
+    );
+
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${rl.accessToken}`,
+    };
+
+    const response = await validateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Order payload is valid");
   });
 });
 
