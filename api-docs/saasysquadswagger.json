@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "title": "SaasySquad API"
   },
-  "host": "sassysquad-backend-git-story-sa-8b1f2d-jasons-projects-ac5e4f90.vercel.app",
+  "host": "sassysquad-backend.vercel.app",
   "basePath": "",
   "tags": [
     {
@@ -79,10 +79,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 },
@@ -99,10 +95,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -114,10 +106,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -129,10 +117,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -178,10 +162,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "accessToken": {
                   "type": "string"
                 },
@@ -203,10 +183,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -218,10 +194,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -233,10 +205,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -277,10 +245,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "accessToken": {
                   "type": "string"
                 },
@@ -428,10 +392,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 }
@@ -443,10 +403,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -458,10 +414,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -509,10 +461,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 }
@@ -524,10 +472,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -539,10 +483,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -554,10 +494,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -581,10 +517,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 }
@@ -613,10 +545,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 },
@@ -651,10 +579,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 },
@@ -712,10 +636,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 }
@@ -727,10 +647,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 }
@@ -742,10 +658,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "error": {
                   "type": "string"
                 }
@@ -757,10 +669,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 },
@@ -790,10 +698,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "interger",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 },
@@ -828,10 +732,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 },
@@ -942,10 +842,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "integer",
-                  "format": "int32"
-                },
                 "message": {
                   "type": "string"
                 },
