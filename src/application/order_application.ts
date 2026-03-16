@@ -783,7 +783,7 @@ export const deleteOrder = authHelper(
 
 // gets an order given its id
 export const listOrder = authHelper(async (req: AuthReq): Promise<Response> => {
-  const orderId = req.url?.split("/").at(3) as string;
+  const orderId = req.url?.split("/").pop() as string;
   const userId = req.user?.subject_claim;
 
   if (!orderId) {
@@ -808,10 +808,10 @@ export const listOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     );
   }
 
-  if (userId !== order.buyerId) {
+  if (userId !== order.buyer_id && userId !== order.seller_id) {
     return jsonHelper(
       {
-        message: "User does not have permission to delete order.",
+        message: "User does not have permission to view this order.",
         error: "Unauthorised",
       },
       403,
