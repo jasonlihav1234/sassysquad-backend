@@ -1,4 +1,4 @@
-import { describe, expect, spyOn } from "bun:test";
+import { describe, expect, spyOn, mock } from "bun:test";
 import pg, { redis } from "../../src/utils/db";
 import test, { beforeEach, afterEach } from "node:test";
 import {
@@ -28,6 +28,10 @@ import * as db from "../../src/database/queries/order_queries";
 import Stripe from "stripe";
 import { randomBytes } from "node:crypto";
 import { NeonQueryPromise } from "@neondatabase/serverless";
+
+afterEach(() => {
+  mock.restore();
+});
 
 describe("Creating checkout session", () => {
   beforeEach(async () => {
