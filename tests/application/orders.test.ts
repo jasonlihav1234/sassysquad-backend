@@ -17,6 +17,8 @@ import {
   updateOrder,
   getOrder,
   validateOrder,
+  stripe,
+  fulfillCheckout,
 } from "../../src/application/order_application";
 import * as OrderApp from "../../src/application/order_application";
 import * as db from "../../src/database/queries/order_queries";
@@ -947,7 +949,9 @@ describe("Get orders tests", () => {
       status: "pending",
     };
 
-    const querySpy = spyOn(db, "getOrderById").mockResolvedValue(fakeOrder as any);
+    const querySpy = spyOn(db, "getOrderById").mockResolvedValue(
+      fakeOrder as any,
+    );
 
     const request = generateAuthenticatedRequest(
       "/orders/123",
@@ -992,5 +996,88 @@ describe("Get orders tests", () => {
     expect(body.error).toBe("INTERNAL_ERROR");
 
     querySpy.mockRestore();
+  });
+});
+
+describe("fullfill checkout tests", () => {
+  let userId: any = null;
+
+  afterEach(async () => {
+    await deleteTestData({
+      userIds: [userId],
+    });
+  });
+
+  test("successful checkout fulfillment", async () => {
+    const fakeIncomingSession = {
+      id: "cs_test_123",
+      metadata: {
+        buyerId: "buyer_123",
+        sellerId: "seller_456",
+      },
+    } as any;
+
+    const mockExpandedSession = {
+      payment_status: "paid",
+      shipping_details: { address: { country: "AU" } },
+      payment_intent: {
+        payment_method: { type: "card", card: { brand: "visa" } },
+      },
+      line_items: {
+        data: [
+          {
+            quantity: 2,
+            price: {
+              unit_amount: 2500, // 2500 cents = $25.00
+              product: { metadata: { item_id: "item_789" } },
+            },
+          },
+        ],
+      },
+    } as any;
+
+    const retrieveSpy = spyOn(
+      stripe!.checkout.sessions,
+      "retrieve",
+    ).mockResolvedValue(mockExpandedSession);
+
+    const processSpy = spyOn(
+      OrderApp,
+      "processOrderCreation",
+    ).mockResolvedValue({
+      xml: "<Order></Order>",
+      response: {},
+    } as any);
+
+    const result = await fulfillCheckout(fakeIncomingSession);
+
+    expect(result).toBe(true);
+
+    expect(retrieveSpy).toHaveBeenCalledWith("cs_test_123", {
+      expand: [
+        "line_items.data.price.product",
+        "payment_intent.payment_method",
+      ],
+    });
+
+    expect(processSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buyerId: "buyer_123",
+        sellerId: "seller_456",
+        paymentMethodCode: "visa",
+        destinationCountryCode: "AU",
+        orderLines: [
+          {
+            itemId: "item_789",
+            quantity: 2,
+            priceAtPurchase: 25,
+            taxPercentPer: 0,
+          },
+        ],
+      }),
+    );
+
+    retrieveSpy.mockRestore();
+    processSpy.mockRestore();
   });
 });

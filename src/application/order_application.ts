@@ -11,10 +11,10 @@ import {
   deleteOrdersById,
 } from "../database/queries/order_queries";
 
-const stripe = process.env.STRIPE_SECRET_KEY
+export const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY!)
   : null;
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+export const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export const validateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
