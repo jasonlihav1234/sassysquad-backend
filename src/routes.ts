@@ -73,6 +73,7 @@ export async function handleRequest(req: any, res: any) {
         </head>
         <body>
           <h1>You've Reached The Root Of SaasySquad :O</h1>
+          <a href="https://jasonlihav1234.github.io/sassysquad-backend/api-docs/" target="_blank" rel="noopener noreferrer">Our Swagger API</a>
           <div class="gif-container">
             <img src="https://media1.tenor.com/m/JHuU14ekU3EAAAAd/ishowspeed-deglove.gif" alt="SaasySquad GIF 1" />
             <img src="https://i.makeagif.com/media/11-08-2024/HSMtFe.gif" alt="SaasySquad GIF 2" />
