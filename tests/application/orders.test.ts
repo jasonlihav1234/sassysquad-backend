@@ -1444,4 +1444,71 @@ describe("Update order tests", () => {
     expect(response.status).toBe(403);
     expect(body.error).toBe("Forbidden");
   });
+
+  test("Order does not exist", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${crypto.randomUUID()}`,
+      "PUT",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await updateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe("Order not found!");
+  });
+
+  test("Order updates successfully", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {
+        updates: {
+          orderName: "new_name",
+        },
+      },
+      rl.accessToken,
+    );
+
+    const response = await updateOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Order update successful");
+
+    const query =
+      await pg`select order_name from orders where order_id = ${orderId}`;
+
+    expect(query).not.toBe(null);
+    expect(query[0].order_name).toBe("new_name");
+  });
 });

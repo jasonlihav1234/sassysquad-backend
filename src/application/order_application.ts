@@ -825,7 +825,8 @@ export const listOrder = authHelper(async (req: AuthReq): Promise<Response> => {
 
 export const updateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
-    const { userId, updates } = req.body || {};
+    const userId = req.user?.subject_claim;
+    const { updates } = req.body || {};
     const orderId = req.url?.split("/").pop();
 
     if (!orderId) {
@@ -839,21 +840,21 @@ export const updateOrder = authHelper(
 
     const order = await getOrderById(orderId);
 
-    if (userId !== order.buyer_id && userId !== order.seller_id) {
-      return jsonHelper(
-        {
-          error: "Forbidden",
-        },
-        403,
-      );
-    }
-
     if (!order) {
       return jsonHelper(
         {
           error: "Order not found!",
         },
         404,
+      );
+    }
+
+    if (userId !== order.buyer_id && userId !== order.seller_id) {
+      return jsonHelper(
+        {
+          error: "Forbidden",
+        },
+        403,
       );
     }
 
