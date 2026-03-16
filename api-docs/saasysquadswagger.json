@@ -1051,98 +1051,344 @@
     },
     "/users/{userId}/purchases": {
       "get": {
-        "tags": ["user"],
-        "summary": "Get purchases for a user",
-        "description": "Returns orders where the user is the buyer. Requires authentication: the authenticated user may only request their own purchases, path userId must match the token subject.",
-        "operationId": "getUserPurchases",
-        "produces": ["application/json", "application/xml"],
+        "tags": ["user", "order"],
+        "summary": "Retrieves the purchase history for a specific user",
+        "description": "Fetches a list of orders where the specified user is the buyer. The authenticated user must match the user ID in the path.",
+        "operationId": "get-user-purchases",
+        "produces": ["application/json", "application/xml", "text/xml"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "userId",
             "in": "path",
-            "description": "The user ID whose purchases are requested, must match the authenticated user",
             "required": true,
+            "description": "The unique identifier of the user whose purchases are being retrieved",
             "type": "string"
           }
         ],
         "responses": {
           "200": {
-            "description": "successful operation",
+            "description": "User purchases successfully retrieved",
             "schema": {
               "type": "object",
               "properties": {
                 "orders": {
                   "type": "array",
+                  "description": "List of orders made by the user",
                   "items": {
-                    "$ref": "#/definitions/Order"
+                    "type": "object",
+                    "properties": {
+                      "orderId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "123e4567-e89b-12d3-a456-426614174000"
+                      },
+                      "orderName": {
+                        "type": "string",
+                        "example": "order-123e4567"
+                      },
+                      "buyerId": {
+                        "type": "string",
+                        "example": "buyer_98765"
+                      },
+                      "sellerId": {
+                        "type": "string",
+                        "example": "seller_12345"
+                      },
+                      "documentCurrencyCode": {
+                        "type": "string",
+                        "example": "AUD"
+                      },
+                      "pricingCurrencyCode": {
+                        "type": "string",
+                        "example": "AUD"
+                      },
+                      "taxCurrencyCode": {
+                        "type": "string",
+                        "example": "AUD"
+                      },
+                      "requestedInvoiceCurrencyCode": {
+                        "type": "string",
+                        "example": "AUD"
+                      },
+                      "accountingCost": {
+                        "type": "number",
+                        "example": 150.5
+                      },
+                      "paymentMethodCode": {
+                        "type": "string",
+                        "example": "CREDIT_CARD"
+                      },
+                      "destinationCountryCode": {
+                        "type": "string",
+                        "example": "AU"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-03-16T11:42:12.000Z"
+                      },
+                      "orderLines": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "itemID": {
+                              "type": "string",
+                              "example": "item_123"
+                            },
+                            "quantity": {
+                              "type": "number",
+                              "example": 2
+                            },
+                            "priceAtPurchase": {
+                              "type": "number",
+                              "example": 75.25
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid purchases route path"
+            "description": "Bad Request (Invalid path components)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Invalid purchases route path!"
+                }
+              }
+            }
           },
           "401": {
-            "description": "User is not logged on or lacks authorization to access orders"
+            "description": "Unauthorized (User is not logged in or subject claim does not match the requested userId)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "User is not logged on or lacks authorization to access orders"
+                }
+              }
+            }
           },
           "404": {
-            "description": "User not found"
+            "description": "Not Found (The user ID does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "User not found!"
+                }
+              }
+            }
           },
           "406": {
-            "description": "Unsupported formatting type"
+            "description": "Not Acceptable (The Accept header requested an unsupported format)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unsupported formatting type"
+                }
+              }
+            }
           },
           "500": {
-            "description": "Internal Server Error"
+            "description": "Internal Server Error (Database or server issues)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Internal Server Error"
+                }
+              }
+            }
           }
         }
       }
     },
     "/users/{userId}/sales": {
       "get": {
-        "tags": ["user"],
-        "summary": "Get sales for a user",
-        "description": "Returns orders where the user is the seller. Requires authentication: the authenticated user may only request their own sales, path userId must match the token subject.",
+        "tags": ["user", "order"],
+        "summary": "Retrieves the sales history for a specific user",
+        "description": "Fetches a list of orders where the specified user is the seller. Requires authentication: the authenticated user may only request their own sales; the path userId must match the token subject.",
         "operationId": "getUserSales",
-        "produces": ["application/json", "application/xml"],
+        "produces": ["application/json", "application/xml", "text/xml"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "userId",
             "in": "path",
-            "description": "The user ID whose sales are requested, must match the authenticated user",
             "required": true,
+            "description": "The unique identifier of the user whose sales are requested",
             "type": "string"
           }
         ],
         "responses": {
           "200": {
-            "description": "successful operation",
+            "description": "User sales successfully retrieved",
             "schema": {
               "type": "object",
               "properties": {
                 "orders": {
                   "type": "array",
+                  "description": "List of orders where the user is the seller",
                   "items": {
-                    "$ref": "#/definitions/Order"
+                    "type": "object",
+                    "properties": {
+                      "orderId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "123e4567-e89b-12d3-a456-426614174000"
+                      },
+                      "orderName": {
+                        "type": "string",
+                        "example": "order-123e4567"
+                      },
+                      "buyerId": {
+                        "type": "string",
+                        "example": "buyer_98765"
+                      },
+                      "sellerId": {
+                        "type": "string",
+                        "example": "seller_12345"
+                      },
+                      "documentCurrencyCode": {
+                        "type": "string",
+                        "example": "AUD"
+                      },
+                      "pricingCurrencyCode": {
+                        "type": "string",
+                        "example": "AUD"
+                      },
+                      "taxCurrencyCode": {
+                        "type": "string",
+                        "example": "AUD"
+                      },
+                      "requestedInvoiceCurrencyCode": {
+                        "type": "string",
+                        "example": "AUD"
+                      },
+                      "accountingCost": {
+                        "type": "number",
+                        "example": 150.5
+                      },
+                      "paymentMethodCode": {
+                        "type": "string",
+                        "example": "CREDIT_CARD"
+                      },
+                      "destinationCountryCode": {
+                        "type": "string",
+                        "example": "AU"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-03-16T11:42:12.000Z"
+                      },
+                      "orderLines": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "itemID": {
+                              "type": "string",
+                              "example": "item_123"
+                            },
+                            "quantity": {
+                              "type": "number",
+                              "example": 2
+                            },
+                            "priceAtPurchase": {
+                              "type": "number",
+                              "example": 75.25
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid sales route path"
+            "description": "Bad Request (Invalid path components)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Invalid sales route path!"
+                }
+              }
+            }
           },
           "401": {
-            "description": "User is not logged on or lacks authorization to access orders"
+            "description": "Unauthorized (User is not logged in or subject claim does not match the requested userId)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "User is not logged on or lacks authorization to access orders"
+                }
+              }
+            }
           },
           "404": {
-            "description": "User not found"
+            "description": "Not Found (The user ID does not exist in the database)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "User not found!"
+                }
+              }
+            }
           },
           "406": {
-            "description": "Unsupported formatting type"
+            "description": "Not Acceptable (The Accept header requested an unsupported format)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unsupported formatting type"
+                }
+              }
+            }
           },
           "500": {
-            "description": "Internal Server Error"
+            "description": "Internal Server Error (Database or server issues)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Internal Server Error"
+                }
+              }
+            }
           }
         }
       }
@@ -1961,7 +2207,79 @@
                 },
                 "order": {
                   "type": "object",
-                  "description": "The full order details, including metadata and UBL XML content if applicable"
+                  "description": "The full order details",
+                  "properties": {
+                    "orderId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "orderName": {
+                      "type": "string",
+                      "example": "order-123e4567"
+                    },
+                    "buyerId": {
+                      "type": "string",
+                      "example": "buyer_98765"
+                    },
+                    "sellerId": {
+                      "type": "string",
+                      "example": "seller_12345"
+                    },
+                    "documentCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "pricingCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "taxCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "requestedInvoiceCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "accountingCost": {
+                      "type": "number",
+                      "example": 150.5
+                    },
+                    "paymentMethodCode": {
+                      "type": "string",
+                      "example": "visa"
+                    },
+                    "destinationCountryCode": {
+                      "type": "string",
+                      "example": "AU"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2026-03-16T11:42:12.000Z"
+                    },
+                    "orderLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "itemID": {
+                            "type": "string",
+                            "example": "item_123"
+                          },
+                          "quantity": {
+                            "type": "number",
+                            "example": 2
+                          },
+                          "priceAtPurchase": {
+                            "type": "number",
+                            "example": 75.25
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
