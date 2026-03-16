@@ -5,6 +5,7 @@ import {
   deleteTestData,
   generateAuthenticatedRequest,
   generateRequest,
+  insertItem,
   insertOrder,
   registerAndLogin,
   resetDb,
@@ -26,8 +27,7 @@ import {
 import * as OrderApp from "../../src/application/order_application";
 import * as db from "../../src/database/queries/order_queries";
 import Stripe from "stripe";
-import { randomBytes } from "node:crypto";
-import { NeonQueryPromise } from "@neondatabase/serverless";
+import { convert } from "xmlbuilder2";
 
 afterEach(() => {
   mock.restore();
@@ -634,9 +634,15 @@ describe("Validate order tests", () => {
 
 describe("Post order tests", () => {
   let userId: any = null;
+  let userId2: any = null;
+  let orderId: any = null;
+  let itemId = crypto.randomUUID();
+
   afterEach(async () => {
     await deleteTestData({
-      userIds: [userId],
+      userIds: [userId, userId2].filter(Boolean),
+      orderIds: [orderId].filter(Boolean),
+      itemIds: [itemId],
     });
   });
 
@@ -786,10 +792,6 @@ describe("Post order tests", () => {
   });
 
   test("Successful order creation returns xml", async () => {
-    const querySpy = spyOn(db, "createOrderQuery").mockResolvedValue(
-      new Response(JSON.stringify({ test: "Hello" })),
-    );
-
     const rl = await registerAndLogin(
       "testing@gmail.com",
       "testing",
@@ -797,23 +799,40 @@ describe("Post order tests", () => {
     );
     userId = rl.userId;
 
+    const rl2 = await registerAndLogin(
+      "testing123@gmail.com",
+      "testing",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const item = await insertItem({
+      item_id: itemId,
+      seller_id: userId,
+      item_name: "new_item",
+      description: "temporary description",
+      price: 2.5,
+      quantity_available: 200,
+      image_url: "test image url",
+    });
+
     const request = generateAuthenticatedRequest(
       "/order",
       "POST",
       {
         orderName: "test",
-        buyerId: "test",
-        sellerId: "test",
-        documentCurrencyCode: "test",
-        pricingCurrencyCode: "test",
-        taxCurrencyCode: "test",
-        requestedInvoiceCurrencyCode: "test",
+        buyerId: userId,
+        sellerId: userId2,
+        documentCurrencyCode: "aud",
+        pricingCurrencyCode: "aud",
+        taxCurrencyCode: "aud",
+        requestedInvoiceCurrencyCode: "aud",
         accountingCost: 1.5,
-        paymentMethodCode: "test",
-        destinationCountryCode: "test",
+        paymentMethodCode: "mastercard",
+        destinationCountryCode: "AU",
         orderLines: [
           {
-            itemID: "test",
+            itemID: itemId,
             quantity: 20,
             priceAtPurchase: 2.5,
           },
@@ -833,7 +852,30 @@ describe("Post order tests", () => {
     expect(text).not.toBe(null);
     expect(text).not.toBe(undefined);
 
-    querySpy.mockRestore();
+    const converted = convert(text, { format: "object" }) as any;
+    orderId = converted.Order["cbc:ID"];
+
+    const process = Bun.spawn(
+      [
+        "xmllint",
+        "--noout",
+        "--schema",
+        "./oasis/xsd/maindoc/UBL-Order-2.1.xsd",
+        "-",
+      ],
+      {
+        stdin: "pipe",
+        stderr: "pipe",
+        stdout: "pipe",
+      },
+    );
+
+    process.stdin.write(text);
+    process.stdin.end();
+
+    const exit = await process.exited;
+
+    expect(exit).toBe(0);
   });
 
   test("Returns 500 on general error", async () => {
