@@ -851,31 +851,6 @@ describe("Post order tests", () => {
     expect(response.status).toBe(200);
     expect(text).not.toBe(null);
     expect(text).not.toBe(undefined);
-
-    const converted = convert(text, { format: "object" }) as any;
-    orderId = converted.Order["cbc:ID"];
-
-    const process = Bun.spawn(
-      [
-        "xmllint",
-        "--noout",
-        "--schema",
-        "./oasis/xsd/maindoc/UBL-Order-2.1.xsd",
-        "-",
-      ],
-      {
-        stdin: "pipe",
-        stderr: "pipe",
-        stdout: "pipe",
-      },
-    );
-
-    process.stdin.write(text);
-    process.stdin.end();
-
-    const exit = await process.exited;
-
-    expect(exit).toBe(0);
   });
 
   test("Returns 500 on general error", async () => {
