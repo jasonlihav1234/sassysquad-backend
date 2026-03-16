@@ -11,10 +11,10 @@ import {
   deleteOrdersById,
 } from "../database/queries/order_queries";
 
-const stripe = process.env.STRIPE_SECRET_KEY
+export const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY!)
   : null;
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+export const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export const validateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
@@ -765,7 +765,7 @@ export const deleteOrder = authHelper(
       );
     }
 
-    if (userId !== order.buyerId) {
+    if (userId !== order.buyer_id && userId !== order.seller_id) {
       return jsonHelper(
         {
           message: "User does not have permission to delete order.",
@@ -783,7 +783,7 @@ export const deleteOrder = authHelper(
 
 // gets an order given its id
 export const listOrder = authHelper(async (req: AuthReq): Promise<Response> => {
-  const orderId = req.url?.split("/").at(3) as string;
+  const orderId = req.url?.split("/").pop() as string;
   const userId = req.user?.subject_claim;
 
   if (!orderId) {
@@ -808,10 +808,10 @@ export const listOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     );
   }
 
-  if (userId !== order.buyerId) {
+  if (userId !== order.buyer_id && userId !== order.seller_id) {
     return jsonHelper(
       {
-        message: "User does not have permission to delete order.",
+        message: "User does not have permission to view this order.",
         error: "Unauthorised",
       },
       403,
@@ -825,7 +825,8 @@ export const listOrder = authHelper(async (req: AuthReq): Promise<Response> => {
 
 export const updateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
-    const { userId, updates } = req.body || {};
+    const userId = req.user?.subject_claim;
+    const { updates } = req.body || {};
     const orderId = req.url?.split("/").pop();
 
     if (!orderId) {
@@ -839,21 +840,21 @@ export const updateOrder = authHelper(
 
     const order = await getOrderById(orderId);
 
-    if (userId !== order.buyerId) {
-      return jsonHelper(
-        {
-          error: "Forbidden",
-        },
-        403,
-      );
-    }
-
     if (!order) {
       return jsonHelper(
         {
           error: "Order not found!",
         },
         404,
+      );
+    }
+
+    if (userId !== order.buyer_id && userId !== order.seller_id) {
+      return jsonHelper(
+        {
+          error: "Forbidden",
+        },
+        403,
       );
     }
 
