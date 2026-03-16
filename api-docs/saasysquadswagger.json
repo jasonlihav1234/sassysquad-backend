@@ -976,79 +976,108 @@
             "schema": {
               "type": "object",
               "properties": {
-                "orders": {
-                  "type": "array",
-                  "description": "List of orders made by the user",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "orderId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "example": "123e4567-e89b-12d3-a456-426614174000"
-                      },
-                      "orderName": {
-                        "type": "string",
-                        "example": "order-123e4567"
-                      },
-                      "buyerId": {
-                        "type": "string",
-                        "example": "buyer_98765"
-                      },
-                      "sellerId": {
-                        "type": "string",
-                        "example": "seller_12345"
-                      },
-                      "documentCurrencyCode": {
-                        "type": "string",
-                        "example": "AUD"
-                      },
-                      "pricingCurrencyCode": {
-                        "type": "string",
-                        "example": "AUD"
-                      },
-                      "taxCurrencyCode": {
-                        "type": "string",
-                        "example": "AUD"
-                      },
-                      "requestedInvoiceCurrencyCode": {
-                        "type": "string",
-                        "example": "AUD"
-                      },
-                      "accountingCost": {
-                        "type": "number",
-                        "example": 150.5
-                      },
-                      "paymentMethodCode": {
-                        "type": "string",
-                        "example": "visa"
-                      },
-                      "destinationCountryCode": {
-                        "type": "string",
-                        "example": "AU"
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "example": "2026-03-16T11:42:12.000Z"
-                      },
-                      "orderLines": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "itemID": {
-                              "type": "string",
-                              "example": "item_123"
-                            },
-                            "quantity": {
-                              "type": "number",
-                              "example": 2
-                            },
-                            "priceAtPurchase": {
-                              "type": "number",
-                              "example": 75.25
-                            }
+              "order": {
+                  "type": "object",
+                  "description": "The full order details",
+                  "properties": {
+                    "orderId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "orderName": {
+                      "type": "string",
+                      "example": "order-123e4567"
+                    },
+                    "buyerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "987e6543-e21b-34c5-b678-426614174111"
+                    },
+                    "sellerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "123a4567-b89c-12d3-a456-426614174222"
+                    },
+                    "issueDate": {
+                      "type": "string",
+                      "format": "date",
+                      "example": "2026-03-16"
+                    },
+                    "documentCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "pricingCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "taxCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "requestedInvoiceCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "totalOrderItemCost": {
+                      "type": "number",
+                      "example": 150.5
+                    },
+                    "accountingCost": {
+                      "type": "number",
+                      "example": 1.5
+                    },
+                    "totalTaxCost": {
+                      "type": "number",
+                      "example": 15.05
+                    },
+                    "paymentMethodCost": {
+                      "type": "number",
+                      "example": 2.1
+                    },
+                    "totalCost": {
+                      "type": "number",
+                      "example": 169.15
+                    },
+                    "paymentMethodCode": {
+                      "type": "string",
+                      "example": "visa"
+                    },
+                    "destinationCountryCode": {
+                      "type": "string",
+                      "example": "AU"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "paid"
+                    },
+                    "ublXmlContent": {
+                      "type": "string",
+                      "example": "<?xml version=\"1.0\"?><Order>...</Order>"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2026-03-16T11:42:12.000Z"
+                    },
+                    "orderLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "itemID": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "4ccc60d0-71bb-41e9-b761-5f488fea209d"
+                          },
+                          "quantity": {
+                            "type": "number",
+                            "example": 2
+                          },
+                          "priceAtPurchase": {
+                            "type": "number",
+                            "example": 75.25
                           }
                         }
                       }
@@ -1148,79 +1177,108 @@
             "schema": {
               "type": "object",
               "properties": {
-                "orders": {
-                  "type": "array",
-                  "description": "List of orders where the user is the seller",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "orderId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "example": "123e4567-e89b-12d3-a456-426614174000"
-                      },
-                      "orderName": {
-                        "type": "string",
-                        "example": "order-123e4567"
-                      },
-                      "buyerId": {
-                        "type": "string",
-                        "example": "buyer_98765"
-                      },
-                      "sellerId": {
-                        "type": "string",
-                        "example": "seller_12345"
-                      },
-                      "documentCurrencyCode": {
-                        "type": "string",
-                        "example": "AUD"
-                      },
-                      "pricingCurrencyCode": {
-                        "type": "string",
-                        "example": "AUD"
-                      },
-                      "taxCurrencyCode": {
-                        "type": "string",
-                        "example": "AUD"
-                      },
-                      "requestedInvoiceCurrencyCode": {
-                        "type": "string",
-                        "example": "AUD"
-                      },
-                      "accountingCost": {
-                        "type": "number",
-                        "example": 150.5
-                      },
-                      "paymentMethodCode": {
-                        "type": "string",
-                        "example": "visa"
-                      },
-                      "destinationCountryCode": {
-                        "type": "string",
-                        "example": "AU"
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "example": "2026-03-16T11:42:12.000Z"
-                      },
-                      "orderLines": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "itemID": {
-                              "type": "string",
-                              "example": "item_123"
-                            },
-                            "quantity": {
-                              "type": "number",
-                              "example": 2
-                            },
-                            "priceAtPurchase": {
-                              "type": "number",
-                              "example": 75.25
-                            }
+              "order": {
+                  "type": "object",
+                  "description": "The full order details",
+                  "properties": {
+                    "orderId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "orderName": {
+                      "type": "string",
+                      "example": "order-123e4567"
+                    },
+                    "buyerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "987e6543-e21b-34c5-b678-426614174111"
+                    },
+                    "sellerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "123a4567-b89c-12d3-a456-426614174222"
+                    },
+                    "issueDate": {
+                      "type": "string",
+                      "format": "date",
+                      "example": "2026-03-16"
+                    },
+                    "documentCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "pricingCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "taxCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "requestedInvoiceCurrencyCode": {
+                      "type": "string",
+                      "example": "AUD"
+                    },
+                    "totalOrderItemCost": {
+                      "type": "number",
+                      "example": 150.5
+                    },
+                    "accountingCost": {
+                      "type": "number",
+                      "example": 1.5
+                    },
+                    "totalTaxCost": {
+                      "type": "number",
+                      "example": 15.05
+                    },
+                    "paymentMethodCost": {
+                      "type": "number",
+                      "example": 2.1
+                    },
+                    "totalCost": {
+                      "type": "number",
+                      "example": 169.15
+                    },
+                    "paymentMethodCode": {
+                      "type": "string",
+                      "example": "visa"
+                    },
+                    "destinationCountryCode": {
+                      "type": "string",
+                      "example": "AU"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "paid"
+                    },
+                    "ublXmlContent": {
+                      "type": "string",
+                      "example": "<?xml version=\"1.0\"?><Order>...</Order>"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2026-03-16T11:42:12.000Z"
+                    },
+                    "orderLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "itemID": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "4ccc60d0-71bb-41e9-b761-5f488fea209d"
+                          },
+                          "quantity": {
+                            "type": "number",
+                            "example": 2
+                          },
+                          "priceAtPurchase": {
+                            "type": "number",
+                            "example": 75.25
                           }
                         }
                       }
@@ -2105,7 +2163,7 @@
                   "type": "string",
                   "example": "Order successfully retrieved"
                 },
-                "order": {
+"order": {
                   "type": "object",
                   "description": "The full order details",
                   "properties": {
@@ -2120,11 +2178,18 @@
                     },
                     "buyerId": {
                       "type": "string",
-                      "example": "buyer_98765"
+                      "format": "uuid",
+                      "example": "987e6543-e21b-34c5-b678-426614174111"
                     },
                     "sellerId": {
                       "type": "string",
-                      "example": "seller_12345"
+                      "format": "uuid",
+                      "example": "123a4567-b89c-12d3-a456-426614174222"
+                    },
+                    "issueDate": {
+                      "type": "string",
+                      "format": "date",
+                      "example": "2026-03-16"
                     },
                     "documentCurrencyCode": {
                       "type": "string",
@@ -2142,9 +2207,25 @@
                       "type": "string",
                       "example": "AUD"
                     },
-                    "accountingCost": {
+                    "totalOrderItemCost": {
                       "type": "number",
                       "example": 150.5
+                    },
+                    "accountingCost": {
+                      "type": "number",
+                      "example": 1.5
+                    },
+                    "totalTaxCost": {
+                      "type": "number",
+                      "example": 15.05
+                    },
+                    "paymentMethodCost": {
+                      "type": "number",
+                      "example": 2.1
+                    },
+                    "totalCost": {
+                      "type": "number",
+                      "example": 169.15
                     },
                     "paymentMethodCode": {
                       "type": "string",
@@ -2153,6 +2234,14 @@
                     "destinationCountryCode": {
                       "type": "string",
                       "example": "AU"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "paid"
+                    },
+                    "ublXmlContent": {
+                      "type": "string",
+                      "example": "<?xml version=\"1.0\"?><Order>...</Order>"
                     },
                     "createdAt": {
                       "type": "string",
@@ -2166,7 +2255,8 @@
                         "properties": {
                           "itemID": {
                             "type": "string",
-                            "example": "item_123"
+                            "format": "uuid",
+                            "example": "4ccc60d0-71bb-41e9-b761-5f488fea209d"
                           },
                           "quantity": {
                             "type": "number",

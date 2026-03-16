@@ -1,10 +1,7 @@
 import { expect } from "bun:test";
 import pg from "../src/utils/db";
 import type { User, InsertUserOverrides } from "../src/types/user";
-import type {
-  Order,
-  InsertOrderOverrides,
-} from "../src/types/order";
+import type { Order, InsertOrderOverrides } from "../src/types/order";
 import type { InsertItemOverrides } from "../src/types/item";
 import type { DeleteTestDataOptions } from "../src/types/combined_types";
 import { register, login } from "../src/application/user_application";
@@ -232,13 +229,18 @@ export async function deleteTestData(
 ): Promise<void> {
   if (opts.orderIds?.length) {
     for (const orderId of opts.orderIds) {
+      console.log(orderId);
       await pg`delete from order_lines where order_id = ${orderId}`;
-      await pg`delete from orders where order_id = ${orderId}`;
     }
   }
   if (opts.itemIds?.length) {
     for (const itemId of opts.itemIds) {
       await pg`delete from items where item_id = ${itemId}`;
+    }
+  }
+  if (opts.orderIds?.length) {
+    for (const orderId of opts.orderIds) {
+      await pg`delete from orders where order_id = ${orderId}`;
     }
   }
   if (opts.userIds?.length) {
