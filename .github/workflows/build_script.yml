@@ -39,10 +39,10 @@ jobs:
 
       - name: Download UBL Schema
         run: |
-          wget https://docs.oasis-open.org/ubl/os-UBL-2.1/UBL-2.1.zip
-          unzip UBL-2.1.zip
+          curl -L https://github.com/Open-UBL/ubl-schema/archive/refs/heads/master.zip -o ubl.zip
+          unzip ubl.zip
           mkdir -p oasis
-          mv UBL-2.1/xsd oasis/
+          mv ubl-schema-master/xsd oasis/
 
       - name: Install dependencies
         run: bun install
