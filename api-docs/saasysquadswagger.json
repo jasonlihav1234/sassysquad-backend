@@ -27,6 +27,10 @@
     {
       "name": "checkout",
       "description": "Operations about the checkout of items"
+    },
+    {
+      "name": "system",
+      "description": "Operations about the health of our backend"
     }
   ],
   "schemes": ["https", "http"],
@@ -3014,6 +3018,65 @@
                 "error": {
                   "type": "string",
                   "example": "No event types match"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["system"],
+        "summary": "Check API and database health status",
+        "description": "Verifies that the backend service is running and can successfully connect to the database. This endpoint is public and does not require authentication.",
+        "operationId": "getHealth",
+        "produces": ["application/json"],
+        "responses": {
+          "200": {
+            "description": "Service is completely operational",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "OPERATIONAL"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Service and database are operational"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error (Unexpected code execution failure)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "INTERNAL_SERVER_ERROR"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Unexpected error that prevented request to be fulfiled"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable (Database connection failed)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "SERVICE_UNAVAILABLE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Temporarily lost connection to the database"
                 }
               }
             }
