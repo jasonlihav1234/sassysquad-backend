@@ -851,6 +851,9 @@ describe("Post order tests", () => {
     expect(response.status).toBe(200);
     expect(text).not.toBe(null);
     expect(text).not.toBe(undefined);
+
+    const converted = convert(text, { format: "object" }) as any;
+    orderId = converted.Order["cbc:ID"];
   });
 
   test("Returns 500 on general error", async () => {
