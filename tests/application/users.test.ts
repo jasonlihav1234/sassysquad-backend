@@ -1,4 +1,12 @@
-import { expect, test, describe, spyOn, beforeAll, afterAll } from "bun:test";
+import {
+  expect,
+  test,
+  describe,
+  spyOn,
+  beforeAll,
+  afterAll,
+  mock,
+} from "bun:test";
 import {
   generateUser,
   register,
@@ -19,7 +27,11 @@ import {
 import { afterEach, beforeEach } from "node:test";
 import pg, { redis } from "../../src/utils/db";
 import { createHash } from "node:crypto";
-import { verifyRefreshToken, createAccessToken } from "../../src/utils/jwt_config";
+import {
+  verifyRefreshToken,
+  createAccessToken,
+} from "../../src/utils/jwt_config";
+import * as authUtils from "../../src/utils/jwt_config";
 import {
   generateRequest,
   generateAuthenticatedRequest,
@@ -29,6 +41,7 @@ import {
   registerAndLogin,
   registerOnly,
 } from "../test_helper";
+import { getAuthenticatedUserId } from "../../src/utils/jwt_helpers";
 
 const registerRoute = "http://localhost/auth/register";
 const logoutRoute = "http://localhost/auth/logout";
@@ -1150,5 +1163,106 @@ describe("Getting user session tests", () => {
     expect(body.session).not.toBe(undefined);
     expect(body.session[0].createdAt).not.toBe(undefined);
     expect(body.session[0].expiresAt).not.toBe(undefined);
+  });
+});
+
+describe("Getting authenticated userId tests", () => {
+  const createMockRes = () => {
+    const res = {
+      status: function () {
+        return this;
+      },
+      json: function () {
+        return this;
+      },
+    };
+    spyOn(res, "status");
+    spyOn(res, "json");
+    return res as any;
+  };
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  test("Invalid authorization method", async () => {
+    const res = createMockRes();
+    const request = {
+      url: "test/route",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `fake auth`,
+      },
+      body: {},
+      json: async () => {},
+    };
+
+    const response = await getAuthenticatedUserId(request, res);
+
+    expect(response).toBe(null);
+  });
+
+  test("returns tokenUserId when succeeds, no pathId given", async () => {
+    const req = { headers: { authorization: "Bearer valid.fake.token" } };
+    const res = createMockRes();
+
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: "user_123",
+    } as any);
+
+    const result = await getAuthenticatedUserId(req, res);
+
+    expect(result).toBe("user_123");
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
+  });
+
+  test("returns tokenUserId when succeeds, matches pathId", async () => {
+    const req = { headers: { authorization: "Bearer valid.fake.token" } };
+    const res = createMockRes();
+
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: "user_123",
+    } as any);
+
+    const result = await getAuthenticatedUserId(req, res, "user_123");
+
+    expect(result).toBe("user_123");
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  test("returns null and 401 when verifyAccessToken throws an error", async () => {
+    const req = { headers: { authorization: "Bearer bad.fake.token" } };
+    const res = createMockRes();
+
+    spyOn(authUtils, "verifyAccessToken").mockRejectedValue(
+      new Error("JWT Expired"),
+    );
+
+    const result = await getAuthenticatedUserId(req, res);
+
+    expect(result).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "User is not logged on or lacks authorization to access orders",
+    });
+  });
+
+  test("returns null and 401 when tokenUserId doesn't match pathUserId", async () => {
+    const req = { headers: { authorization: "Bearer valid.fake.token" } };
+    const res = createMockRes();
+
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: "user_123",
+    } as any);
+
+    const result = await getAuthenticatedUserId(req, res, "user_999");
+
+    expect(result).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "User is not logged on or lacks authorization to access orders",
+    });
   });
 });
