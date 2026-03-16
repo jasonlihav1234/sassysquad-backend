@@ -15,6 +15,7 @@ import {
   processOrderCreation,
   postOrder,
   updateOrder,
+  deleteOrder,
   getOrder,
   validateOrder,
   stripe,
@@ -1079,5 +1080,61 @@ describe("fullfill checkout tests", () => {
 
     retrieveSpy.mockRestore();
     processSpy.mockRestore();
+  });
+});
+
+describe("delete order tests", () => {
+  let userId: any = null;
+
+  afterEach(async () => {
+    await deleteTestData({
+      userIds: [userId],
+    });
+  });
+
+  test("order id is invalid", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      "/order/awkhdjakdadw/",
+      "DELETE",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await deleteOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe("OrderID invalid.");
+    expect(body.error).toBe("Bad Request");
+  });
+
+  test("order does not exist", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${crypto.randomUUID()}`,
+      "DELETE",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await deleteOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.message).toBe("Order not found.");
+    expect(body.error).toBe("Not Found");
   });
 });
