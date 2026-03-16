@@ -2,6 +2,7 @@ import { expect, test, describe, spyOn, afterAll } from "bun:test";
 import { register, login } from "../../src/application/user_application";
 import pg, { redis } from "../../src/utils/db";
 import {
+  createItem,
   getItemsById,
   getAllItems,
   getItemByUserId,
@@ -75,7 +76,194 @@ afterAll(async () => {
   await pg`delete from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com')`;
 });
 
-describe("Getting items tests", () => {
+describe("Create item tests", () => {
+  let accessToken: string;
+  let createdSellerId: string;
+
+  beforeEach(async () => {
+    await pg`delete from items`;
+    await pg`delete from refresh_tokens`;
+    await pg`delete from users where email in ('createitem@gmail.com')`;
+
+    const registerReq = generateRequest("http://localhost/auth/register", "POST", {
+      email: "createitem@gmail.com",
+      username: "createitemuser",
+      password: "testing123",
+    });
+
+    const registerRes = await register(registerReq);
+    createdSellerId = (await registerRes.json()).user;
+
+    const loginReq = generateRequest("http://localhost/auth/login", "POST", {
+      email: "createitem@gmail.com",
+      password: "testing123",
+    });
+
+    const loginRes = await login(loginReq);
+    accessToken = (await loginRes.json()).accessToken;
+  });
+
+  afterAll(async () => {
+    await pg`delete from items`;
+    await pg`delete from refresh_tokens`;
+    await pg`delete from users where email in ('createitem@gmail.com')`;
+  });
+
+  test("returns 401 when authorization header is missing", async () => {
+    const request = generateRequest("/items", "POST", {
+      itemName: "Keyboard",
+      price: 50,
+      quantityAvailable: 10,
+    });
+
+    request.headers = {
+      "content-type": "application/json",
+    };
+
+    const response = await createItem(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body.error).toBe("Authorization is header missing");
+  });
+
+  test("returns 415 for unsupported content type", async () => {
+    const request = generateAuthenticatedRequest(
+      "/items",
+      "POST",
+      {
+        itemName: "Keyboard",
+        price: 50,
+        quantityAvailable: 10,
+      },
+      accessToken,
+    );
+
+    request.headers = {
+      "content-type": "text/plain",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItem(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(415);
+    expect(body.error).toBe("UNSUPPORTED_TYPE");
+    expect(body.message).toBe("This content type is not supported");
+  });
+
+  test("returns 400 when required item fields are missing", async () => {
+    const request = generateAuthenticatedRequest(
+      "/items",
+      "POST",
+      {
+        description: "Missing required fields",
+      },
+      accessToken,
+    );
+
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItem(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Bad Request");
+    expect(body.message).toBe("Invalid/missing items fields");
+  });
+
+  test("returns 400 when description type is invalid", async () => {
+    const request = generateAuthenticatedRequest(
+      "/items",
+      "POST",
+      {
+        itemName: "Keyboard",
+        description: 12345,
+        price: 50,
+        quantityAvailable: 10,
+      },
+      accessToken,
+    );
+
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItem(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Bad Request");
+    expect(body.message).toBe("Invalid/missing items fields");
+  });
+
+  test("returns 400 when imageUrl type is invalid", async () => {
+    const request = generateAuthenticatedRequest(
+      "/items",
+      "POST",
+      {
+        itemName: "Keyboard",
+        price: 50,
+        quantityAvailable: 10,
+        imageUrl: 12345,
+      },
+      accessToken,
+    );
+
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItem(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Bad Request");
+    expect(body.message).toBe("Invalid/missing items fields");
+  });
+
+  test("creates item successfully", async () => {
+    const request = generateAuthenticatedRequest(
+      "/items",
+      "POST",
+      {
+        itemName: "Keyboard",
+        description: "Mechanical keyboard",
+        price: 50,
+        quantityAvailable: 10,
+        imageUrl: "https://example.com/image.png",
+      },
+      accessToken,
+    );
+
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItem(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.message).toBe("Item created successfully");
+    expect(body.item).not.toBe(undefined);
+
+    const query = await pg`select * from items where item_name = ${"Keyboard"}`;
+    expect(query.length).toBe(1);
+    expect(query[0].seller_id).toBe(createdSellerId);
+    expect(query[0].description).toBe("Mechanical keyboard");
+    expect(Number(query[0].price)).toBe(50);
+    expect(Number(query[0].quantity_available)).toBe(10);
+    expect(query[0].image_url).toBe("https://example.com/image.png");
+  });
+});
+
+describe("Getting item tests", () => {
   beforeEach(async () => {
     await pg`delete from items where item_id in (${itemId1}, ${itemId2}, ${itemId3})`;
     await pg`delete from refresh_tokens where user_id in (select user_id from users where email in ('jasonli1234@gmail.com', 'jasonli8909@gmail.com'))`;
