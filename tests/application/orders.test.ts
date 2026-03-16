@@ -5,6 +5,7 @@ import {
   deleteTestData,
   generateAuthenticatedRequest,
   generateRequest,
+  insertOrder,
   registerAndLogin,
   resetDb,
 } from "../test_helper";
@@ -24,6 +25,8 @@ import {
 import * as OrderApp from "../../src/application/order_application";
 import * as db from "../../src/database/queries/order_queries";
 import Stripe from "stripe";
+import { randomBytes } from "node:crypto";
+import { NeonQueryPromise } from "@neondatabase/serverless";
 
 describe("Creating checkout session", () => {
   beforeEach(async () => {
@@ -1085,10 +1088,14 @@ describe("fullfill checkout tests", () => {
 
 describe("delete order tests", () => {
   let userId: any = null;
+  let userId2: any = null;
+  let userId3: any = null;
+  let orderId: any = null;
 
   afterEach(async () => {
     await deleteTestData({
-      userIds: [userId],
+      orderIds: [orderId].filter(Boolean),
+      userIds: [userId, userId2, userId3].filter(Boolean),
     });
   });
 
@@ -1136,5 +1143,86 @@ describe("delete order tests", () => {
     expect(response.status).toBe(404);
     expect(body.message).toBe("Order not found.");
     expect(body.error).toBe("Not Found");
+  });
+
+  test("user is not authorised to delete order", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const rl3 = await registerAndLogin(
+      "testget3@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId3 = rl3.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {},
+      rl3.accessToken,
+    );
+
+    const response = await deleteOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe("User does not have permission to delete order.");
+    expect(body.error).toBe("Unauthorised");
+  });
+
+  test("Successful deletion", async () => {
+    const rl = await registerAndLogin(
+      "testget@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId = rl.userId;
+
+    const rl2 = await registerAndLogin(
+      "testget2@gmail.com",
+      "testuser",
+      "password",
+    );
+    userId2 = rl2.userId;
+
+    const order = await insertOrder({
+      buyer_id: userId,
+      seller_id: userId2,
+    });
+    orderId = order.order_id;
+
+    const request = generateAuthenticatedRequest(
+      `/order/${orderId}`,
+      "DELETE",
+      {},
+      rl.accessToken,
+    );
+
+    const response = await deleteOrder(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Order successfully deleted");
+
+    const query = await pg`select * from orders where order_id = ${orderId}`;
+    expect(query.length).toBe(0);
   });
 });

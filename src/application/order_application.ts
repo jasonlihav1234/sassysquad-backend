@@ -765,7 +765,7 @@ export const deleteOrder = authHelper(
       );
     }
 
-    if (userId !== order.buyerId) {
+    if (userId !== order.buyer_id && userId !== order.seller_id) {
       return jsonHelper(
         {
           message: "User does not have permission to delete order.",
