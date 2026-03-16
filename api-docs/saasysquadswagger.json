@@ -1017,7 +1017,7 @@
                       },
                       "paymentMethodCode": {
                         "type": "string",
-                        "example": "CREDIT_CARD"
+                        "example": "visa"
                       },
                       "destinationCountryCode": {
                         "type": "string",
@@ -1189,7 +1189,7 @@
                       },
                       "paymentMethodCode": {
                         "type": "string",
-                        "example": "CREDIT_CARD"
+                        "example": "visa"
                       },
                       "destinationCountryCode": {
                         "type": "string",
@@ -1829,7 +1829,7 @@
                 },
                 "paymentMethodCode": {
                   "type": "string",
-                  "example": "CREDIT_CARD"
+                  "example": "visa"
                 },
                 "destinationCountryCode": {
                   "type": "string",
@@ -1976,7 +1976,7 @@
                 },
                 "paymentMethodCode": {
                   "type": "string",
-                  "example": "CREDIT_CARD"
+                  "example": "visa"
                 },
                 "destinationCountryCode": {
                   "type": "string",
