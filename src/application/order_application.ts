@@ -277,6 +277,12 @@ export async function processOrderCreation(data: {
       "cbc:ID": newOrder.orderId,
       "cbc:IssueDate": newOrder.createdAt.slice(0, 10),
 
+      "cbc:RequestedInvoiceCurrencyCode": newOrder.requestedInvoiceCurrencyCode,
+      "cbc:DocumentCurrencyCode": newOrder.documentCurrencyCode,
+      "cbc:PricingDocumentCode": newOrder.pricingCurrencyCode,
+      "cbc:TaxCurrencyCode": newOrder.taxCurrencyCode,
+      "cbc:AccountingCost": newOrder.accountingCost,
+
       "cac:BuyerCustomerParty": {
         "cac:Party": {
           "cbc:CustomerAssignedAccountID": newOrder.buyerId,
@@ -287,6 +293,14 @@ export async function processOrderCreation(data: {
         "cac:Party": {
           "cbc:CustomerAssignedAccountID": newOrder.sellerId,
         },
+      },
+
+      "cac:PaymentMeans": {
+        "cbc:PaymentMeansCode": newOrder.paymentMethodCode,
+      },
+
+      "cac:DestinationCountry": {
+        "cbc:IdentificationCode": newOrder.destinationCountryCode
       },
 
       "cac:OrderLine": newOrder.orderLines.map((line: any) => ({
