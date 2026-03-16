@@ -35,9 +35,10 @@ import {
   updateOrder,
   getOrder,
 } from "./application/order_application";
-import { deleteItem } from "./application/item_application";
-import { updateItem } from "./application/item_application";
 import {
+  createItem,
+  deleteItem,
+  updateItem,
   getAllItems,
   getItemByUserId,
   getItemsById,
@@ -158,6 +159,15 @@ export async function handleRequest(req: any, res: any) {
   }
 
   // /items
+  // POST /items
+  if (url === "/items" && method === "POST") {
+    const response = await createItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+
   if (url === "/items" && method === "GET") {
     const response = await getAllItems(req);
 
