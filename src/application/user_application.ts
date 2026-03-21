@@ -29,7 +29,8 @@ import {
   updateProfileQuery,
 } from "../database/queries/user_queries";
 import { VercelRequest } from "@vercel/node";
-import { StringOrBuffer } from "bun";
+import * as arctic from "arctic";
+import { ClientSetInfoCommand } from "@upstash/redis";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -46,11 +47,31 @@ export interface UserDetails {
   createdAt: Date;
 }
 
-// converts secret strings to int8Array for jose library
-const accessSecret = new TextEncoder().encode(config.jwtSecret);
-const refreshSecret = new TextEncoder().encode(config.refreshSecret);
-
 const SALT_ROUNDS = 10;
+// takes in clientId, clientSecret, redirectURI
+const google = new arctic.Google(
+  process.env.CLIENT_ID!,
+  process.env.CLIENT_SECRET!,
+  "http://localhost:3000/api/auth/google/secrets",
+);
+
+export async function googleLogin(req: VercelRequest) {
+  const state = arctic.generateState();
+  const codeVerifier = arctic.generateCodeVerifier();
+  const url = google.createAuthorizationURL(state, codeVerifier, [
+    "profile",
+    "email",
+  ]);
+
+  const response = new Response(null, {
+    status: 302,
+    headers: {
+      Location: url.toString(),
+    },
+  });
+
+  return response;
+}
 
 export async function generateUser(
   email: string,
