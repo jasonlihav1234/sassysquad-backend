@@ -51,7 +51,7 @@ const SALT_ROUNDS = 10;
 const google = new arctic.Google(
   process.env.CLIENT_ID!,
   process.env.CLIENT_SECRET!,
-  "http://localhost:3000/auth/google/callback",
+  "https://sassysquad-backend-git-story-sa-a72ae1-jasons-projects-ac5e4f90.vercel.app/auth/google/callback",
 );
 
 export async function googleLogin(req: VercelRequest, res: VercelResponse) {
@@ -109,7 +109,7 @@ export default async function googleCallback(req: VercelRequest, res: VercelResp
 
     console.log(googleUser);
 
-    return res.redirect(302, "http://localhost:3000");
+    return res.redirect(302, "https://sassysquad-backend-git-story-sa-a72ae1-jasons-projects-ac5e4f90.vercel.app/");
   } catch (error) {}
 }
 
