@@ -9,5 +9,5 @@ export async function handleHealthRoutes(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-  res.status(404).json({ error: "Path not found" });
+  return res.status(404).json({ error: "Path not found" });
 }
