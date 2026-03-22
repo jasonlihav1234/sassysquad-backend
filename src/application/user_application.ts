@@ -28,9 +28,8 @@ import {
   removeUserById,
   updateProfileQuery,
 } from "../database/queries/user_queries";
-import { VercelRequest } from "@vercel/node";
+import { VercelRequest, VercelResponse } from "@vercel/node";
 import * as arctic from "arctic";
-import { ClientSetInfoCommand } from "@upstash/redis";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -52,10 +51,10 @@ const SALT_ROUNDS = 10;
 const google = new arctic.Google(
   process.env.CLIENT_ID!,
   process.env.CLIENT_SECRET!,
-  "http://localhost:3000/api/auth/google/secrets",
+  "http://localhost:3000/auth/google/callback",
 );
 
-export async function googleLogin(req: VercelRequest) {
+export async function googleLogin(req: VercelRequest, res: VercelResponse) {
   const state = arctic.generateState();
   const codeVerifier = arctic.generateCodeVerifier();
   const url = google.createAuthorizationURL(state, codeVerifier, [
@@ -63,14 +62,55 @@ export async function googleLogin(req: VercelRequest) {
     "email",
   ]);
 
-  const response = new Response(null, {
-    status: 302,
-    headers: {
-      Location: url.toString(),
-    },
-  });
+  // location + 302 = automatic redirect
+  res.setHeader("Set-Cookie", [
+    `google_oauth_state=${state}; HttpOnly; Secure; SameSite=None; Max-Age=600; Path=/`,
+    `google_code_verifier=${codeVerifier}; HttpOnly; Secure; SameSite=None; Max-Age=600; Path=/`,
+  ]);
 
-  return response;
+  return res.redirect(302, url.toString());
+}
+
+export default async function googleCallback(req: VercelRequest, res: VercelResponse) {
+  const code = req.query.code as string;
+  const state = req.query.state as string;
+
+  const storedState = req.cookies.google_oauth_state;
+  const storedCodeVerifier = req.cookies.google_code_verifier;
+
+  if (
+    !code ||
+    !state ||
+    !storedState ||
+    !storedCodeVerifier ||
+    state !== storedState
+  ) {
+    return jsonHelper(
+      {
+        error: "Invalid or expired OAuth state",
+      },
+      400,
+    );
+  }
+
+  try {
+    const tokens = await google.validateAuthorizationCode(
+      code,
+      storedCodeVerifier,
+    );
+
+    const googleResponse = await fetch(
+      "https://openidconnect.googleapis.com/v1/userinfo",
+      {
+        headers: { Authorization: `Berare ${tokens.accessToken()}` },
+      },
+    );
+    const googleUser = await googleResponse.json();
+
+    console.log(googleUser);
+
+    return res.redirect(302, "http://localhost:3000");
+  } catch (error) {}
 }
 
 export async function generateUser(

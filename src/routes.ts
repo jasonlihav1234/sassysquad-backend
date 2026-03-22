@@ -4,7 +4,7 @@ import {
   getOrderById,
   updateOrdersById,
 } from "./database/queries/order_queries";
-import {
+import googleCallback, {
   register,
   login,
   refresh,
@@ -17,6 +17,7 @@ import {
   getMyProfileDetails,
   deleteUser,
   updateProfile,
+  googleLogin,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
@@ -82,6 +83,15 @@ export async function handleRequest(req: any, res: any) {
       </html>
     `);
   }
+
+  if (url === "/auth/google/login" && method === "GET") {
+    return await googleLogin(req, res);
+  }
+
+  if (url === "/auth/google/callback" && method === "GET") {
+    return await googleCallback(req, res);
+  }
+
   if (url === "/auth/register" && method === "POST") {
     const response = await register(req);
 
@@ -167,7 +177,6 @@ export async function handleRequest(req: any, res: any) {
     const body = await response.json();
     return res.status(response.status).json(body);
   }
-
 
   if (url === "/items" && method === "GET") {
     const response = await getAllItems(req);
