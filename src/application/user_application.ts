@@ -118,7 +118,7 @@ export default async function googleCallback(
     const googleResponse = await fetch(
       "https://openidconnect.googleapis.com/v1/userinfo",
       {
-        headers: { Authorization: `Berare ${tokens.accessToken()}` },
+        headers: { Authorization: `Bearer ${tokens.accessToken()}` },
       },
     );
     const googleUser = await googleResponse.json();
