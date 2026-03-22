@@ -165,6 +165,15 @@ export const postOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     );
   }
 
+  if (sellerId === buyerId) {
+    return jsonHelper(
+      {
+        error: "sellerId and buyerId must be unique",
+      },
+      400,
+    );
+  }
+
   if (!Array.isArray(orderLines) || orderLines.length === 0) {
     return jsonHelper(
       {
