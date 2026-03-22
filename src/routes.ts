@@ -150,7 +150,7 @@ export async function handleRequest(req: any, res: any) {
   if (url === "/auth/google/login" && method === "GET") {
     return await googleLogin(req, res);
   }
-
+  console.log(url, method);
   if (url === "/auth/google/callback" && method === "GET") {
     return await googleCallback(req, res);
   }
