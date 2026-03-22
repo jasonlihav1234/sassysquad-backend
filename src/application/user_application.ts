@@ -47,14 +47,21 @@ export interface UserDetails {
 }
 
 const SALT_ROUNDS = 10;
-// takes in clientId, clientSecret, redirectURI
-const google = new arctic.Google(
-  process.env.CLIENT_ID!,
-  process.env.CLIENT_SECRET!,
-  "https://sassysquad-backend-git-story-sa-a72ae1-jasons-projects-ac5e4f90.vercel.app/auth/google/callback",
-);
+
+const getRedirectUri = (req: VercelRequest) => {
+  const host = req.headers.host;
+  const protocol = host?.includes("localhost") ? "http" : "https";
+  return `${protocol}://${host}/auth/google/callback`;
+};
 
 export async function googleLogin(req: VercelRequest, res: VercelResponse) {
+  const redirectUri = getRedirectUri(req);
+  const google = new arctic.Google(
+    process.env.CLIENT_ID!,
+    process.env.CLIENT_SECRET!,
+    redirectUri,
+  );
+
   const state = arctic.generateState();
   const codeVerifier = arctic.generateCodeVerifier();
   const url = google.createAuthorizationURL(state, codeVerifier, [
@@ -64,8 +71,8 @@ export async function googleLogin(req: VercelRequest, res: VercelResponse) {
 
   // location + 302 = automatic redirect
   res.setHeader("Set-Cookie", [
-    `google_oauth_state=${state}; HttpOnly; Secure; SameSite=None; Max-Age=600; Path=/`,
-    `google_code_verifier=${codeVerifier}; HttpOnly; Secure; SameSite=None; Max-Age=600; Path=/`,
+    `google_oauth_state=${state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`,
+    `google_code_verifier=${codeVerifier}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`,
   ]);
 
   return res.redirect(302, url.toString());
@@ -75,6 +82,12 @@ export default async function googleCallback(
   req: VercelRequest,
   res: VercelResponse,
 ) {
+  const redirectUri = getRedirectUri(req);
+  const google = new arctic.Google(
+    process.env.CLIENT_ID!,
+    process.env.CLIENT_SECRET!,
+    redirectUri,
+  );
   const code = req.query.code as string;
   const state = req.query.state as string;
 
