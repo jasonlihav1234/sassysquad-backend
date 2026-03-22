@@ -1,4 +1,7 @@
-import { getUserPurchases, getUserSales } from "../application/user_application";
+import {
+  getUserPurchases,
+  getUserSales,
+} from "../application/user_application";
 
 export async function handleUserRoutes(req: any, res: any) {
   const { method, url } = req;
@@ -15,5 +18,5 @@ export async function handleUserRoutes(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-  res.status(404).json({ error: "Path not found" });
+  return res.status(404).json({ error: "Path not found" });
 }
