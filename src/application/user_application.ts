@@ -71,7 +71,10 @@ export async function googleLogin(req: VercelRequest, res: VercelResponse) {
   return res.redirect(302, url.toString());
 }
 
-export default async function googleCallback(req: VercelRequest, res: VercelResponse) {
+export default async function googleCallback(
+  req: VercelRequest,
+  res: VercelResponse,
+) {
   const code = req.query.code as string;
   const state = req.query.state as string;
 
@@ -109,8 +112,13 @@ export default async function googleCallback(req: VercelRequest, res: VercelResp
 
     console.log(googleUser);
 
-    return res.redirect(302, "https://sassysquad-backend-git-story-sa-a72ae1-jasons-projects-ac5e4f90.vercel.app/");
-  } catch (error) {}
+    return res.redirect(
+      302,
+      "https://sassysquad-backend-git-story-sa-a72ae1-jasons-projects-ac5e4f90.vercel.app/",
+    );
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 export async function generateUser(
