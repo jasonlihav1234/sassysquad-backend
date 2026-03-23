@@ -48,7 +48,8 @@ export interface UserDetails {
 }
 
 const SALT_ROUNDS = 10;
-const FRONTEND_URL = "https://saasysquad-frontend.vercel.app";
+const FRONTEND_URL =
+  "https://saasysquad-frontend-git-story-s-05c470-jasons-projects-ac5e4f90.vercel.app";
 
 const getRedirectUri = (req: VercelRequest) => {
   const host = req.headers.host;
