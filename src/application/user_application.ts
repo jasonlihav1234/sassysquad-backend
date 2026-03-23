@@ -441,6 +441,7 @@ export async function forgotPassword(request: VercelRequest) {
 
     return jsonHelper({ message: "Mail successfully sent" });
   } catch (error) {
+    console.log(error);
     return jsonHelper({ error: "Mail failed to send" }, 500);
   }
 }
