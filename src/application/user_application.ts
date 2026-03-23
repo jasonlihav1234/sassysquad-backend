@@ -177,7 +177,7 @@ export async function checkUser(
   password: string,
 ): Promise<UserDetails | null> {
   const query = await pg`select * from users where email = ${email}`;
-
+  console.log(query, email, password);
   if (query.length === 0) {
     // doing fake hash to make it slower on fails, prevents attackers from checking which accounts don't exist
     await bcrypt.hash(password, SALT_ROUNDS);
@@ -188,7 +188,7 @@ export async function checkUser(
   const user = query[0];
   // need to change this for how it is returned in a table
   const checkPassword = await bcrypt.compare(password, user.password_hash);
-
+  console.log(checkPassword, "test");
   if (!checkPassword) {
     return null;
   }
