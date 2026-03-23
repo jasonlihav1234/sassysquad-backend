@@ -302,8 +302,16 @@ export async function handleRequest(req: any, res: any) {
   if (url === "/orders" && method === "POST") {
     const response = await postOrder(req);
 
-    const responseBody = await response.json();
-    return res.status(response.status).json(responseBody);
+    const contentType = response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      const responseBody = await response.json();
+      return res.status(response.status).json(responseBody);
+    } else {
+      const responseText = await response.text();
+      res.setHeader("Content-type", "application/xml");
+      return res.status(response.status).send(responseText);
+    }
   }
   if (method === "GET" && /\/orders\/[^/]+/.test(url)) {
     const response = await getOrder(req);
@@ -384,6 +392,18 @@ export async function handleRequest(req: any, res: any) {
 
     const body = await response.json();
     return res.status(response.status).json(body);
+  }
+
+  if (
+    (url.match(/^\/users\/[a-zA-Z0-9_-]+\/purchases/) ||
+      url.match(/^\/users\/[a-zA-Z0-9_-]+\/sales/)) &&
+    method === "GET"
+  ) {
+    return handleUserRoutes(req, res);
+  }
+
+  if (url === "/health" && method === "GET") {
+    return handleHealthRoutes(req, res);
   }
 
   // 404 if no roiutes match
