@@ -387,9 +387,13 @@ export async function forgotPassword(request: VercelRequest) {
       pass: process.env.GOOGLE_APP_PASSWORD,
     },
   });
+
   const imagePath = path.join(
-    import.meta.dirname,
-    "../utils/pictures/office_pic.jpg",
+    process.cwd(),
+    "src",
+    "utils",
+    "pictures",
+    "office_pic.jpg",
   );
 
   const resetPasswordToken = crypto.randomUUID();

@@ -17,5 +17,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "src/**/*.ts": {
+      "includeFiles": "src/utils/pictures/**"
+    }
+  }
 }
