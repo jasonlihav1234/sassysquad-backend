@@ -101,11 +101,9 @@ export default async function googleCallback(
     !storedCodeVerifier ||
     state !== storedState
   ) {
-    return jsonHelper(
-      {
-        error: "Invalid or expired OAuth state",
-      },
+    res.redirect(
       400,
+      "https://sassysquad-backend-git-story-sa-a72ae1-jasons-projects-ac5e4f90.vercel.app/",
     );
   }
 
