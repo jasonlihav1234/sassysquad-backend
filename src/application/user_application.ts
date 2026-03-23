@@ -121,7 +121,12 @@ export default async function googleCallback(
     const googleUser = await googleResponse.json();
 
     const googlePassword = await bcrypt.hash(crypto.randomUUID(), SALT_ROUNDS);
-    await generateUser(googleUser.email, googleUser.name, googlePassword);
+    const query =
+      await pg`select * from users where email = ${googleUser.email}`;
+
+    if (query.length === 0) {
+      await generateUser(googleUser.email, googleUser.name, googlePassword);
+    }
 
     const user = await checkUser(googleUser.email, googlePassword);
     const device = req.headers?.["user-agent"] || "null";
