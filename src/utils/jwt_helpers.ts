@@ -1,4 +1,9 @@
-import { verifyAccessToken, type TokenPayload } from "./jwt_config";
+import {
+  createAccessToken,
+  createRefreshToken,
+  verifyAccessToken,
+  type TokenPayload,
+} from "./jwt_config";
 import pg from "../utils/db";
 import { createHash } from "node:crypto";
 import { VercelRequest } from "@vercel/node";
@@ -16,7 +21,26 @@ interface TokenMetadata {
   session_id: string; // groups tokens for same login session
   device_info: string;
 }
-const SALT_ROUNDS = 10;
+
+export async function createSessionTokens(
+  userId: string,
+  email: string,
+  device: string,
+) {
+  const accessToken = await createAccessToken(userId, email);
+  const refreshToken = await createRefreshToken(userId, email);
+  const sessionId = crypto.randomUUID();
+
+  await storeRefreshToken(userId, sessionId, device, refreshToken.tokenId);
+
+  // setting expiration to 10 minutes = 600 seconds
+  return {
+    accessToken: accessToken,
+    refreshToken: refreshToken.token,
+    tokenType: "Bearer",
+    expiresIn: 600,
+  };
+}
 
 export function jsonHelper(data: object, status: number = 200): Response {
   return new Response(JSON.stringify(data), {

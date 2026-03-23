@@ -17,6 +17,7 @@ import {
   AuthReq,
   revokeAllUserRefreshTokens,
   getAllUserRefreshTokens,
+  createSessionTokens,
 } from "../utils/jwt_helpers";
 import nodemailer from "nodemailer";
 import path from "path";
@@ -47,6 +48,7 @@ export interface UserDetails {
 }
 
 const SALT_ROUNDS = 10;
+const FRONTEND_URL = "https://saasysquad-frontend.vercel.app";
 
 const getRedirectUri = (req: VercelRequest) => {
   const host = req.headers.host;
@@ -101,10 +103,7 @@ export default async function googleCallback(
     !storedCodeVerifier ||
     state !== storedState
   ) {
-    res.redirect(
-      400,
-      "https://sassysquad-backend-git-story-sa-a72ae1-jasons-projects-ac5e4f90.vercel.app/",
-    );
+    res.redirect(302, `${FRONTEND_URL}/login?error=google_auth_failed`);
   }
 
   try {
@@ -121,18 +120,21 @@ export default async function googleCallback(
     );
     const googleUser = await googleResponse.json();
 
-    console.log(googleUser);
     const googlePassword = await bcrypt.hash(crypto.randomUUID(), SALT_ROUNDS);
     await generateUser(googleUser.email, googleUser.name, googlePassword);
 
+    const user = await checkUser(googleUser.email, googlePassword);
+    const device = req.headers?.["user-agent"] || "null";
+    const token = await createSessionTokens(user!.id, user!.email, device);
+
     return res.redirect(
       302,
-      "https://sassysquad-backend-git-story-sa-a72ae1-jasons-projects-ac5e4f90.vercel.app/test",
+      `${FRONTEND_URL}/auth/success#access_token=${token.accessToken}&refresh_token=${token.refreshToken}`,
     );
   } catch (error) {
     console.log(error);
 
-    return res.status(500).json({ error: "Something went wrong" });
+    return res.redirect(302, `${FRONTEND_URL}/login?error=google_auth_failed`);
   }
 }
 
@@ -252,18 +254,10 @@ export async function login(request: VercelRequest) {
       return jsonHelper({ error: "Invalid credentials" }, 401);
     }
 
-    const accessToken = await createAccessToken(user.id, user.email);
-    const refreshToken = await createRefreshToken(user.id, user.email);
-    const sessionId = crypto.randomUUID();
     const device = request.headers?.["user-agent"] || "null";
-    await storeRefreshToken(user.id, sessionId, device, refreshToken.tokenId);
-    // setting expiration to 10 minutes = 600 seconds
-    return jsonHelper({
-      accessToken: accessToken,
-      refreshToken: refreshToken.token,
-      tokenType: "Bearer",
-      expiresIn: 600,
-    });
+    const tokens = await createSessionTokens(user.id, user.email, device);
+
+    return jsonHelper(tokens);
   } catch (error) {
     console.log(error);
     return jsonHelper({ error: "Login failed" }, 500);
