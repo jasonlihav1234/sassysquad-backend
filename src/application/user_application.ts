@@ -122,13 +122,17 @@ export default async function googleCallback(
     const googleUser = await googleResponse.json();
 
     console.log(googleUser);
+    const googlePassword = await bcrypt.hash(crypto.randomUUID(), SALT_ROUNDS);
+    await generateUser(googleUser.email, googleUser.name, googlePassword);
 
     return res.redirect(
       302,
-      "https://sassysquad-backend-git-story-sa-a72ae1-jasons-projects-ac5e4f90.vercel.app/",
+      "https://sassysquad-backend-git-story-sa-a72ae1-jasons-projects-ac5e4f90.vercel.app/test",
     );
   } catch (error) {
     console.log(error);
+
+    return res.status(500).json({ error: "Something went wrong" });
   }
 }
 
