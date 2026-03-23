@@ -390,8 +390,7 @@ export async function forgotPassword(request: VercelRequest) {
 
   const imagePath = path.join(
     process.cwd(),
-    "src",
-    "utils",
+    "public",
     "pictures",
     "office_pic.jpg",
   );
@@ -408,7 +407,7 @@ export async function forgotPassword(request: VercelRequest) {
     to: `${recipentEmail}`,
     subject: "Password Reset - SaasySquad",
     html: `
-<div style="background-color: #f0f4f8; padding: 40px 0; font-family: Arial, sans-serif;">
+    <div style="background-color: #f0f4f8; padding: 40px 0; font-family: Arial, sans-serif;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #ddd;">
       
         <div style="padding: 30px 40px 10px 40px;">
