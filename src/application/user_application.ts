@@ -17,6 +17,7 @@ import {
   AuthReq,
   revokeAllUserRefreshTokens,
   getAllUserRefreshTokens,
+  createSessionTokens,
 } from "../utils/jwt_helpers";
 import nodemailer from "nodemailer";
 import path from "path";
@@ -28,8 +29,8 @@ import {
   removeUserById,
   updateProfileQuery,
 } from "../database/queries/user_queries";
-import { VercelRequest } from "@vercel/node";
-import { StringOrBuffer } from "bun";
+import { VercelRequest, VercelResponse } from "@vercel/node";
+import * as arctic from "arctic";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -46,11 +47,101 @@ export interface UserDetails {
   createdAt: Date;
 }
 
-// converts secret strings to int8Array for jose library
-const accessSecret = new TextEncoder().encode(config.jwtSecret);
-const refreshSecret = new TextEncoder().encode(config.refreshSecret);
-
 const SALT_ROUNDS = 10;
+const FRONTEND_URL = "https://saasysquad-frontend.vercel.app";
+
+const getRedirectUri = (req: VercelRequest) => {
+  const host = req.headers.host;
+  const protocol = host?.includes("localhost") ? "http" : "https";
+  return `${protocol}://${host}/auth/google/callback`;
+};
+
+export async function googleLogin(req: VercelRequest, res: VercelResponse) {
+  const redirectUri = getRedirectUri(req);
+  const google = new arctic.Google(
+    process.env.CLIENT_ID!,
+    process.env.CLIENT_SECRET!,
+    redirectUri,
+  );
+
+  const state = arctic.generateState();
+  const codeVerifier = arctic.generateCodeVerifier();
+  const url = google.createAuthorizationURL(state, codeVerifier, [
+    "profile",
+    "email",
+  ]);
+
+  // location + 302 = automatic redirect
+  res.setHeader("Set-Cookie", [
+    `google_oauth_state=${state}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`,
+    `google_code_verifier=${codeVerifier}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`,
+  ]);
+
+  return res.redirect(302, url.toString());
+}
+
+export default async function googleCallback(
+  req: VercelRequest,
+  res: VercelResponse,
+) {
+  const redirectUri = getRedirectUri(req);
+  const google = new arctic.Google(
+    process.env.CLIENT_ID!,
+    process.env.CLIENT_SECRET!,
+    redirectUri,
+  );
+  const code = req.query.code as string;
+  const state = req.query.state as string;
+
+  const storedState = req.cookies.google_oauth_state;
+  const storedCodeVerifier = req.cookies.google_code_verifier;
+
+  if (
+    !code ||
+    !state ||
+    !storedState ||
+    !storedCodeVerifier ||
+    state !== storedState
+  ) {
+    res.redirect(302, `${FRONTEND_URL}/login?error=google_auth_failed`);
+  }
+
+  try {
+    const tokens = await google.validateAuthorizationCode(
+      code,
+      storedCodeVerifier,
+    );
+
+    const googleResponse = await fetch(
+      "https://openidconnect.googleapis.com/v1/userinfo",
+      {
+        headers: { Authorization: `Bearer ${tokens.accessToken()}` },
+      },
+    );
+    const googleUser = await googleResponse.json();
+
+    const googlePassword = await bcrypt.hash(crypto.randomUUID(), SALT_ROUNDS);
+    const query =
+      await pg`select * from users where email = ${googleUser.email}`;
+
+    if (query.length === 0) {
+      await generateUser(googleUser.email, googleUser.name, googlePassword);
+    }
+
+    const user = await checkUser(googleUser.email, googlePassword);
+    const device = req.headers?.["user-agent"] || "null";
+    const token = await createSessionTokens(user!.id, user!.email, device);
+
+    return res.redirect(
+      302,
+      `${FRONTEND_URL}/auth/success#access_token=${token.accessToken}&refresh_token=${token.refreshToken}`,
+    );
+  } catch (error) {
+    console.log(error);
+
+    return res.redirect(302, `${FRONTEND_URL}/login?error=google_auth_failed`);
+  }
+}
 
 export async function generateUser(
   email: string,
@@ -86,7 +177,7 @@ export async function checkUser(
   password: string,
 ): Promise<UserDetails | null> {
   const query = await pg`select * from users where email = ${email}`;
-
+  console.log(query, email, password);
   if (query.length === 0) {
     // doing fake hash to make it slower on fails, prevents attackers from checking which accounts don't exist
     await bcrypt.hash(password, SALT_ROUNDS);
@@ -97,7 +188,7 @@ export async function checkUser(
   const user = query[0];
   // need to change this for how it is returned in a table
   const checkPassword = await bcrypt.compare(password, user.password_hash);
-
+  console.log(checkPassword, "test");
   if (!checkPassword) {
     return null;
   }
@@ -168,18 +259,10 @@ export async function login(request: VercelRequest) {
       return jsonHelper({ error: "Invalid credentials" }, 401);
     }
 
-    const accessToken = await createAccessToken(user.id, user.email);
-    const refreshToken = await createRefreshToken(user.id, user.email);
-    const sessionId = crypto.randomUUID();
     const device = request.headers?.["user-agent"] || "null";
-    await storeRefreshToken(user.id, sessionId, device, refreshToken.tokenId);
-    // setting expiration to 10 minutes = 600 seconds
-    return jsonHelper({
-      accessToken: accessToken,
-      refreshToken: refreshToken.token,
-      tokenType: "Bearer",
-      expiresIn: 600,
-    });
+    const tokens = await createSessionTokens(user.id, user.email, device);
+
+    return jsonHelper(tokens);
   } catch (error) {
     console.log(error);
     return jsonHelper({ error: "Login failed" }, 500);
@@ -304,9 +387,12 @@ export async function forgotPassword(request: VercelRequest) {
       pass: process.env.GOOGLE_APP_PASSWORD,
     },
   });
+
   const imagePath = path.join(
-    import.meta.dirname,
-    "../utils/pictures/office_pic.jpg",
+    process.cwd(),
+    "public",
+    "pictures",
+    "office_pic.jpg",
   );
 
   const resetPasswordToken = crypto.randomUUID();
@@ -321,7 +407,7 @@ export async function forgotPassword(request: VercelRequest) {
     to: `${recipentEmail}`,
     subject: "Password Reset - SaasySquad",
     html: `
-<div style="background-color: #f0f4f8; padding: 40px 0; font-family: Arial, sans-serif;">
+    <div style="background-color: #f0f4f8; padding: 40px 0; font-family: Arial, sans-serif;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #ddd;">
       
         <div style="padding: 30px 40px 10px 40px;">
@@ -358,6 +444,7 @@ export async function forgotPassword(request: VercelRequest) {
 
     return jsonHelper({ message: "Mail successfully sent" });
   } catch (error) {
+    console.log(error);
     return jsonHelper({ error: "Mail failed to send" }, 500);
   }
 }
