@@ -15,6 +15,7 @@ import {
   createItemQueryV2,
   updateItemQueryV2,
   addItemTagsQuery,
+  deleteItemTagsQuery,
 } from "../database/queries/item_queries";
 import { updateProfileQuery } from "../database/queries/user_queries";
 
@@ -378,15 +379,79 @@ export const addItemTags = authHelper(
         );
       }
 
+      const item = await getItemByItemIdQuery(itemId);
+
+      if (item.length === 0) {
+        return jsonHelper(
+          {
+            message: "Item not found",
+          },
+          404,
+        );
+      }
+
+      if (item[0].seller_id != req.user!.subject_claim) {
+        return jsonHelper(
+          {
+            message: "User does not own the item",
+          },
+          401,
+        );
+      }
+
       await addItemTagsQuery(itemId, tags);
 
       return jsonHelper({
-        message: "Tag added to item"
+        message: "Tag added to item",
       });
     } catch (error) {
       return jsonHelper(
         {
           message: "Adding item tag failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const deleteItemTags = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const itemId = req.query.itemId;
+      const tags = req.query.tags;
+
+      if (!itemId || !tags) {
+        return jsonHelper(
+          {
+            message: "No itemId or tags are not provided",
+          },
+          400,
+        );
+      }
+
+      if (tags.length === 0) {
+        return jsonHelper(
+          {
+            message: "Tags are empty",
+          },
+          400,
+        );
+      }
+
+      const tagString = Array.isArray(tags) ? tags.join(",") : tags;
+      const tagArray = tagString.split(",").map((tag) => tag.trim());
+
+      await deleteItemTagsQuery(itemId as string, tagArray);
+
+      return jsonHelper({
+        message: "Tags removed from item",
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Removing item tags failed",
           error: error,
         },
         500,
