@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@google/genai": "^1.46.0",
     "@neondatabase/serverless": "^1.0.2",
     "@upstash/redis": "^1.36.3",
     "@vercel/node": "^5.6.15",
