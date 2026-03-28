@@ -291,7 +291,7 @@ export async function updateItemQueryV2(
   }
 }
 
-export async function addItemTags(item_id: string, tags: string[]) {
+export async function addItemTagsQuery(item_id: string, tags: string[]) {
   try {
     // just assume item id already exists
     // get all the item ids for the tags, then add it to the item_tags table
@@ -334,7 +334,7 @@ export async function addItemTags(item_id: string, tags: string[]) {
   }
 }
 
-export async function deleteItemTags(item_id: string, tags: string[]) {
+export async function deleteItemTagsQuery(item_id: string, tags: string[]) {
   try {
     if (!tags || tags.length === 0) {
       return;
