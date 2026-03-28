@@ -204,21 +204,39 @@ export async function updateItemQueryV2(
   quantity_available: number | null,
   image_url: string | null,
   categoryName: string | null,
-  tags: string[] | null
 ): Promise<Response> {
   try {
-    const response = await pg`
-    update items
-    set
-      item_name = coalesce(${itemName}, item_name),
-      description = coalesce(${description}, description),
-      price = coalesce(${price}, price),
-      quantity_available = coalesce(${quantity_available}, quantity_available),
-      image_url = coalesce(${image_url}, image_url),
-      last_updated = ${new Date().toISOString()}
-    where item_id = ${itemId}
-    returning *
-    `;
+    const response = await pg.begin(async (sql) => {
+      let categoryId: string | null = null;
+      if (categoryName) {
+        const categoryNameLower = categoryName.toLowerCase();
+
+        const categoryQuery = await sql`
+          insert into categories (category_id, category_name)
+          values (${crypto.randomUUID()},${categoryNameLower})
+          on conflict (category_name)
+          do update set category_name = excluded.category_name
+          returning category_id;
+        `;
+
+        categoryId = categoryQuery[0].category_id;
+      }
+      const updatedItem = await sql`
+      update items
+      set
+        item_name = coalesce(${itemName}, item_name),
+        description = coalesce(${description}, description),
+        price = coalesce(${price}, price),
+        quantity_available = coalesce(${quantity_available}, quantity_available),
+        image_url = coalesce(${image_url}, image_url),
+        last_updated = ${new Date().toISOString()},
+        category_id = coalesce(${categoryId}, category_id)
+      where item_id = ${itemId}
+      returning *
+      `;
+
+      return updatedItem[0];
+    });
 
     return response;
   } catch (error) {
@@ -226,6 +244,8 @@ export async function updateItemQueryV2(
     throw error;
   }
 }
+
+export async function updateItemTags(tags: string[]) {}
 
 /*
  * Deletes an item given an item id
