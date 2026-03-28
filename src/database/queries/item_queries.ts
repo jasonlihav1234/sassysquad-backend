@@ -64,7 +64,7 @@ export async function getItemsUserQuery(userId: string) {
 }
 
 /*
- * Creates an item
+ * Creates an item, need a include tags for the item
  */
 export async function createItemQuery(
   itemId: string,
@@ -74,33 +74,88 @@ export async function createItemQuery(
   price: number,
   quantityAvailable: number,
   imageUrl: string | null,
+  categoryName: string,
+  tags: string[],
 ) {
   try {
-    const response = await pg`
-      insert into items (
-        item_id,
-        seller_id,
-        item_name,
-        description,
-        price,
-        quantity_available,
-        image_url,
-        created_at,
-        last_updated
-      )
-      values (
-        ${itemId},
-        ${sellerId},
-        ${itemName},
-        ${description},
-        ${price},
-        ${quantityAvailable},
-        ${imageUrl},
-        ${new Date().toISOString()},
-        ${new Date().toISOString()}
-      )
-      returning *
-    `;
+    if (tags.length === 0) {
+      throw Error("No tags provided for item");
+    }
+    const transformedTags = tags.map((tag) => tag.toLowerCase());
+
+    const response = await pg.begin(async (sql) => {
+      const categoryNameLower = categoryName.toLowerCase();
+
+      const categoryQuery = await sql`
+        insert into categories (category_id, category_name)
+        values (${crypto.randomUUID()},${categoryNameLower})
+        on conflict (category_name)
+        do update set category_name = excluded.category_name
+        returning category_id;
+      `;
+
+      const categoryId = categoryQuery.category_id;
+
+      // need to make sure that these tags exist in the database, if not, insert it
+
+      const itemQuery: any = await sql`
+        insert into items (
+          item_id,
+          seller_id,
+          item_name,
+          description,
+          price,
+          quantity_available,
+          image_url,
+          created_at,
+          last_updated,
+          category_id
+        )
+        values (
+          ${itemId},
+          ${sellerId},
+          ${itemName},
+          ${description},
+          ${price},
+          ${quantityAvailable},
+          ${imageUrl},
+          ${new Date().toISOString()},
+          ${new Date().toISOString()},
+          ${categoryId}
+        )
+        returning *
+      `;
+
+      const insertedItem = itemQuery[0];
+      const tagsToInsert = transformedTags.map((name) => ({
+        tag_id: crypto.randomUUID(),
+        tag_name: name,
+      }));
+
+      await sql`
+        insert into tags ${sql(tagsToInsert)}
+        on conflict (tag_name) do nothing
+      `;
+
+      // fetch uuids for tags
+      const currentTags = await sql`
+        select tag_id, tag_name
+        from tags
+        where tag_name in ${sql(transformedTags)}
+      `;
+
+      const itemTagsToInsert = currentTags.map((tag: any) => ({
+        item_id: itemId,
+        tag_id: tag.tag_id,
+      }));
+
+      await sql`
+        insert into item_tags ${sql(itemTagsToInsert)}
+        on conflict do nothing
+      `;
+
+      return insertedItem;
+    });
 
     return response;
   } catch (error) {
