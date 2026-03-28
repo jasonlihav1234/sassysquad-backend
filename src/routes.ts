@@ -43,7 +43,12 @@ import {
   getAllItems,
   getItemByUserId,
   getItemsById,
+  createItemV2,
+  addItemTags,
+  deleteItemTags,
 } from "./application/item_application";
+import { deleteItemTagsQuery } from "./database/queries/item_queries";
+import { UnexpectedResponseError } from "arctic";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -147,6 +152,23 @@ export async function handleRequest(req: any, res: any) {
     `);
   }
 
+  if (url === "/items/tags" && method === "POST") {
+    const response = await addItemTags(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (
+    url.match(/^\/items\/[a-zA-Z0-9_-]+\/tags(\?.*)?$/) &&
+    method === "DELETE"
+  ) {
+    const response = await deleteItemTags(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   if (url === "/auth/google/login" && method === "GET") {
     return await googleLogin(req, res);
   }
@@ -225,6 +247,13 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
+  if (url.match(/^v2\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
+    const response = await updateItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   if (url === "/cart/items" && method === "POST") {
     const response = await addItemToCart(req);
 
@@ -236,6 +265,13 @@ export async function handleRequest(req: any, res: any) {
   // POST /items
   if (url === "/items" && method === "POST") {
     const response = await createItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/v2/items" && method === "POST") {
+    const response = await createItemV2(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);

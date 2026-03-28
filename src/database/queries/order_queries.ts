@@ -51,9 +51,7 @@ export async function getOrderIdByName(
 /**
  * Fetches an order based on its ID, make sure to prepend await since these are async functions
  */
-export async function getOrderById(
-  orderId: string
-) {
+export async function getOrderById(orderId: string) {
   const result = await pg`
     SELECT *
     FROM orders 
@@ -560,10 +558,20 @@ export async function deleteItem(itemId: string) {
   }
 
   try {
-    await pg`
+    const deletedItems = await pg`
     delete from items
     where item_id = ${itemId}
+    returning *
     `;
+
+    if (deletedItems.length === 0) {
+      return jsonHelper(
+        {
+          message: "Item not found",
+        },
+        404,
+      );
+    }
 
     return jsonHelper({ message: "Item deleted" });
   } catch (error) {
