@@ -19,19 +19,58 @@ import {
 } from "../database/queries/item_queries";
 import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
+import pg from "../utils/db";
 
 const ai = new GoogleGenAI({});
 
 export const generateAIRecommendations = authHelper(
   async (req: AuthReq): Promise<Response> => {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
-      contents: "Explain how to solve Burst Balloons on Leetcode",
-    });
+    // get all the tags that exist in the database
+    // user chooses category of item
+    const { category } = req.query;
+    // need to get all the tags
+    const tagsQuery = await pg`select tag_name from tags`;
+    const tags = tagsQuery.map((tag: any) => tag.tag_name);
 
-    return jsonHelper({
-      message: response.text,
-    });
+    const prompt = `
+    You are an expert interior design consultant.
+    These are the allowed aesthetic tags: ${tags.join(", ")}
+
+    Analyze the provided image and select the tags from the list that perfectly fit the theme and aesthetic of the customer's room.
+    This if for a high-end, luxury business, so curate your choices carefully to delight the customer.
+
+    CRITICAL INSTRUCTION: You must ONLY choose tags that exist in the exact list provided above. DO NOT invent new tags.
+
+    You MUST return your respinse in the following strict JSON format:
+    {
+      "tags": ["tag1", "tag2"],
+      "message": "A short, polite message explaining why you chose these tags."
+    }
+
+    If absolutely none of the tags fit the image, return an empty array for the tags and provide your alternative style suggestions inside the message key like this:
+    {
+      "tags": [],
+      "message": "I couldn't find exact matches in our current catalog, but I think 'Wabi-Sabi' or 'Mid-Century Modern' would fit this space perfectly :)"
+    }
+    `;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite-preview",
+        contents: prompt,
+      });
+
+      return jsonHelper({
+        message: response.text,
+      });
+    } catch (error) {
+      console.log(error);
+
+      return jsonHelper({
+        message: "Prompt failed",
+        error: error,
+      });
+    }
   },
 );
 
