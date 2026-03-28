@@ -270,7 +270,7 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-  if (url === "v2/items" && method === "POST") {
+  if (url === "/v2/items" && method === "POST") {
     const response = await createItemV2(req);
 
     const body = await response.json();
