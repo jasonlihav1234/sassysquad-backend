@@ -14,6 +14,7 @@ import {
   createItemQuery,
   createItemQueryV2,
   updateItemQueryV2,
+  addItemTagsQuery,
 } from "../database/queries/item_queries";
 import { updateProfileQuery } from "../database/queries/user_queries";
 
@@ -354,6 +355,38 @@ export const deleteItem = authHelper(
       return jsonHelper(
         {
           message: "Deleting item failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const addItemTags = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const itemId = req.body.itemId;
+      const tags = req.body.tags;
+
+      if (!itemId || !tags || tags.length === 0) {
+        return jsonHelper(
+          {
+            message: "No itemId or tags provided",
+          },
+          400,
+        );
+      }
+
+      await addItemTagsQuery(itemId, tags);
+
+      return jsonHelper({
+        message: "Tag added to item"
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Adding item tag failed",
           error: error,
         },
         500,
