@@ -234,6 +234,13 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
+  if (url.match(/^v2\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
+    const response = await updateItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   if (url === "/cart/items" && method === "POST") {
     const response = await addItemToCart(req);
 

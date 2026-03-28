@@ -13,6 +13,7 @@ import {
   deleteItemFromIdQuery,
   createItemQuery,
   createItemQueryV2,
+  updateItemQueryV2,
 } from "../database/queries/item_queries";
 import { updateProfileQuery } from "../database/queries/user_queries";
 
@@ -311,13 +312,14 @@ export const updateItem = authHelper(
       }
 
       // map each field into null if undefined
-      const response = await updateItemQuery(
+      const response = await updateItemQueryV2(
         itemId,
         body.itemName ?? null,
         body.description ?? null,
         body.price ?? null,
         body.quantity_available ?? null,
         body.image_url ?? null,
+        body.categoryName ?? null,
       );
 
       return jsonHelper({
