@@ -561,6 +561,7 @@ export async function deleteItem(itemId: string) {
     const deletedItems = await pg`
     delete from items
     where item_id = ${itemId}
+    returning *
     `;
 
     if (deletedItems.length === 0) {
