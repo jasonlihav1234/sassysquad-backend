@@ -140,7 +140,7 @@ export async function createItemQueryV2(
         returning category_id;
       `;
 
-      const categoryId = categoryQuery.category_id;
+      const categoryId = categoryQuery[0].category_id;
 
       // need to make sure that these tags exist in the database, if not, insert it
 
