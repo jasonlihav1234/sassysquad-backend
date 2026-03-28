@@ -245,7 +245,56 @@ export async function updateItemQueryV2(
   }
 }
 
-export async function updateItemTags(tags: string[]) {}
+export async function addItemTags(item_id: string, tags: string[]) {
+  try {
+    // just assume item id already exists
+    // get all the item ids for the tags, then add it to the item_tags table
+    if (!tags || tags.length === 0) {
+      return;
+    }
+
+    const transformedTags = tags.map((tag) => tag.toLowerCase());
+
+    await pg.begin(async (sql) => {
+      const tagsToInsert = transformedTags.map((name) => ({
+        tag_id: crypto.randomUUID(),
+        tag_name: name,
+      }));
+
+      await sql`
+        insert into tags ${sql(tagsToInsert)}
+        on conflict (tag_name) do nothing
+      `;
+
+      // fetch uuid for these tags
+      const currentTags = await sql`
+        select tag_id from tags
+        where tag_name in ${sql(transformedTags)}
+      `;
+
+      const itemTagsToInsert = currentTags.map((tag: any) => ({
+        item_id: item_id,
+        tag_id: tag.tag_id,
+      }));
+
+      await sql`
+        insert into item_tags ${sql(itemTagsToInsert)}
+        on conflict do nothing
+      `;
+    });
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
+export async function deleteItemTags(item_id: string, tags: string[]) {
+  try {
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
 
 /*
  * Deletes an item given an item id
