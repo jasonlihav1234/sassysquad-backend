@@ -44,7 +44,11 @@ import {
   getItemByUserId,
   getItemsById,
   createItemV2,
+  addItemTags,
+  deleteItemTags,
 } from "./application/item_application";
+import { deleteItemTagsQuery } from "./database/queries/item_queries";
+import { UnexpectedResponseError } from "arctic";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -148,13 +152,22 @@ export async function handleRequest(req: any, res: any) {
     `);
   }
 
-  // if (url === "/tags" && method === "POST") {
-  //   return await ...
-  // }
+  if (url === "/items/tags" && method === "POST") {
+    const response = await addItemTags(req);
 
-  // if (url === "/tags" && method === "DELETE") {
-  //   return await
-  // }
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (
+    url.match(/^\/items\/[a-zA-Z0-9_-]+\/tags(\?.*)?$/) &&
+    method === "DELETE"
+  ) {
+    const response = await deleteItemTags(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
 
   if (url === "/auth/google/login" && method === "GET") {
     return await googleLogin(req, res);
