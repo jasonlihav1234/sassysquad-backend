@@ -110,7 +110,8 @@ describe("createOrderQuery", () => {
     expect(body.message).toBe("Insertion successful");
     expect(body.orderId).toBe(orderId);
 
-    const rows = await pg`select payment_method_cost from orders where order_id = ${orderId}`;
+    const rows =
+      await pg`select payment_method_cost from orders where order_id = ${orderId}`;
     expect(rows.length).toBe(1);
     expect(Number(rows[0].payment_method_cost)).toBe(expectedPaymentMethodCost);
 
@@ -154,7 +155,8 @@ describe("createOrderQuery", () => {
 
     expect(res.status).toBe(200);
     expect(body.message).toBe("Insertion successful");
-    const rows = await pg`select payment_method_cost from orders where order_id = ${orderId}`;
+    const rows =
+      await pg`select payment_method_cost from orders where order_id = ${orderId}`;
     expect(rows.length).toBe(1);
     expect(Number(rows[0].payment_method_cost)).toBeCloseTo(
       expectedPaymentMethodCost,
@@ -367,13 +369,7 @@ describe("deleteOrdersById", () => {
     });
     const item = await insertItem({ seller_id: seller.user_id });
 
-    await createOrderlineQuery(
-      order.order_id,
-      item.item_id,
-      1,
-      0,
-      10,
-    );
+    await createOrderlineQuery(order.order_id, item.item_id, 1, 0, 10);
 
     const res = await deleteOrdersById(order.order_id);
     const body = await res.json();
@@ -434,7 +430,8 @@ describe("updateOrdersById", () => {
     );
     expect(createRes.status).toBe(200);
 
-    const [orderBefore] = await pg`select * from orders where order_id = ${orderId}`;
+    const [orderBefore] =
+      await pg`select * from orders where order_id = ${orderId}`;
 
     const updateRes = await updateOrdersById(orderId, {
       status: "paid",
@@ -448,8 +445,11 @@ describe("updateOrdersById", () => {
     expect(updateRes.status).toBe(200);
     expect(updateBody.message).toBe("Update successful");
 
-    const [orderAfter] = await pg`select * from orders where order_id = ${orderId}`;
-    expect(Number(orderAfter.total_cost)).not.toBe(Number(orderBefore.total_cost));
+    const [orderAfter] =
+      await pg`select * from orders where order_id = ${orderId}`;
+    expect(Number(orderAfter.total_cost)).not.toBe(
+      Number(orderBefore.total_cost),
+    );
 
     await deleteTestData({
       orderIds: [orderId],
@@ -487,9 +487,7 @@ describe("updateOrdersById", () => {
     `;
 
     const res = await updateOrdersById(orderId, {
-      items: [
-        { itemId: item.item_id, quantity: 10, priceAtPurchase: 10 },
-      ],
+      items: [{ itemId: item.item_id, quantity: 10, priceAtPurchase: 10 }],
     });
     const body = await res.json();
 
@@ -537,7 +535,8 @@ describe("updateOrdersById", () => {
 
     expect(res.status).toBe(200);
     expect(body.message).toBe("Update successful");
-    const rows = await pg`select payment_method_cost from orders where order_id = ${orderId}`;
+    const rows =
+      await pg`select payment_method_cost from orders where order_id = ${orderId}`;
     const expectedCost = 20 * (0.5 / 100);
     expect(Number(rows[0].payment_method_cost)).toBe(expectedCost);
 
@@ -582,7 +581,8 @@ describe("updateOrdersById", () => {
 
     expect(res.status).toBe(200);
     expect(body.message).toBe("Update successful");
-    const rows = await pg`select payment_method_cost from orders where order_id = ${orderId}`;
+    const rows =
+      await pg`select payment_method_cost from orders where order_id = ${orderId}`;
     const expectedCost = 20 * (1.4 / 100);
     expect(Number(rows[0].payment_method_cost)).toBeCloseTo(expectedCost, 10);
 
@@ -634,7 +634,8 @@ describe("updateOrdersById", () => {
 
     expect(res.status).toBe(200);
     expect(body.message).toBe("Update successful");
-    const rows = await pg`select status, total_cost from orders where order_id = ${orderId}`;
+    const rows =
+      await pg`select status, total_cost from orders where order_id = ${orderId}`;
     expect(rows[0].status).toBe("paid");
 
     await deleteTestData({
@@ -650,14 +651,7 @@ describe("createItem", () => {
     const seller = await insertUser();
     const itemName = `createItem-test-${crypto.randomUUID()}`;
 
-    const res = await createItem(
-      seller.user_id,
-      itemName,
-      null,
-      10,
-      100,
-      null,
-    );
+    const res = await createItem(seller.user_id, itemName, null, 10, 100, null);
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -797,7 +791,7 @@ describe("deleteItem", () => {
     await deleteTestData({ userIds: [seller.user_id] });
   });
 
-  test("returns 500 when delete fails", async () => {
+  test("returns 404 when item does not exist to delete", async () => {
     const { buyer, seller } = await createBuyerAndSeller();
     const order = await insertOrder({
       buyer_id: buyer.user_id,
@@ -805,20 +799,13 @@ describe("deleteItem", () => {
     });
     const item = await insertItem({ seller_id: seller.user_id });
 
-    await createOrderlineQuery(
-      order.order_id,
-      item.item_id,
-      1,
-      0,
-      10,
-    );
-
-    const res = await deleteItem(item.item_id);
+    await createOrderlineQuery(order.order_id, item.item_id, 1, 0, 10);
+    const res = await deleteItem(crypto.randomUUID());
     const body = await res.json();
 
-    expect(res.status).toBe(500);
-    expect(body.message).toBe("Item failed to delete");
-
+    expect(res.status).toBe(404);
+    expect(body.message).toBe("Item not found");
+    // need to delete order line as well
     await deleteTestData({
       orderIds: [order.order_id],
       itemIds: [item.item_id],
