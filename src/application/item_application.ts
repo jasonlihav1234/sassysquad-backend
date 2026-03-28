@@ -17,7 +17,23 @@ import {
   addItemTagsQuery,
   deleteItemTagsQuery,
 } from "../database/queries/item_queries";
+import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
+
+const ai = new GoogleGenAI({});
+
+export const generateAIRecommendations = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: "Explain how to solve Burst Balloons on Leetcode",
+    });
+
+    return jsonHelper({
+      message: response.text,
+    });
+  },
+);
 
 export const createItem = authHelper(
   async (req: AuthReq): Promise<Response> => {
