@@ -64,9 +64,55 @@ export async function getItemsUserQuery(userId: string) {
 }
 
 /*
- * Creates an item, need a include tags for the item
+ * Creates an item
  */
 export async function createItemQuery(
+  itemId: string,
+  sellerId: string,
+  itemName: string,
+  description: string | null,
+  price: number,
+  quantityAvailable: number,
+  imageUrl: string | null,
+) {
+  try {
+    const response = await pg`
+      insert into items (
+        item_id,
+        seller_id,
+        item_name,
+        description,
+        price,
+        quantity_available,
+        image_url,
+        created_at,
+        last_updated
+      )
+      values (
+        ${itemId},
+        ${sellerId},
+        ${itemName},
+        ${description},
+        ${price},
+        ${quantityAvailable},
+        ${imageUrl},
+        ${new Date().toISOString()},
+        ${new Date().toISOString()}
+      )
+      returning *
+    `;
+
+    return response;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
+/*
+ * Creates an item, need a include tags for the item
+ */
+export async function createItemQueryV2(
   itemId: string,
   sellerId: string,
   itemName: string,
