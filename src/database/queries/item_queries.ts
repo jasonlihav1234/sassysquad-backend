@@ -196,6 +196,37 @@ export async function updateItemQuery(
   }
 }
 
+export async function updateItemQueryV2(
+  itemId: string,
+  itemName: string | null,
+  description: string | null,
+  price: number | null,
+  quantity_available: number | null,
+  image_url: string | null,
+  categoryName: string | null,
+  tags: string[] | null
+): Promise<Response> {
+  try {
+    const response = await pg`
+    update items
+    set
+      item_name = coalesce(${itemName}, item_name),
+      description = coalesce(${description}, description),
+      price = coalesce(${price}, price),
+      quantity_available = coalesce(${quantity_available}, quantity_available),
+      image_url = coalesce(${image_url}, image_url),
+      last_updated = ${new Date().toISOString()}
+    where item_id = ${itemId}
+    returning *
+    `;
+
+    return response;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
 /*
  * Deletes an item given an item id
  */
