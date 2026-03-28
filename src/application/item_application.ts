@@ -419,7 +419,7 @@ export const addItemTags = authHelper(
 export const deleteItemTags = authHelper(
   async (req: AuthReq): Promise<Response> => {
     try {
-      const itemId = req.query.itemId;
+      const itemId = req.url!.split("/").at(2);
       const tags = req.query.tags;
 
       if (!itemId || !tags) {
