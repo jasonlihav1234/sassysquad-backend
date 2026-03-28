@@ -290,6 +290,30 @@ export async function addItemTags(item_id: string, tags: string[]) {
 
 export async function deleteItemTags(item_id: string, tags: string[]) {
   try {
+    if (!tags || tags.length === 0) {
+      return;
+    }
+
+    const transformedTags = tags.map((tag) => tag.toLowerCase());
+
+    await pg.begin(async (sql) => {
+      const deleteTags = await sql`
+        select tag_id from tags
+        where tag_name in ${sql(transformedTags)}
+      `;
+
+      if (deleteTags.length === 0) {
+        return;
+      }
+
+      const tagIds = deleteTags.map((tag: any) => tag.tag_id);
+
+      await sql`
+        delete from item_tags
+        where item_id = ${item_id}
+        and tag_id in ${sql(tagIds)}
+      `;
+    });
   } catch (error) {
     console.log(error);
     throw error;
