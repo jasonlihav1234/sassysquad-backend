@@ -27,11 +27,22 @@ export const generateAIRecommendations = authHelper(
   async (req: AuthReq): Promise<Response> => {
     // get all the tags that exist in the database
     // user chooses category of item
-    const { category } = req.query;
+    const category = req.body.category;
+    const image = req.body.image;
+
+    if (!category || !image) {
+      return jsonHelper(
+        {
+          message: "No image or category provided",
+        },
+        400,
+      );
+    }
+
     // need to get all the tags
     const tagsQuery = await pg`select tag_name from tags`;
     const tags = tagsQuery.map((tag: any) => tag.tag_name);
-
+    // I would need base64 encoded image
     const prompt = `
     You are an expert interior design consultant.
     These are the allowed aesthetic tags: ${tags.join(", ")}
@@ -54,11 +65,27 @@ export const generateAIRecommendations = authHelper(
     }
     `;
 
+    const contents = [
+      prompt,
+      {
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: image,
+        },
+      },
+    ];
+    // https://ai.google.dev/gemini-api/docs/structured-output?example=recipe
     try {
       const response = await ai.models.generateContent({
         model: "gemini-3.1-flash-lite-preview",
-        contents: prompt,
+        contents: contents,
+        config: {
+          responseMimeType: "application/json",
+        },
       });
+
+      // from response, parse the json, if empty, return the message, else query the database for items that
+      // match any of the tags and category
 
       return jsonHelper({
         message: response.text,

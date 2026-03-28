@@ -153,7 +153,7 @@ export async function handleRequest(req: any, res: any) {
     `);
   }
 
-  if (url === "/items/recommendations" && method === "GET") {
+  if (url === "/items/recommendations" && method === "POST") {
     const response = await generateAIRecommendations(req);
 
     const body = await response.json();
