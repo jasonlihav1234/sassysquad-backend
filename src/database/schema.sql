@@ -1,8 +1,13 @@
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS items CASCADE;
+DROP TABLE IF EXISTS item_tags CASCADE;
 DROP TABLE IF EXISTS order_lines CASCADE;
-DROP TABLE IF EXISTS orders CASCADE;
+
 DROP TABLE IF EXISTS refresh_tokens CASCADE;
+DROP TABLE IF EXISTS items CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+
+DROP TABLE IF EXISTS categories CASCADE;
+DROP TABLE IF EXISTS tags CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 -- User & Auth Management
 CREATE TABLE users (
@@ -13,17 +18,28 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE categories (
+  category_id UUID PRIMARY KEY,
+  category_name TEXT UNIQUE NOT NULL
+);
+
+CREATE TABLE tags (
+  tag_id UUID PRIMARY KEY,
+  tag_name TEXT UNIQUE NOT NULL
+);
+
 -- Seller Inventory
 CREATE TABLE items (
     item_id UUID PRIMARY KEY,
     seller_id UUID REFERENCES users(user_id),
     item_name VARCHAR(255) NOT NULL,
     description TEXT,
-    price DECIMAL NOT NULL,
-    quantity_available INT NOT NULL,
+    price DECIMAL NOT NULL CHECK (price >= 0),
+    quantity_available INT NOT NULL CHECK (quantity_available >= 0),
     image_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    category_id UUID REFERENCES categories(category_id)
 );
 
 -- Order Headers
@@ -52,7 +68,9 @@ CREATE TABLE orders (
     destination_country_code VARCHAR(3), 
     
     status VARCHAR(50), 
-    ubl_xml_content TEXT
+    ubl_xml_content TEXT,
+
+    CONSTRAINT buyer_seller_unique CHECK (buyer_id <> seller_id)
 );
 
 -- Order Lines 
@@ -76,4 +94,10 @@ CREATE TABLE refresh_tokens (
   device_info TEXT,
   created DATE NOT NULL,
   session_id UUID NOT NULL
+);
+
+CREATE TABLE item_tags (
+  tag_id UUID REFERENCES tags(tag_id),
+  item_id UUID REFERENCES items(item_id),
+  PRIMARY KEY (tag_id, item_id)
 );
