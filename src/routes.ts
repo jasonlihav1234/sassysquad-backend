@@ -43,6 +43,7 @@ import {
   getAllItems,
   getItemByUserId,
   getItemsById,
+  createItemV2,
 } from "./application/item_application";
 
 export async function handleRequest(req: any, res: any) {
@@ -147,6 +148,14 @@ export async function handleRequest(req: any, res: any) {
     `);
   }
 
+  // if (url === "/tags" && method === "POST") {
+  //   return await ...
+  // }
+
+  // if (url === "/tags" && method === "DELETE") {
+  //   return await
+  // }
+
   if (url === "/auth/google/login" && method === "GET") {
     return await googleLogin(req, res);
   }
@@ -236,6 +245,13 @@ export async function handleRequest(req: any, res: any) {
   // POST /items
   if (url === "/items" && method === "POST") {
     const response = await createItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "v2/items" && method === "POST") {
+    const response = await createItemV2(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
