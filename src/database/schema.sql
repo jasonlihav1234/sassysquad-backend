@@ -77,7 +77,7 @@ CREATE TABLE orders (
 CREATE TABLE order_lines (
     line_id UUID PRIMARY KEY,
     order_id UUID REFERENCES orders(order_id),
-    item_id UUID REFERENCES items(item_id),
+    item_id UUID REFERENCES items(item_id) ON DELETE SET NULL,
     quantity INT NOT NULL,
     tax_percent_per DECIMAL NOT NULL,
     tax_percent_total DECIMAL NOT NULL,
@@ -87,7 +87,7 @@ CREATE TABLE order_lines (
 
 CREATE TABLE refresh_tokens (
   token_id UUID PRIMARY KEY,
-  user_id UUID NOT NULL,
+  user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
   token_hash TEXT UNIQUE NOT NULL,
   expires DATE NOT NULL,
   revoked BOOLEAN NOT NULL,
