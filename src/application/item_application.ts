@@ -16,8 +16,156 @@ import {
   updateItemQueryV2,
   addItemTagsQuery,
   deleteItemTagsQuery,
+  fetchTaggedCategoryItem,
 } from "../database/queries/item_queries";
+import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
+import pg from "../utils/db";
+import { z, toJSONSchema } from "zod";
+
+const ai = new GoogleGenAI({});
+
+const responseSchema = z.object({
+  tags: z.array(z.string()),
+  message: z.string().describe("Message the LLM responds with"),
+});
+
+const listFormatter = new Intl.ListFormat("en", {
+  style: "long",
+  type: "conjunction",
+});
+
+export const generateAIRecommendations = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    // get all the tags that exist in the database
+    // user chooses category of item
+    const category = req.body.category;
+    const image = req.body.image;
+
+    if (!category || !image) {
+      return jsonHelper(
+        {
+          message: "No image or category provided",
+        },
+        400,
+      );
+    }
+
+    const imageTypeMatch = image.match(
+      /^data:(image\/(jpeg|png|webp));base64,/,
+    );
+    if (!imageTypeMatch) {
+      return jsonHelper(
+        {
+          message: "Invalid image format. Please upload a JPEG, PNG, or WEBP.",
+        },
+        400,
+      );
+    }
+
+    const imageType = imageTypeMatch[1];
+    const rawImage = image.replace(/^data:image\/\w+;base64,/, "");
+
+    // need to strip the base 64 starting of the string, gemini wants raw string
+
+    // need to get all the tags
+    const tagsQuery = await pg`select tag_name from tags`;
+
+    if (tagsQuery.length === 0) {
+      return jsonHelper(
+        {
+          message: "No tags exist",
+        },
+        404,
+      );
+    }
+
+    const tags = tagsQuery.map((tag: any) => tag.tag_name);
+    // I would need base64 encoded image
+    const prompt = `
+    You are an expert interior design consultant.
+    These are the allowed aesthetic tags: ${tags.join(", ")}
+
+    Analyze the provided image and select the tags from the list that perfectly fit the theme and aesthetic of the customer's room.
+    This if for a high-end, luxury business, so curate your choices carefully to delight the customer.
+
+    CRITICAL INSTRUCTION: You must ONLY choose tags that exist in the exact list provided above. DO NOT invent new tags.
+
+    You MUST return your response in the following strict JSON format:
+    {
+      "tags": ["tag1", "tag2", etc...],
+      "message": "A short, polite message explaining why you chose these tags."
+    }
+
+    If absolutely none of the tags fit the image, return an empty array for the tags and provide your alternative style suggestions inside the message key like this:
+    {
+      "tags": [],
+      "message": "I couldn't find exact matches in our current catalog, but I think 'Wabi-Sabi' or 'Mid-Century Modern' would fit this space perfectly :)"
+    }
+    `;
+
+    const contents = [
+      prompt,
+      {
+        inlineData: {
+          mimeType: imageType,
+          data: rawImage,
+        },
+      },
+    ];
+    // https://ai.google.dev/gemini-api/docs/structured-output?example=recipe
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite-preview",
+        contents: contents,
+        config: {
+          responseMimeType: "application/json",
+          responseJsonSchema: toJSONSchema(responseSchema),
+        },
+      });
+
+      if (!response.text) {
+        throw Error("No text response given");
+      }
+
+      // from response, parse the json, if empty, return the message, else query the database for items that
+      // match any of the tags and category
+      const messageTag = responseSchema.parse(JSON.parse(response.text));
+      console.log(messageTag);
+
+      if (messageTag.tags.length === 0) {
+        return jsonHelper({
+          message: messageTag.message,
+        });
+      }
+
+      // else contains tags
+      const items = await fetchTaggedCategoryItem(category, messageTag.tags);
+
+      if (items.length === 0) {
+        const formattedTagString = listFormatter.format(messageTag.tags);
+        return jsonHelper({
+          message: `I couldn't find exact matches in our current catalog, but I think ${formattedTagString} would fit this space perfectly :).`,
+        });
+      }
+
+      return jsonHelper({
+        message: messageTag.message,
+        items: items,
+      });
+    } catch (error) {
+      console.log(error);
+
+      return jsonHelper(
+        {
+          message: "Prompt failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
 
 export const createItem = authHelper(
   async (req: AuthReq): Promise<Response> => {

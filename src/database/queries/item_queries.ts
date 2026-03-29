@@ -379,3 +379,41 @@ export async function deleteItemFromIdQuery(itemId: string) {
     throw error;
   }
 }
+
+/*
+ * Fetches items based on tags and a category
+ */
+export async function fetchTaggedCategoryItem(
+  categoryName: string,
+  tags: string[],
+) {
+  try {
+    return await pg`
+    select
+      i.item_id,
+      i.item_name,
+      i.price,
+      i.image_url,
+      count(t.tag_id) as match_count
+    from items i
+
+    join categories c on i.category_id = c.category_id
+
+    join item_tags it on i.item_id = it.item_id
+
+    join tags t on it.tag_id = t.tag_id
+
+    where c.category_name = ${categoryName}
+    and t.tag_name in ${pg(tags)}
+
+    group by i.item_id, i.item_name, i.price, i.image_url
+
+    order by match_count desc
+
+    limit 10
+    `;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
