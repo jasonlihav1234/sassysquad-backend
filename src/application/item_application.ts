@@ -20,8 +20,14 @@ import {
 import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
 import pg from "../utils/db";
+import { z, toJSONSchema } from "zod";
 
 const ai = new GoogleGenAI({});
+
+const responseSchema = z.object({
+  tags: z.array(z.string()),
+  message: z.string().describe("Message the LLM responds with"),
+});
 
 export const generateAIRecommendations = authHelper(
   async (req: AuthReq): Promise<Response> => {
@@ -56,7 +62,7 @@ export const generateAIRecommendations = authHelper(
 
     You MUST return your response in the following strict JSON format:
     {
-      "tags": ["tag1", "tag2"],
+      "tags": ["tag1", "tag2", etc...],
       "message": "A short, polite message explaining why you chose these tags."
     }
 
@@ -83,11 +89,18 @@ export const generateAIRecommendations = authHelper(
         contents: contents,
         config: {
           responseMimeType: "application/json",
+          responseJsonSchema: toJSONSchema(responseSchema),
         },
       });
 
+      if (!response.text) {
+        throw Error("No text response given");
+      }
+
       // from response, parse the json, if empty, return the message, else query the database for items that
       // match any of the tags and category
+      const messageTag = responseSchema.parse(JSON.parse(response.text));
+      console.log(messageTag);
 
       return jsonHelper({
         message: response.text,
