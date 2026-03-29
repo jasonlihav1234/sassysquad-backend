@@ -39,6 +39,8 @@ export const generateAIRecommendations = authHelper(
       );
     }
 
+    // should probably also check that the category and image exist
+
     // need to get all the tags
     const tagsQuery = await pg`select tag_name from tags`;
     const tags = tagsQuery.map((tag: any) => tag.tag_name);
@@ -52,7 +54,7 @@ export const generateAIRecommendations = authHelper(
 
     CRITICAL INSTRUCTION: You must ONLY choose tags that exist in the exact list provided above. DO NOT invent new tags.
 
-    You MUST return your respinse in the following strict JSON format:
+    You MUST return your response in the following strict JSON format:
     {
       "tags": ["tag1", "tag2"],
       "message": "A short, polite message explaining why you chose these tags."
