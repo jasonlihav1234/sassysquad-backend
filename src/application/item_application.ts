@@ -16,6 +16,7 @@ import {
   updateItemQueryV2,
   addItemTagsQuery,
   deleteItemTagsQuery,
+  fetchTaggedCategoryItem,
 } from "../database/queries/item_queries";
 import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
@@ -27,6 +28,11 @@ const ai = new GoogleGenAI({});
 const responseSchema = z.object({
   tags: z.array(z.string()),
   message: z.string().describe("Message the LLM responds with"),
+});
+
+const listFormatter = new Intl.ListFormat("en", {
+  style: "long",
+  type: "conjunction",
 });
 
 export const generateAIRecommendations = authHelper(
@@ -45,10 +51,22 @@ export const generateAIRecommendations = authHelper(
       );
     }
 
-    // should probably also check that the category and image exist
+    const rawImage = image.replace(/^data:image\/\w+;base64,/, "");
+
+    // need to strip the base 64 starting of the string, gemini wants raw string
 
     // need to get all the tags
     const tagsQuery = await pg`select tag_name from tags`;
+
+    if (tagsQuery.length === 0) {
+      return jsonHelper(
+        {
+          message: "No tags exist",
+        },
+        404,
+      );
+    }
+
     const tags = tagsQuery.map((tag: any) => tag.tag_name);
     // I would need base64 encoded image
     const prompt = `
@@ -78,7 +96,7 @@ export const generateAIRecommendations = authHelper(
       {
         inlineData: {
           mimeType: "image/jpeg",
-          data: image,
+          data: rawImage,
         },
       },
     ];
@@ -102,16 +120,36 @@ export const generateAIRecommendations = authHelper(
       const messageTag = responseSchema.parse(JSON.parse(response.text));
       console.log(messageTag);
 
+      if (messageTag.tags.length === 0) {
+        return jsonHelper({
+          message: messageTag.message,
+        });
+      }
+
+      // else contains tags
+      const items = await fetchTaggedCategoryItem(category, messageTag.tags);
+
+      if (items.length === 0) {
+        const formattedTagString = listFormatter.format(messageTag.tags);
+        return jsonHelper({
+          message: `I couldn't find exact matches in our current catalog, but I think ${formattedTagString} would fit this space perfectly :).`,
+        });
+      }
+
       return jsonHelper({
-        message: response.text,
+        message: messageTag.message,
+        items: items,
       });
     } catch (error) {
       console.log(error);
 
-      return jsonHelper({
-        message: "Prompt failed",
-        error: error,
-      });
+      return jsonHelper(
+        {
+          message: "Prompt failed",
+          error: error,
+        },
+        500,
+      );
     }
   },
 );
