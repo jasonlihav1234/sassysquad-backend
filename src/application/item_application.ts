@@ -51,6 +51,19 @@ export const generateAIRecommendations = authHelper(
       );
     }
 
+    const imageTypeMatch = image.match(
+      /^data:(image\/(jpeg|png|webp));base64,/,
+    );
+    if (!imageTypeMatch) {
+      return jsonHelper(
+        {
+          message: "Invalid image format. Please upload a JPEG, PNG, or WEBP.",
+        },
+        400,
+      );
+    }
+
+    const imageType = imageTypeMatch[1];
     const rawImage = image.replace(/^data:image\/\w+;base64,/, "");
 
     // need to strip the base 64 starting of the string, gemini wants raw string
@@ -95,7 +108,7 @@ export const generateAIRecommendations = authHelper(
       prompt,
       {
         inlineData: {
-          mimeType: "image/jpeg",
+          mimeType: imageType,
           data: rawImage,
         },
       },
