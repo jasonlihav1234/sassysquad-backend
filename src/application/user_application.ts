@@ -719,7 +719,7 @@ export const addTwoFactor = authHelper(
   async (req: AuthReq): Promise<Response> => {
     try {
       const userId = req.user?.subject_claim as string;
-      const email = await pg`
+      const query = await pg`
         select email 
         from users 
         where user_id = ${userId}
@@ -737,7 +737,7 @@ export const addTwoFactor = authHelper(
       // Generate QR code URI for authenticator apps
       const uri = generateURI({
         issuer: "SassySquad",
-        label: email,
+        label: query[0].email,
         secret,
       });
 
