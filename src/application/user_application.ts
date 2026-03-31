@@ -726,13 +726,13 @@ export const verifyTwoFactor = authHelper(
         );
       }
 
-      const totp = await pg` 
+      const query = await pg` 
         select totp 
         from users 
         where user_id = ${userId}
       `;
       
-      if (!totp) {
+      if (!query[0].totp) {
         return jsonHelper(
           {
             message: "2FA not yet added"
@@ -741,7 +741,7 @@ export const verifyTwoFactor = authHelper(
         );
       }
 
-      const result = await verify({ secret: totp, token: code });
+      const result = await verify({ secret: query[0].totp, token: code });
 
       if (!result.valid) {
         return jsonHelper(
