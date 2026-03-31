@@ -31,6 +31,8 @@ import {
 } from "../database/queries/user_queries";
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import * as arctic from "arctic";
+import { verify } from "crypto";
+import { generateSecret, verify as otpVerify, generateURI } from "otplib";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -257,6 +259,26 @@ export async function login(request: VercelRequest) {
     if (user === null) {
       // user enumeration
       return jsonHelper({ error: "Invalid credentials" }, 401);
+    }
+    
+    const query = await pg`
+      select two_factor, totp
+      from users
+      where user_id = ${user.id}
+    `;
+
+    if (query[0].two_factor) {
+      const code = body.code;
+
+      if (!code) {
+        return jsonHelper({ error: "No 2FA code given" }, 401);
+      }
+
+      const result = await otpVerify({ secret: query[0].totp, token: code });
+
+      if (!result.valid) {
+        return jsonHelper({ error: "Invalid 2FA" }, 401);
+      }
     }
 
     const device = request.headers?.["user-agent"] || "null";
