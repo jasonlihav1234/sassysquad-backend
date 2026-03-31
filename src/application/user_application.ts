@@ -31,6 +31,7 @@ import {
 } from "../database/queries/user_queries";
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import * as arctic from "arctic";
+import { generateSecret, verify, generateURI } from "otplib";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -704,6 +705,65 @@ export const updateProfile = authHelper(
     } catch (error) {
       return jsonHelper(
         { message: "Profile failed to update", error: error },
+        500,
+      );
+    }
+  },
+);
+
+export const verifyTwoFactor = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const userId = req.user?.subject_claim as string;
+      const { code } = req.body;
+
+      if (!code) {
+        return jsonHelper(
+          {
+            message: "No code given",
+          },
+          400,
+        );
+      }
+
+      const totp = await pg` 
+        select totp 
+        from users 
+        where user_id = ${userId}
+      `;
+      
+      if (!totp) {
+        return jsonHelper(
+          {
+            message: "2FA not yet added"
+          },
+          400,
+        );
+      }
+
+      const result = await verify({ secret: totp, token: code });
+
+      if (!result.valid) {
+        return jsonHelper(
+          {
+            message: "Code given is invalid"
+          },
+          400,
+        );
+      }
+
+      await pg`
+        update users
+        set two_factor = true
+        where user_if = ${userId}
+      `
+
+      return jsonHelper({
+        message: "2FA successfully verified",
+      });
+    } catch (error) {
+      return jsonHelper(
+        { message: "2FA failed to verify", error: error },
         500,
       );
     }
