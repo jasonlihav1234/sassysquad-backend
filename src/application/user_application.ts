@@ -31,6 +31,9 @@ import {
 } from "../database/queries/user_queries";
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import * as arctic from "arctic";
+import { generateSecret, generate, verify, generateURI } from "otplib";
+import qrcode from "qrcode";
+import { json } from "zod";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
@@ -709,3 +712,46 @@ export const updateProfile = authHelper(
     }
   },
 );
+
+// Returns a QR code to add to google authenticator
+// Submit a code from authenticator to verifyTwoFactor after
+export const addTwoFactor = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const userId = req.user?.subject_claim as string;
+      const email = await pg`
+        select email 
+        from users 
+        where user_id = ${userId}
+      `;
+
+      // Generate a secret
+      const secret = generateSecret();
+
+      await pg` 
+        update users 
+        set totp_key = ${secret} 
+        where user_id ${userId}
+      `;
+
+      // Generate QR code URI for authenticator apps
+      const uri = generateURI({
+        issuer: "SassySquad",
+        label: email,
+        secret,
+      });
+
+      const qrCode = await qrcode.toDataURL(uri)
+
+      return jsonHelper({
+        message: "QR code successfully sent",
+        qrCode
+      });
+    } catch (error) {
+      return jsonHelper(
+        { message: "2FA failed to set up", error: error },
+        500
+      );
+    } 
+  }
+)
