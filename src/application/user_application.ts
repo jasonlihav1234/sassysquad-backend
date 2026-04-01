@@ -33,7 +33,6 @@ import { VercelRequest, VercelResponse } from "@vercel/node";
 import * as arctic from "arctic";
 import { generateSecret, verify, generateURI } from "otplib";
 import qrcode from "qrcode";
-import { json } from "zod";
 
 export interface TokenPayload extends JWTPayload {
   subject_claim: string;
