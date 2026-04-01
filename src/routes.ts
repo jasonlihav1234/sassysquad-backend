@@ -18,6 +18,7 @@ import googleCallback, {
   deleteUser,
   updateProfile,
   googleLogin,
+  addTwoFactor,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
@@ -448,6 +449,13 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/health" && method === "GET") {
     return handleHealthRoutes(req, res);
+  }
+
+  if (url === "/auth/2fa/add" && method === "POST") {
+    const response = await addTwoFactor(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   // 404 if no roiutes match

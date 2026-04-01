@@ -8,6 +8,8 @@
     "bcrypt": "^6.0.0",
     "jose": "^6.2.0",
     "nodemailer": "^8.0.1",
+    "otplib": "^13.4.0",
+    "qrcode": "^1.5.4",
     "stripe": "^20.4.1",
     "xmlbuilder2": "^4.0.3",
     "zod": "^4.3.6"
