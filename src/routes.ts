@@ -18,6 +18,7 @@ import googleCallback, {
   deleteUser,
   updateProfile,
   googleLogin,
+  addTwoFactor,
   verifyTwoFactor,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
@@ -453,6 +454,13 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/auth/2fa/verify" && method === "POST") {
     const response = await verifyTwoFactor(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/auth/2fa/add" && method === "POST") {
+    const response = await addTwoFactor(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
