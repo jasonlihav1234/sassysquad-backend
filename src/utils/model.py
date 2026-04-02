@@ -29,14 +29,16 @@ async def handler(onnx_file, metadata_dict):
     f"onnx_files/saasysquad_model.onnx",
     onnx_file,
     access="private",
-    on_upload_progress=on_progress
+    overwrite=True,
+    on_upload_progress=on_progress,
   )
 
   metadata_task = await client.put(
     "onnx_files/model_metadata.json",
     metadata_bytes,
     access="private",
-    on_upload_progress=on_progress
+    overwrite=True,
+    on_upload_progress=on_progress,
   )
 
   return {
@@ -118,31 +120,31 @@ metadata = {
   "OUTLIER_AVG_VOLUME": OUTLIER_AVG_VOLUME
 }
 
-def predict_and_report(price: float, tags: list[str]):
-    print("="*55)
-    print(f" 🚀 QUERY: ${price:.2f} | Tags: {tags}")
-    print("="*55)
+# def predict_and_report(price: float, tags: list[str]):
+#     print("="*55)
+#     print(f" 🚀 QUERY: ${price:.2f} | Tags: {tags}")
+#     print("="*55)
 
-    # CHECK 1: Does this exceed our 99th percentile?
-    if price > P99_PRICE:
-        print("Routing logic  : Price exceeds 99% of historical platform data.")
-        print("Model selected : Outlier Fallback (Avg of Top 1% Catalog)")
-        print(f"Final Volume   : {OUTLIER_AVG_VOLUME} units")
-        print("="*55 + "\n")
-        return
+#     # CHECK 1: Does this exceed our 99th percentile?
+#     if price > P99_PRICE:
+#         print("Routing logic  : Price exceeds 99% of historical platform data.")
+#         print("Model selected : Outlier Fallback (Avg of Top 1% Catalog)")
+#         print(f"Final Volume   : {OUTLIER_AVG_VOLUME} units")
+#         print("="*55 + "\n")
+#         return
 
-    # CHECK 2: Normal prediction for the other 99% of queries
-    vector = numpy.array([hash_tags_to_vector(price, tags)], dtype=numpy.float32)
-    raw_pred = xgb_model.predict(vector)[0]
-    final_volume = max(0, int(raw_pred))
+#     # CHECK 2: Normal prediction for the other 99% of queries
+#     vector = numpy.array([hash_tags_to_vector(price, tags)], dtype=numpy.float32)
+#     raw_pred = xgb_model.predict(vector)[0]
+#     final_volume = max(0, int(raw_pred))
     
-    print("Routing logic  : Price is within normal bounds.")
-    print("Model selected : XGBoost (Contextual ML)")
-    print(f"Final Volume   : {final_volume} units")
-    print("="*55 + "\n")
+#     print("Routing logic  : Price is within normal bounds.")
+#     print("Model selected : XGBoost (Contextual ML)")
+#     print(f"Final Volume   : {final_volume} units")
+#     print("="*55 + "\n")
 
 
-predict_and_report(3800, ["rattan", "floating", "geometric"])
+# predict_and_report(3247.302, ["rattan", "floating", "geometric"])
 
 result = asyncio.run(handler(onnx_model.SerializeToString(), metadata))
 print(result)
