@@ -39,6 +39,28 @@ def fetch_items():
         orient="row"
       )
 
+def hash_tags_to_vector(price, tags):
+  vector = numpy.zeros(VECTOR_SIZE, dtype=numpy.float32)
+  vector[0] = price
+
+  for tag in tags:
+    clean_tag = tag.lower().strip()
+    hash_index = (mmh3.hash(clean_tag, signed=False) % (VECTOR_SIZE - 1)) + 1
+    vector[hash_index] = 1.0
+  
+  return vector
+
 df = fetch_items()
 print(df)
+P99_PRICE = df["price"].quantile(0.99);
+outlier_df = df.filter(polars.col("price") > P99_PRICE)
+
+if len(outlier_df) > 0:
+  OUTLIER_AVG_VOLUME = int(outlier_df["volume"].mean())
+else:
+  OUTLIER_AVG_VOLUME = 0
+
+print(f"--- 99th Percentile is ${P99_PRICE:.2f} ---")
+print(f"--- Outlier Average is {OUTLIER_AVG_VOLUME} units ---\n")
+
 
