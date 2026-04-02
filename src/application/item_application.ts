@@ -22,7 +22,10 @@ import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
 import pg from "../utils/db";
 import { z, toJSONSchema } from "zod";
+import * as ort from "onnxruntime-web";
 
+const VECTOR_SIZE = 65536;
+let session: ort.InferenceSession | null = null;
 const ai = new GoogleGenAI({});
 
 const responseSchema = z.object({
@@ -34,6 +37,15 @@ const listFormatter = new Intl.ListFormat("en", {
   style: "long",
   type: "conjunction",
 });
+
+export const predictVoluem = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    if !(session) {
+      console.log("Cold start");
+      const modelUrl=""
+    }
+  }
+)
 
 export const generateAIRecommendations = authHelper(
   async (req: AuthReq): Promise<Response> => {
