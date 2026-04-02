@@ -75,6 +75,57 @@ async function fetchPrivateModelBuffer(): Promise<any> {
   };
 }
 
+export async function predictOptimalPrice(
+  tags: string[],
+  minPrice: number,
+  maxPrice: number,
+  step: number = 1.0
+) {
+  if (!session) {
+    const modelBuffer = await fetchPrivateModelBuffer();
+    session = await ort.InferenceSession.create(modelBuffer.model);
+    metadata = modelBuffer.metadata;
+  }
+
+  let bestPrice = 0;
+  let maxRevenue = 0;
+  let bestVolume = 0;
+
+  const testedPrices = [];
+  const projectedRevenues = [];
+  const predictedVolumes = [];
+
+  let currPrice = minPrice;
+  while (currPrice <= maxPrice) {
+    const vector = new Float32Array(VECTOR_SIZE);
+    vector[0] = currPrice;
+
+    for (const tag of tags) {
+      const cleanTag = tag.toLowerCase().trim();
+      const hash_index =
+        (murmurhash3.x86.hash32(cleanTag) % (VECTOR_SIZE - 1)) + 1;
+      vector[hash_index] = 1.0;
+
+      const tensor = new ort.Tensor("float32", vector, [1, VECTOR_SIZE]);
+      const rawPredict = await session.run({ float_input: tensor });
+      const volume = Math.max(0, Math.trunc(rawPredict.variable.data[0] as number));
+      const revenue = currPrice * volume;
+
+      testedPrices.push(currPrice);
+      projectedRevenues.push(revenue);
+      predictedVolumes.push(volume);
+
+      if (revenue > maxRevenue) {
+        maxRevenue = revenue;
+        bestPrice = currPrice;
+        bestVolume = volume;
+      }
+
+      currPrice += step
+    }
+  }
+}
+
 export async function predictVolume(price: number, tags: string[]) {
   if (!session) {
     const modelBuffer = await fetchPrivateModelBuffer();
