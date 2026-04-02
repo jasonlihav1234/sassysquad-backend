@@ -23,11 +23,10 @@ def on_progress(e: UploadProgressEvent) -> None:
 async def handler(onnx_file, metadata_dict):
   client = AsyncBlobClient()
   now = datetime.now()
-  dt_string = now.strftime("%Y-%m-%d_%H:%M:%S")
   metadata_bytes = json.dumps(metadata_dict).encode("utf-8");
 
   uploaded = await client.put(
-    f"onnx_files/{dt_string}",
+    f"onnx_files/saasysquad_model.onnx",
     onnx_file,
     access="private",
     on_upload_progress=on_progress
@@ -114,6 +113,10 @@ xgb_model.fit(X, y)
 print("Exporting model to ONNX")
 initial_type = [("float_input", FloatTensorType([None, VECTOR_SIZE]))]
 onnx_model = onnxmltools.convert_xgboost(xgb_model, initial_types=initial_type)
+metadata = {
+  "P99_PRICE": float(P99_PRICE),
+  "OUTLIER_AVG_VOLUME": OUTLIER_AVG_VOLUME
+}
 
 def predict_and_report(price: float, tags: list[str]):
     print("="*55)
@@ -141,5 +144,5 @@ def predict_and_report(price: float, tags: list[str]):
 
 predict_and_report(3800, ["rattan", "floating", "geometric"])
 
-# result = asyncio.run(handler(onnx_model.SerializeToString()))
-# print(result)
+result = asyncio.run(handler(onnx_model.SerializeToString(), metadata))
+print(result)
