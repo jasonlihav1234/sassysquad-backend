@@ -21,11 +21,9 @@ def on_progress(e: UploadProgressEvent) -> None:
 
 async def handler(onnx_file):
   client = AsyncBlobClient()
-  now = datetime.now()
-  dt_string = now.strftime("%Y-%m-%d_%H:%M:%S")
 
   uploaded = await client.put(
-    f"onnx_files/{dt_string}",
+    f"onnx_files/saasysquad_model.onnx",
     onnx_file,
     access="private",
     on_upload_progress=on_progress
