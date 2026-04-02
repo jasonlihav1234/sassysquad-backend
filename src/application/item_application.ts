@@ -27,6 +27,7 @@ import murmurhash3 from "murmurhash3js";
 
 const VECTOR_SIZE = 65536;
 let session: ort.InferenceSession | null = null;
+let metadata = null;
 // const ai = new GoogleGenAI({});
 
 // const responseSchema = z.object({
@@ -39,33 +40,55 @@ let session: ort.InferenceSession | null = null;
 //   type: "conjunction",
 // });
 
-async function fetchPrivateModelBuffer(): Promise<ArrayBuffer> {
+async function fetchPrivateModelBuffer(): Promise<any> {
   console.log("Cold start");
   const modelUrl =
     "https://dxf4or0l3oqv7qxa.private.blob.vercel-storage.com/onnx_files/saasysquad_model.onnx";
+  const metadataUrl =
+    "https://dxf4or0l3oqv7qxa.private.blob.vercel-storage.com/onnx_files/model_metadata.json";
 
-  const response = await fetch(modelUrl, {
-    headers: {
-      Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
-    },
-  });
+  const [response, metadataResponse] = await Promise.all([
+    await fetch(modelUrl, {
+      headers: {
+        Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+      },
+    }),
+    await fetch(metadataUrl, {
+      headers: {
+        Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+      },
+    }),
+  ]);
 
-  if (!response.ok) {
+  if (!response.ok || !metadataResponse.ok) {
     throw new Error("Failed to fetch ML model");
   }
 
-  return await response.arrayBuffer();
+  const [model, metadata] = await Promise.all([
+    response.arrayBuffer(),
+    metadataResponse.json(),
+  ]);
+
+  return {
+    model: model,
+    metadata: metadata,
+  };
 }
 
 export async function predictVolume(price: number, tags: string[]) {
   if (!session) {
     const modelBuffer = await fetchPrivateModelBuffer();
-    session = await ort.InferenceSession.create(modelBuffer);
+    session = await ort.InferenceSession.create(modelBuffer.model);
+    metadata = modelBuffer.metadata;
   }
 
   // user supplies the tag and body price, or it can be pulled from the persons current listing
   // const price = req.body.price;
   // const tags = req.body.tags;
+
+  if (price > metadata!.P99_PRICE) {
+    return metadata!.OUTLIER_AVG_VOLUME;
+  }
 
   const vector = new Float32Array(VECTOR_SIZE);
   vector[0] = price;
@@ -87,8 +110,6 @@ export async function predictVolume(price: number, tags: string[]) {
 
   return finalVolume;
 }
-
-console.log(await predictVolume(3800, ["rattan", "floating", "geometric"]));
 
 export const generateAIRecommendations = authHelper(
   async (req: AuthReq): Promise<Response> => {
