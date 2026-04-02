@@ -11,6 +11,7 @@ import os
 from vercel.blob import UploadProgressEvent, BlobClient, AsyncBlobClient
 from datetime import datetime
 import asyncio
+import json
 
 load_dotenv()
 VECTOR_SIZE = 65536
@@ -19,10 +20,11 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 def on_progress(e: UploadProgressEvent) -> None:
   print(f"progress: {e.loaded}/{e.total} bytes ({e.percentage}%)")
 
-async def handler(onnx_file):
+async def handler(onnx_file, metadata_dict):
   client = AsyncBlobClient()
   now = datetime.now()
   dt_string = now.strftime("%Y-%m-%d_%H:%M:%S")
+  metadata_bytes = json.dumps(metadata_dict).encode("utf-8");
 
   uploaded = await client.put(
     f"onnx_files/{dt_string}",
@@ -31,8 +33,15 @@ async def handler(onnx_file):
     on_upload_progress=on_progress
   )
 
+  metadata_task = await client.put(
+    "onnx_files/model_metadata.json",
+    metadata_bytes,
+    access="private",
+    on_upload_progress=on_progress
+  )
+
   return {
-    "url": uploaded.url,
+    "onnx_url": uploaded.url,
     "pathname": uploaded.pathname
   }
 
@@ -106,6 +115,31 @@ print("Exporting model to ONNX")
 initial_type = [("float_input", FloatTensorType([None, VECTOR_SIZE]))]
 onnx_model = onnxmltools.convert_xgboost(xgb_model, initial_types=initial_type)
 
-result = asyncio.run(handler(onnx_model.SerializeToString()))
-print(result)
+def predict_and_report(price: float, tags: list[str]):
+    print("="*55)
+    print(f" 🚀 QUERY: ${price:.2f} | Tags: {tags}")
+    print("="*55)
 
+    # CHECK 1: Does this exceed our 99th percentile?
+    if price > P99_PRICE:
+        print("Routing logic  : Price exceeds 99% of historical platform data.")
+        print("Model selected : Outlier Fallback (Avg of Top 1% Catalog)")
+        print(f"Final Volume   : {OUTLIER_AVG_VOLUME} units")
+        print("="*55 + "\n")
+        return
+
+    # CHECK 2: Normal prediction for the other 99% of queries
+    vector = numpy.array([hash_tags_to_vector(price, tags)], dtype=numpy.float32)
+    raw_pred = xgb_model.predict(vector)[0]
+    final_volume = max(0, int(raw_pred))
+    
+    print("Routing logic  : Price is within normal bounds.")
+    print("Model selected : XGBoost (Contextual ML)")
+    print(f"Final Volume   : {final_volume} units")
+    print("="*55 + "\n")
+
+
+predict_and_report(3800, ["rattan", "floating", "geometric"])
+
+# result = asyncio.run(handler(onnx_model.SerializeToString()))
+# print(result)

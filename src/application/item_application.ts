@@ -23,29 +23,72 @@ import { updateProfileQuery } from "../database/queries/user_queries";
 import pg from "../utils/db";
 import { z, toJSONSchema } from "zod";
 import * as ort from "onnxruntime-web";
+import murmurhash3 from "murmurhash3js";
 
 const VECTOR_SIZE = 65536;
 let session: ort.InferenceSession | null = null;
-const ai = new GoogleGenAI({});
+// const ai = new GoogleGenAI({});
 
-const responseSchema = z.object({
-  tags: z.array(z.string()),
-  message: z.string().describe("Message the LLM responds with"),
-});
+// const responseSchema = z.object({
+//   tags: z.array(z.string()),
+//   message: z.string().describe("Message the LLM responds with"),
+// });
 
-const listFormatter = new Intl.ListFormat("en", {
-  style: "long",
-  type: "conjunction",
-});
+// const listFormatter = new Intl.ListFormat("en", {
+//   style: "long",
+//   type: "conjunction",
+// });
 
-export const predictVoluem = authHelper(
-  async (req: AuthReq): Promise<Response> => {
-    if !(session) {
-      console.log("Cold start");
-      const modelUrl=""
-    }
+async function fetchPrivateModelBuffer(): Promise<ArrayBuffer> {
+  console.log("Cold start");
+  const modelUrl =
+    "https://dxf4or0l3oqv7qxa.private.blob.vercel-storage.com/onnx_files/saasysquad_model.onnx";
+
+  const response = await fetch(modelUrl, {
+    headers: {
+      Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch ML model");
   }
-)
+
+  return await response.arrayBuffer();
+}
+
+export async function predictVolume(price: number, tags: string[]) {
+  if (!session) {
+    const modelBuffer = await fetchPrivateModelBuffer();
+    session = await ort.InferenceSession.create(modelBuffer);
+  }
+
+  // user supplies the tag and body price, or it can be pulled from the persons current listing
+  // const price = req.body.price;
+  // const tags = req.body.tags;
+
+  const vector = new Float32Array(VECTOR_SIZE);
+  vector[0] = price;
+
+  for (const tag of tags) {
+    const cleanTag = tag.toLowerCase().trim();
+    const hash_index =
+      (murmurhash3.x86.hash32(cleanTag) % (VECTOR_SIZE - 1)) + 1;
+    vector[hash_index] = 1.0;
+  }
+
+  const tensor = new ort.Tensor("float32", vector, [1, VECTOR_SIZE]);
+  const results = await session.run({ float_input: tensor });
+
+  const finalVolume = Math.max(
+    0,
+    Math.trunc(results.variable.data[0] as number),
+  );
+
+  return finalVolume;
+}
+
+console.log(await predictVolume(3800, ["rattan", "floating", "geometric"]));
 
 export const generateAIRecommendations = authHelper(
   async (req: AuthReq): Promise<Response> => {
