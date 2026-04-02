@@ -7,6 +7,7 @@
     "arctic": "^3.7.0",
     "bcrypt": "^6.0.0",
     "jose": "^6.2.0",
+    "murmurhash3js": "^3.0.1",
     "nodemailer": "^8.0.1",
     "onnxruntime-web": "^1.24.3",
     "otplib": "^13.4.0",
