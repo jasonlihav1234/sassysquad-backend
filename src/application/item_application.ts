@@ -28,17 +28,17 @@ import murmurhash3 from "murmurhash3js";
 const VECTOR_SIZE = 65536;
 let session: ort.InferenceSession | null = null;
 let metadata = null;
-// const ai = new GoogleGenAI({});
+const ai = new GoogleGenAI({});
 
-// const responseSchema = z.object({
-//   tags: z.array(z.string()),
-//   message: z.string().describe("Message the LLM responds with"),
-// });
+const responseSchema = z.object({
+  tags: z.array(z.string()),
+  message: z.string().describe("Message the LLM responds with"),
+});
 
-// const listFormatter = new Intl.ListFormat("en", {
-//   style: "long",
-//   type: "conjunction",
-// });
+const listFormatter = new Intl.ListFormat("en", {
+  style: "long",
+  type: "conjunction",
+});
 
 async function fetchPrivateModelBuffer(): Promise<any> {
   console.log("Cold start");
