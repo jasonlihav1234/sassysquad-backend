@@ -61,6 +61,8 @@ class SaasySquadModel:
         col_names = [desc[0] for desc in cur.description]
       
     df = pandas.DataFrame(records, col_names)
+    df["price"] = df["price"].astype(float)
+    df["quantity_sold"] = df["quantity_sold"].astype(int)
 
     self.global_p99 = df["price"].quantile(0.99)
     self.category_max_prices = df.groupby("category_name")["price"].max().to_dict()
