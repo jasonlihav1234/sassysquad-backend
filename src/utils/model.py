@@ -123,10 +123,30 @@ class SaasySquadModel:
     for i, price in enumerate(test_prices):
       sim_data[i]["price"] = price
 
-    X_sim = pandas.DataFrame()
+    X_sim = pandas.DataFrame(sim_data)[self.feature_columns]
 
+    raw_volumes = self.vol_model.predict(X_sim.values)
+    volumes = numpy.maximum(0, numpy.round(raw_volumes).astype(int))
+
+    revenues = test_prices * volumes
+
+    max_rev = numpy.max(revenues)
+    if max_rev <= 0:
+      return { "status": "No Market Demand" }
     
+    profit_zone_indices = numpy.where(revenues >= (max_rev * 0.90))[0]
+    safe_prices = test_prices[profit_zone_indices]
+    safe_volumes = volumes[profit_zone_indices]
+    optimal_idx = numpy.argmax(revenues)
 
+    return {
+      "status": "Success",
+      "optimal_price": round(test_prices[optimal_idx], 2),
+      "max_expected_revenue": round(max_rev, 2),
+      "suggested_price_range": (round(safe_prices.min(), 2), round(safe_prices.max(), 2)),
+      "expected_monthly_volume": (int(safe_volumes.max()), int(safe_volumes.min()))
+    }
+    
 def on_progress(e: UploadProgressEvent) -> None:
   print(f"progress: {e.loaded}/{e.total} bytes ({e.percentage}%)")
 
