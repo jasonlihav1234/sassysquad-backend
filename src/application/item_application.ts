@@ -79,7 +79,7 @@ export async function predictOptimalPrice(
   tags: string[],
   minPrice: number,
   maxPrice: number,
-  step: number = 1.0
+  step: number = 1.0,
 ) {
   if (!session) {
     const modelBuffer = await fetchPrivateModelBuffer();
@@ -108,7 +108,10 @@ export async function predictOptimalPrice(
 
       const tensor = new ort.Tensor("float32", vector, [1, VECTOR_SIZE]);
       const rawPredict = await session.run({ float_input: tensor });
-      const volume = Math.max(0, Math.trunc(rawPredict.variable.data[0] as number));
+      const volume = Math.max(
+        0,
+        Math.trunc(rawPredict.variable.data[0] as number),
+      );
       const revenue = currPrice * volume;
 
       testedPrices.push(currPrice);
@@ -120,11 +123,26 @@ export async function predictOptimalPrice(
         bestPrice = currPrice;
         bestVolume = volume;
       }
-
-      currPrice += step
     }
+
+    currPrice += step;
   }
+
+  return {
+    optimalPrice: bestPrice,
+    expectedVolume: bestVolume,
+    grossRevenue: maxRevenue,
+  };
 }
+
+console.log(
+  await predictOptimalPrice(
+    ["rattan", "floating", "geometric"],
+    3000,
+    3100,
+    1.0,
+  ),
+);
 
 export async function predictVolume(price: number, tags: string[]) {
   if (!session) {
