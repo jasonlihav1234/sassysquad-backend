@@ -18,4 +18,5 @@ dependencies = [
   "vercel>=0.2.1",
   "pygam>=0.9.0",
   "pandas>2.2.2",
+  "fastapi[standard]>=0.135.3",
 ]
