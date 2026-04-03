@@ -1,6 +1,5 @@
 import numpy
 import psycopg2
-from dotenv import load_dotenv
 import os
 from vercel.blob import UploadProgressEvent, BlobClient, AsyncBlobClient
 from pygam import LinearGAM, s, l
@@ -18,7 +17,7 @@ class SaasySquadModel:
 
   def load_and_preprocess(self):
     DATABASE_URL = os.environ.get("DATABASE_URL")
-    
+
     query = """
     with sales_agg as (
       select item_id
