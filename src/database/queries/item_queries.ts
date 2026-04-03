@@ -417,3 +417,25 @@ export async function fetchTaggedCategoryItem(
     throw error;
   }
 }
+
+export async function getAllCategories() {
+  try {
+    return await pg`
+    select * from categories
+    `;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
+export async function getAllTags() {
+  try {
+    return await pg`
+    select * from tags
+    `;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
