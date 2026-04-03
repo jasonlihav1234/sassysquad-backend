@@ -60,7 +60,7 @@ class SaasySquadModel:
 
         col_names = [desc[0] for desc in cur.description]
       
-    df = pandas.DataFrame(records, col_names)
+    df = pandas.DataFrame(records, columns=col_names)
     df["price"] = df["price"].astype(float)
     df["quantity_sold"] = df["quantity_sold"].astype(int)
 
