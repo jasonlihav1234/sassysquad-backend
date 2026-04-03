@@ -28,4 +28,11 @@ def predict_market(req: EstimateRequest):
   
 @app.post("/train")
 def train_model():
-
+  try:
+    predictor.train_model()
+    predictor.save(path="./models/")
+    return {
+      "status": "Retrained and saved model"
+    }
+  except Exception as e:
+    raise HTTPException(status_code=500, detail=str(e))
