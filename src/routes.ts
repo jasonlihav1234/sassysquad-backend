@@ -49,9 +49,13 @@ import {
   addItemTags,
   deleteItemTags,
   generateAIRecommendations,
+  getMarketEstimate,
+  getAllCategories,
+  getAllTags,
 } from "./application/item_application";
 import { deleteItemTagsQuery } from "./database/queries/item_queries";
 import { UnexpectedResponseError } from "arctic";
+import { ur } from "zod/locales";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -153,6 +157,13 @@ export async function handleRequest(req: any, res: any) {
       </body>
     </html>
     `);
+  }
+
+  if (url === "/v1/pricing/estimate" && method === "POST") {
+    const response = await getMarketEstimate(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/items/recommendations" && method === "POST") {
@@ -275,6 +286,20 @@ export async function handleRequest(req: any, res: any) {
   // POST /items
   if (url === "/items" && method === "POST") {
     const response = await createItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/categories" && method === "GET") {
+    const response = await getAllCategories(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/tags" && method === "GET") {
+    const response = await getAllTags(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);

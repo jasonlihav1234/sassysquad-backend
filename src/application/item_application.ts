@@ -17,6 +17,8 @@ import {
   addItemTagsQuery,
   deleteItemTagsQuery,
   fetchTaggedCategoryItem,
+  getAllCategoriesQuery,
+  getAllTagsQuery,
 } from "../database/queries/item_queries";
 import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
@@ -34,6 +36,55 @@ const listFormatter = new Intl.ListFormat("en", {
   style: "long",
   type: "conjunction",
 });
+
+export const getMarketEstimate = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const tags = req.body.tags;
+    const category = req.body.category;
+
+    if (!tags || !category) {
+      return jsonHelper(
+        {
+          message: "Tags or category not provided",
+        },
+        400,
+      );
+    }
+
+    try {
+      const RAILWAY_URL =
+        "https://sassysquad-backend-production.up.railway.app";
+      const response = await fetch(`${RAILWAY_URL}/predict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags, category }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json();
+        console.log(body);
+        return jsonHelper(
+          {
+            error: body,
+          },
+          response.status,
+        );
+      }
+
+      return jsonHelper({
+        message: "Prediction completed",
+        prediction: await response.json(),
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
 
 export const generateAIRecommendations = authHelper(
   async (req: AuthReq): Promise<Response> => {
@@ -446,6 +497,63 @@ export const getAllItems = authHelper(
     }
   },
 );
+
+export const getAllCategories = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const response = await getAllCategoriesQuery();
+
+      if (response.length === 0) {
+        return jsonHelper(
+          {
+            message: "No categories found",
+          },
+          404,
+        );
+      }
+
+      return jsonHelper({
+        message: "Categories successfully fetched",
+        categories: response,
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Getting all categories failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const getAllTags = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const response = await getAllTagsQuery();
+
+      if (response.length === 0) {
+        return jsonHelper(
+          {
+            message: "No tags found",
+          },
+          404
+        );
+      }
+
+      return jsonHelper({
+        message: "Tags successfully fetched",
+        tags: response,
+      });
+    } catch (error) {
+      return jsonHelper({
+        message: "Getting all tags failed",
+        error: error
+      }, 500);
+    }
+  }
+)
 
 // update item
 export const updateItem = authHelper(
