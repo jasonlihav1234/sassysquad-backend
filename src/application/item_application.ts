@@ -17,6 +17,8 @@ import {
   addItemTagsQuery,
   deleteItemTagsQuery,
   fetchTaggedCategoryItem,
+  getAllCategoriesQuery,
+  getAllTagsQuery,
 } from "../database/queries/item_queries";
 import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
@@ -495,6 +497,63 @@ export const getAllItems = authHelper(
     }
   },
 );
+
+export const getAllCategories = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const response = await getAllCategoriesQuery();
+
+      if (response.length === 0) {
+        return jsonHelper(
+          {
+            message: "No categories found",
+          },
+          404,
+        );
+      }
+
+      return jsonHelper({
+        message: "Categories successfully fetched",
+        categories: response,
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Getting all categories failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const getAllTags = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const response = await getAllTagsQuery();
+
+      if (response.length === 0) {
+        return jsonHelper(
+          {
+            message: "No tags found",
+          },
+          404
+        );
+      }
+
+      return jsonHelper({
+        message: "Tags successfully fetched",
+        tags: response,
+      });
+    } catch (error) {
+      return jsonHelper({
+        message: "Getting all tags failed",
+        error: error
+      }, 500);
+    }
+  }
+)
 
 // update item
 export const updateItem = authHelper(

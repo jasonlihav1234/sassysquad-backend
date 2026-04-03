@@ -418,7 +418,7 @@ export async function fetchTaggedCategoryItem(
   }
 }
 
-export async function getAllCategories() {
+export async function getAllCategoriesQuery() {
   try {
     return await pg`
     select * from categories
@@ -429,7 +429,7 @@ export async function getAllCategories() {
   }
 }
 
-export async function getAllTags() {
+export async function getAllTagsQuery() {
   try {
     return await pg`
     select * from tags
