@@ -1,7 +1,6 @@
 import numpy
 import psycopg2
 import os
-from vercel.blob import UploadProgressEvent, BlobClient, AsyncBlobClient
 from pygam import LinearGAM, s, l
 import pandas
 import sys
@@ -151,22 +150,3 @@ class SaasySquadModel:
       self.feature_columns = joblib.load(f"{path}features.pkl")
       self.global_p99 = joblib.load(f"{path}p99.pkl")
       self.trained = True
-
-def on_progress(e: UploadProgressEvent) -> None:
-  print(f"progress: {e.loaded}/{e.total} bytes ({e.percentage}%)")
-
-async def handler(onnx_file):
-  client = AsyncBlobClient()
-
-  uploaded = await client.put(
-    f"onnx_files/saasysquad_model.onnx",
-    onnx_file,
-    access="private",
-    on_upload_progress=on_progress
-  )
-
-  return {
-    "url": uploaded.url,
-    "pathname": uploaded.pathname
-  }
-
