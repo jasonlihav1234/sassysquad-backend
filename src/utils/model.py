@@ -81,7 +81,20 @@ class SaasySquadModel:
     y = df["quantity_sold"]
 
     return X, y
+  
+  def train_model(self):
+    X, y = self.load_and_preprocess()
 
+    gam_terms = s(0, constraints="monotonic_dec")
+
+    for i in range(1, X.shape[1]):
+      gam_terms += l(i)
+
+    self.vol_model = LinearGAM(gam_terms)
+    self.vol_model.gridsearch(X.values, y.values)
+
+    self.feature_columns = X.columns.tolist()
+    self.trained = True
 
 def on_progress(e: UploadProgressEvent) -> None:
   print(f"progress: {e.loaded}/{e.total} bytes ({e.percentage}%)")
