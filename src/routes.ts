@@ -49,6 +49,7 @@ import {
   addItemTags,
   deleteItemTags,
   generateAIRecommendations,
+  getMarketEstimate,
 } from "./application/item_application";
 import { deleteItemTagsQuery } from "./database/queries/item_queries";
 import { UnexpectedResponseError } from "arctic";
@@ -153,6 +154,13 @@ export async function handleRequest(req: any, res: any) {
       </body>
     </html>
     `);
+  }
+
+  if (url === "/v1/pricing/estimate" && method === "POST") {
+    const response = await getMarketEstimate(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/items/recommendations" && method === "POST") {
