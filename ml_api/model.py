@@ -19,7 +19,7 @@ class SaasySquadModel:
 
     query = """
     with sales_agg as (
-      select item_id
+      select item_id,
         sum(quantity) as quantity_sold,
         avg(price_at_purchase) as price
       from
@@ -41,12 +41,12 @@ class SaasySquadModel:
       s.item_id,
       s.quantity_sold,
       s.price,
-      coalesece(t.tags, '') as tags,
+      coalesce(t.tags, '') as tags,
       coalesce(c.category_name, 'unknown') as category_name
     from
       sales_agg s
     left join
-      items i on s.itemid = i.item_id
+      items i on s.item_id = i.item_id
     left join
       categories c on i.category_id = c.category_id
     left join
