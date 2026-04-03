@@ -22,7 +22,7 @@ class SaasySquadModel:
   def load_and_preprocess(self):
     query = """
     with sales_agg as (
-      select item_id
+      select item_id,
         sum(quantity) as quantity_sold,
         avg(price_at_purchase) as price
       from
@@ -44,12 +44,12 @@ class SaasySquadModel:
       s.item_id,
       s.quantity_sold,
       s.price,
-      coalesece(t.tags, '') as tags,
+      coalesce(t.tags, '') as tags,
       coalesce(c.category_name, 'unknown') as category_name
     from
       sales_agg s
     left join
-      items i on s.itemid = i.item_id
+      items i on s.item_id = i.item_id
     left join
       categories c on i.category_id = c.category_id
     left join
@@ -63,7 +63,9 @@ class SaasySquadModel:
 
         col_names = [desc[0] for desc in cur.description]
       
-    df = pandas.DataFrame(records, col_names)
+    df = pandas.DataFrame(records, columns=col_names)
+    df["price"] = df["price"].astype(float)
+    df["quantity_sold"] = df["quantity_sold"].astype(int)
 
     self.global_p99 = df["price"].quantile(0.99)
     self.category_max_prices = df.groupby("category_name")["price"].max().to_dict()
@@ -77,18 +79,22 @@ class SaasySquadModel:
     return X, y
   
   def train_model(self):
-    X, y = self.load_and_preprocess()
+    try:
+      X, y = self.load_and_preprocess()
 
-    gam_terms = s(0, constraints="monotonic_dec")
+      gam_terms = s(0, constraints="monotonic_dec")
 
-    for i in range(1, X.shape[1]):
-      gam_terms += l(i)
+      for i in range(1, X.shape[1]):
+        gam_terms += l(i)
 
-    self.vol_model = LinearGAM(gam_terms)
-    self.vol_model.gridsearch(X.values, y.values)
+      self.vol_model = LinearGAM(gam_terms)
+      self.vol_model.gridsearch(X.values, y.values)
 
-    self.feature_columns = X.columns.tolist()
-    self.trained = True
+      self.feature_columns = X.columns.tolist()
+      self.trained = True
+    except Exception as e:
+      print(e)
+
 
   def estimate_market(self, tags, category):
     if not self.trained:
