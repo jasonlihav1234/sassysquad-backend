@@ -96,6 +96,37 @@ class SaasySquadModel:
     self.feature_columns = X.columns.tolist()
     self.trained = True
 
+  def estimate_market(self, tags, category):
+    if not self.trained:
+      return
+
+    base_dict = {col: 0 for col in self.feature_columns}
+
+    for tag in tags.split(","):
+      tag = tag.strip()
+      if tag in base_dict:
+        base_dict[tag] = 1
+
+    cat_col = f"cat_{category}"
+    if cat_col in base_dict:
+      base_dict[cat_col] = 1
+
+    if category in self.category_max_prices:
+      sim_limit = self.category_max_prices[category] * 1.05
+    else:
+      sim_limit = self.global_p99
+
+    sim_limit = min(sim_limit, self.global_p99)
+    test_prices = numpy.linspace(1.0, sim_limit, num=100)
+
+    sim_data = [base_dict.copy() for _ in range(100)]
+    for i, price in enumerate(test_prices):
+      sim_data[i]["price"] = price
+
+    X_sim = pandas.DataFrame()
+
+    
+
 def on_progress(e: UploadProgressEvent) -> None:
   print(f"progress: {e.loaded}/{e.total} bytes ({e.percentage}%)")
 
