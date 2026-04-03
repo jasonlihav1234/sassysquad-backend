@@ -23,17 +23,60 @@ import { updateProfileQuery } from "../database/queries/user_queries";
 import pg from "../utils/db";
 import { z, toJSONSchema } from "zod";
 
-const ai = new GoogleGenAI({});
+// const ai = new GoogleGenAI({});
 
-const responseSchema = z.object({
-  tags: z.array(z.string()),
-  message: z.string().describe("Message the LLM responds with"),
-});
+// const responseSchema = z.object({
+//   tags: z.array(z.string()),
+//   message: z.string().describe("Message the LLM responds with"),
+// });
 
-const listFormatter = new Intl.ListFormat("en", {
-  style: "long",
-  type: "conjunction",
-});
+// const listFormatter = new Intl.ListFormat("en", {
+//   style: "long",
+//   type: "conjunction",
+// });
+
+export async function getMarketEstimate(tags: string, category: string) {
+  if (!tags || !category) {
+    return jsonHelper(
+      {
+        message: "Tags or category not provided",
+      },
+      400,
+    );
+  }
+
+  try {
+    const RAILWAY_URL = "https://sassysquad-backend-production.up.railway.app";
+    const response = await fetch(`${RAILWAY_URL}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags, category }),
+    });
+
+    if (!response.ok) {
+      const body = await response.json();
+      console.log(body);
+      return jsonHelper(
+        {
+          error: body,
+        },
+        response.status,
+      );
+    }
+
+    return jsonHelper({
+      message: "Prediction completed",
+      prediction: await response.json(),
+    });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: error,
+      },
+      500,
+    );
+  }
+}
 
 export const generateAIRecommendations = authHelper(
   async (req: AuthReq): Promise<Response> => {
