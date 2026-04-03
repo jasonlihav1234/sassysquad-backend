@@ -7,6 +7,7 @@ from pygam import LinearGAM, s, l
 import pandas
 import sys
 import json
+import joblib
 
 load_dotenv()
 VECTOR_SIZE = 65536
@@ -140,6 +141,15 @@ class SaasySquadModel:
       "suggested_price_range": (round(safe_prices.min(), 2), round(safe_prices.max(), 2)),
       "expected_monthly_volume": (int(safe_volumes.max()), int(safe_volumes.min()))
     }
+  
+  def save(self, path="models/"):
+    os.makedirs(path, exist_ok=True)
+    joblib.dump(self.vol_model, f"{path}vol_model.pkl")
+    joblib.dump(self.feature_columns, f"{path}features.pkl")
+    joblib.dump(self.global_p99, f"{path}p99.pkl")
+
+  
+
     
 def on_progress(e: UploadProgressEvent) -> None:
   print(f"progress: {e.loaded}/{e.total} bytes ({e.percentage}%)")
