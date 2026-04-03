@@ -9,10 +9,6 @@ import sys
 import json
 import joblib
 
-load_dotenv()
-VECTOR_SIZE = 65536
-DATABASE_URL = os.getenv("DATABASE_URL")
-
 class SaasySquadModel:
   def __init__(self):
     self.volume_model = None
@@ -21,6 +17,8 @@ class SaasySquadModel:
     self.trained = False
 
   def load_and_preprocess(self):
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    
     query = """
     with sales_agg as (
       select item_id
