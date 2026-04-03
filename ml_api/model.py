@@ -148,9 +148,13 @@ class SaasySquadModel:
     joblib.dump(self.feature_columns, f"{path}features.pkl")
     joblib.dump(self.global_p99, f"{path}p99.pkl")
 
-  
+  def load(self, path="models/"):
+    if os.path.exists(f"{path}vol_model.pkl"):
+      self.vol_model = joblib.load(f"{path}vol_model.pkl")
+      self.feature_columns = joblib.load(f"{path}features.pkl")
+      self.global_p99 = joblib.load(f"{path}p99.pkl")
+      self.trained = True
 
-    
 def on_progress(e: UploadProgressEvent) -> None:
   print(f"progress: {e.loaded}/{e.total} bytes ({e.percentage}%)")
 
@@ -168,16 +172,4 @@ async def handler(onnx_file):
     "url": uploaded.url,
     "pathname": uploaded.pathname
   }
-
-if __name__ == "__main__":
-  predictor = SaasySquadModel()
-  predictor.train_model()
-
-  # expected csv format for tags and one string for category
-  tags = sys.argv[1]
-  category = sys.argv[2]
-
-  result = predictor.estimate_market(tags, category)
-  print(json.dumps(result))
-
 
