@@ -11,10 +11,55 @@ import os
 from vercel.blob import UploadProgressEvent, BlobClient, AsyncBlobClient
 from datetime import datetime
 import asyncio
+from pygam import LinearGAM, s, l
 
 load_dotenv()
 VECTOR_SIZE = 65536
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+class SaasySquadModel:
+  def __init__(self):
+    self.volume_model = None
+    self.feature_columns = None
+    self.p99_price = None
+    self.trained = False
+
+  def load_and_preprocess(self):
+    query = """
+    with sales_agg as (
+      select item_id
+        sum(quantity) as quantity_sold,
+        avg(price_at_purchase) as price
+      from
+        order_lines
+      group by
+        item_id
+    ),
+    tags_agg as (
+      select it.item_id,
+        string_agg(t.tag_name, ',') as tags
+      from
+        item_tags it
+      join tags t on
+        it.tag_id = t.tag_id
+      group by
+        it.item_id
+    )
+    select
+      s.item_id,
+      s.quantity_sold,
+      s.price,
+      coalesece(t.tags, '') as tags,
+      coalesce(c.category_name, 'unknown') as category_name
+    from
+      sales_agg s
+    left join
+      items i on s.itemid = i.item_id
+    left join
+      categories c on i.category_id = c.category_id
+    left join
+      tags_agg t on s.item_id = t.item_id
+    """
 
 def on_progress(e: UploadProgressEvent) -> None:
   print(f"progress: {e.loaded}/{e.total} bytes ({e.percentage}%)")
