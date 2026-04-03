@@ -12,6 +12,7 @@ from vercel.blob import UploadProgressEvent, BlobClient, AsyncBlobClient
 from datetime import datetime
 import asyncio
 from pygam import LinearGAM, s, l
+import pandas
 
 load_dotenv()
 VECTOR_SIZE = 65536
@@ -60,6 +61,27 @@ class SaasySquadModel:
     left join
       tags_agg t on s.item_id = t.item_id
     """
+
+    with psycopg2.connect(DATABASE_URL) as conn:
+      with conn.cursor() as cur:
+        cur.execute(query)
+        records = cur.fetchall()
+
+        col_names = [desc[0] for desc in cur.description]
+      
+    df = pandas.DataFrame(records, col_names)
+
+    self.global_p99 = df["price"].quantile(0.99)
+    self.category_max_prices = df.groupby("category_name")["price"].max().to_dict()
+
+    df_tags = df["tags"].str.get_dummies(sep=',')
+    df_category = pandas.get_dummies(df["category_name"], prefix="cat")
+
+    X = pandas.concat([df["price"], df_tags, df_category], axis=1)
+    y = df["quantity_sold"]
+
+    return X, y
+
 
 def on_progress(e: UploadProgressEvent) -> None:
   print(f"progress: {e.loaded}/{e.total} bytes ({e.percentage}%)")
