@@ -1,18 +1,12 @@
-import polars
-import xgboost
-import mmh3
 import numpy
-import random
-import onnxmltools
 import psycopg2
 from dotenv import load_dotenv
-from onnxmltools.convert.common.data_types import FloatTensorType
 import os
 from vercel.blob import UploadProgressEvent, BlobClient, AsyncBlobClient
-from datetime import datetime
-import asyncio
 from pygam import LinearGAM, s, l
 import pandas
+import sys
+import json
 
 load_dotenv()
 VECTOR_SIZE = 65536
@@ -164,5 +158,16 @@ async def handler(onnx_file):
     "url": uploaded.url,
     "pathname": uploaded.pathname
   }
+
+if __name__ == "__main__":
+  predictor = SaasySquadModel()
+  predictor.train_model()
+
+  # expected csv format for tags and one string for category
+  tags = sys.argv[1]
+  category = sys.argv[2]
+
+  result = predictor.estimate_market(tags, category)
+  print(json.dumps(result))
 
 
