@@ -9,6 +9,8 @@ import {
   createOrderQuery,
   updateOrdersById,
   deleteOrdersById,
+  getVoucherByCode, 
+  incrementVoucherUsage,
 } from "../database/queries/order_queries";
 
 export const stripe = process.env.STRIPE_SECRET_KEY
@@ -321,12 +323,23 @@ export async function processOrderCreation(data: {
   };
 
   const xml = create(orderJson).end({ prettyPrint: true });
+  const voucherData = await redis.get(`voucher:${buyerId}`);
+  let discountPercent = 0;
+  let voucher = null;
 
-  const items = newOrder.orderLines.map((line: any) => ({
+  if (voucherData) {
+    voucher = JSON.parse(voucherData);
+    discountPercent = voucher.discount_percent;
+  }
+
+  const items = newOrder.orderLines.map((line: any) => {
+  const discountedPrice = line.priceAtPurchase;
+  return {
     itemId: line.itemID,
     quantity: line.quantity,
-    priceAtPurchase: line.priceAtPurchase,
-  }));
+    priceAtPurchase: discountedPrice,
+  };
+});
 
   const response = await createOrderQuery(
     newOrder.orderId,
@@ -343,6 +356,9 @@ export async function processOrderCreation(data: {
     xml,
     items,
   );
+  if (voucher) {
+    await incrementVoucherUsage(voucher.voucher_id);
+  }
 
   return { xml, response };
 }
@@ -420,6 +436,7 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
         accountingCost: 1.5,
         destinationCountryCode,
       });
+      await redis.del(`voucher:${buyerId}`);
 
       return true;
     } catch (error) {
@@ -436,6 +453,12 @@ export const createCheckoutSession = authHelper(
     const sellerId = req.body.sellerId;
     const email = req.body.email;
     const key = `cart:${userId}`;
+    const voucherData = await redis.get(`voucher:${userId}`);
+    let discountPercent = 0;
+    if (voucherData) {
+      const voucher = JSON.parse(voucherData);
+      discountPercent = voucher.discount_percent;
+    }
 
     if (!sellerId || !email) {
       return jsonHelper(
@@ -466,27 +489,30 @@ export const createCheckoutSession = authHelper(
 
     const lineItems = [];
     for (const item of getItems) {
-      const getQuantity = await redis.hget(key, item.item_id);
+  const getQuantity = await redis.hget(key, item.item_id);
 
-      const newObject = {
-        price_data: {
-          currency: "aud",
-          product_data: {
-            name: item.item_name,
-            images: [item.image_url],
-            tax_code: "txcd_99999999",
-            description: item.description,
-            metadata: {
-              item_id: item.item_id,
-            },
-          },
-          unit_amount: Number(item.price) * 100,
+  const originalPrice = Number(item.price);
+  const discountedPrice = originalPrice * (1 - discountPercent / 100);
+
+  const newObject = {
+    price_data: {
+      currency: "aud",
+      product_data: {
+        name: item.item_name,
+        images: [item.image_url],
+        tax_code: "txcd_99999999",
+        description: item.description,
+        metadata: {
+          item_id: item.item_id,
         },
-        quantity: Number(getQuantity),
-      };
+      },
+      unit_amount: Math.round(discountedPrice * 100),
+    },
+    quantity: Number(getQuantity),
+  };
 
-      lineItems.push(newObject);
-    }
+  lineItems.push(newObject);
+}
 
     const session = await stripe!.checkout.sessions.create({
       metadata: {
@@ -950,3 +976,41 @@ export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     );
   }
 });
+
+export const applyVoucher = authHelper( async (req: AuthReq): Promise<Response> => {
+    const { code } = req.body;
+    const userId = req.user?.subject_claim;
+
+    if (!code) {
+      return jsonHelper({ error: "Voucher code required" }, 400);
+    }
+
+    const voucher = await getVoucherByCode(code);
+
+    if (!voucher) {
+      return jsonHelper({ error: "Invalid voucher" }, 404);
+    }
+
+    // check for expiry
+    if (voucher.expires_at && new Date(voucher.expires_at) < new Date()) {
+      return jsonHelper({ error: "Voucher expired" }, 400);
+    }
+
+    // check usage limit for voucher
+    if (
+      voucher.usage_limit &&
+      voucher.times_used >= voucher.usage_limit
+    ) {
+      return jsonHelper({ error: "Voucher usage limit reached" }, 400);
+    }
+
+    // store in redis kind of liek cart
+    await redis.set(`voucher:${userId}`, JSON.stringify(voucher));
+    await redis.expire(`voucher:${userId}`, 3600);
+
+    return jsonHelper({
+      message: "Voucher applied",
+      discount_percent: voucher.discount_percent,
+    });
+  }
+);
