@@ -122,7 +122,7 @@ export default async function googleCallback(
     );
     const googleUser = await googleResponse.json();
 
-    const googlePassword = await bcrypt.hash(crypto.randomUUID(), SALT_ROUNDS);
+    const googlePassword = crypto.randomUUID();
     const query =
       await pg`select * from users where email = ${googleUser.email}`;
 
@@ -130,9 +130,10 @@ export default async function googleCallback(
       await generateUser(googleUser.email, googleUser.name, googlePassword);
     }
 
-    const user = await checkUser(googleUser.email, googlePassword);
+    const user =
+      await pg`select * from users where email = ${googleUser.email}`;
     const device = req.headers?.["user-agent"] || "null";
-    const token = await createSessionTokens(user!.id, user!.email, device);
+    const token = await createSessionTokens(user.user_id, user.email, device);
 
     return res.redirect(
       302,
@@ -732,11 +733,11 @@ export const verifyTwoFactor = authHelper(
         from users 
         where user_id = ${userId}
       `;
-      
+
       if (!query[0].totp) {
         return jsonHelper(
           {
-            message: "2FA not yet added"
+            message: "2FA not yet added",
           },
           400,
         );
@@ -747,7 +748,7 @@ export const verifyTwoFactor = authHelper(
       if (!result.valid) {
         return jsonHelper(
           {
-            message: "Code given is invalid"
+            message: "Code given is invalid",
           },
           400,
         );
@@ -757,16 +758,13 @@ export const verifyTwoFactor = authHelper(
         update users
         set two_factor = true
         where user_if = ${userId}
-      `
+      `;
 
       return jsonHelper({
         message: "2FA successfully verified",
       });
     } catch (error) {
-      return jsonHelper(
-        { message: "2FA failed to verify", error: error },
-        500,
-      );
+      return jsonHelper({ message: "2FA failed to verify", error: error }, 500);
     }
   },
 );
@@ -799,17 +797,14 @@ export const addTwoFactor = authHelper(
         secret,
       });
 
-      const qrCode = await qrcode.toDataURL(uri)
+      const qrCode = await qrcode.toDataURL(uri);
 
       return jsonHelper({
         message: "QR code successfully sent",
-        qrCode
+        qrCode,
       });
     } catch (error) {
-      return jsonHelper(
-        { message: "2FA failed to set up", error: error },
-        500
-      );
-    } 
-  }
-)
+      return jsonHelper({ message: "2FA failed to set up", error: error }, 500);
+    }
+  },
+);
