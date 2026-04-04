@@ -133,6 +133,7 @@ export default async function googleCallback(
     const user =
       await pg`select * from users where email = ${googleUser.email}`;
     const device = req.headers?.["user-agent"] || "null";
+    console.log(user.user_id, user.email, user);
     const token = await createSessionTokens(user.user_id, user.email, device);
 
     return res.redirect(
