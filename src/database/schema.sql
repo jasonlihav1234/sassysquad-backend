@@ -104,6 +104,16 @@ CREATE TABLE item_tags (
   PRIMARY KEY (tag_id, item_id)
 );
 
+CREATE TABLE vouchers (
+    voucher_id UUID PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    discount_percent DECIMAL NOT NULL CHECK (discount_percent > 0 AND discount_percent <= 100),
+    expires_at TIMESTAMP,
+    usage_limit INT,
+    times_used INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 INSERT INTO tags (tag_id, tag_name) VALUES
   (gen_random_uuid(), 'boucle'),
   (gen_random_uuid(), 'linen'),
