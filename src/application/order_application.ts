@@ -467,6 +467,7 @@ export const createCheckoutSession = authHelper(
     const lineItems = [];
     for (const item of getItems) {
       const getQuantity = await redis.hget(key, item.item_id);
+      const stripePrice = Math.round(Number(item.price) * 100);
 
       const newObject = {
         price_data: {
@@ -479,7 +480,7 @@ export const createCheckoutSession = authHelper(
               item_id: item.item_id,
             },
           },
-          unit_amount: Number(item.price) * 100,
+          unit_amount: stripePrice,
         },
         quantity: Number(getQuantity),
       };
