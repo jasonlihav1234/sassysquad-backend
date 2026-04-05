@@ -274,7 +274,7 @@ describe("Webhook tests", async () => {
     const payloadString = JSON.stringify(mockEventData);
     const payloadBuffer = Buffer.from(payloadString);
 
-    const header = stripe.webhooks.generateTestHeaderString({
+    const header = await stripe.webhooks.generateTestHeaderStringAsync({
       payload: payloadString,
       secret: endpointSecret,
     });
@@ -301,7 +301,7 @@ describe("Webhook tests", async () => {
     const payloadString = JSON.stringify(mockEventData);
     const payloadBuffer = Buffer.from(payloadString);
 
-    const header = stripe.webhooks.generateTestHeaderString({
+    const header = await stripe.webhooks.generateTestHeaderStringAsync({
       payload: payloadString,
       secret: endpointSecret,
     });
