@@ -473,7 +473,6 @@ export const createCheckoutSession = authHelper(
           currency: "aud",
           product_data: {
             name: item.item_name,
-            images: [item.image_url],
             tax_code: "txcd_99999999",
             description: item.description,
             metadata: {
