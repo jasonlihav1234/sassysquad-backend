@@ -450,36 +450,100 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
           sellerName: "The Curated Althair",
           currency: checkoutSession.currency?.toUpperCase() || "AUD",
           totalAmount: (checkoutSession.amount_total || 0) / 100,
-          items: orderLines.map(line => ({
+          items: orderLines.map((line) => ({
             desc: line.description,
             qty: line.quantity,
-            price: line.priceAtPurchase
-          }))
+            price: line.priceAtPurchase,
+          })),
         },
         fieldPurposeMapping: {
-          "orderId": "ORDER_ID",
-          "buyerName": "BUYER_NAME",
-          "buyerEmail": "BUYER_EMAIL",
-          "sellerName": "SELLER_NAME",
-          "currency": "CURRENCY_CODE",
-          "totalAmount": "TOTAL_AMOUNT",
-          "items": "LINE_ITEMS",
+          orderId: "ORDER_ID",
+          buyerName: "BUYER_NAME",
+          buyerEmail: "BUYER_EMAIL",
+          sellerName: "SELLER_NAME",
+          currency: "CURRENCY_CODE",
+          totalAmount: "TOTAL_AMOUNT",
+          items: "LINE_ITEMS",
           "items.desc": "LINE_ITEM_DESCRIPTION",
           "items.qty": "LINE_ITEM_QUANTITY",
-          "items.price": "LINE_ITEM_PRICE"
-        }
+          "items.price": "LINE_ITEM_PRICE",
+        },
       };
 
-      const invoiceRes = await fetch("https://tte-invoice-api-production.up.railway.app/invoices/simple", {
-        method: "POST",
-        headers: { "Content-Type": "application/json "},
-        body: JSON.stringify(invoicePayload),
-      });
+      const invoiceRes = await fetch(
+        "https://tte-invoice-api-production.up.railway.app/invoices/simple",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json " },
+          body: JSON.stringify(invoicePayload),
+        },
+      );
 
       if (!invoiceRes.ok) {
-        throw new Error(`Invoice generation failed: other teams api doesn't work`);
+        throw new Error(
+          `Invoice generation failed: other teams api doesn't work`,
+        );
       }
 
+      const orderTotal = (checkoutSession.amount_total || 0) / 100;
+      const itemsHtml = orderLines
+        .map(
+          (line) => `
+        <tr>
+          <td style="padding: 16px 0; border-bottom: 1px solid #E5E5E5; color: #171717;">
+            ${line.description} <br>
+            <span style="color: #737373; font-size: 12px;">Qty: ${line.quantity}</span>
+          </td>
+          <td style="padding: 16px 0; border-bottom: 1px solid #E5E5E5; text-align: right; color: #171717;">
+            $${(line.priceAtPurchase * line.quantity).toFixed(2)}
+          </td>
+        </tr>
+      `,
+        )
+        .join("");
+
+      const htmlEmailTemplate = `
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #FAFAFA; padding: 40px 20px; text-align: center;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; padding: 40px; border: 1px solid #F5F5F5; border-radius: 8px; text-align: left;">
+            
+            <p style="font-size: 10px; letter-spacing: 0.2em; color: #A3A3A3; text-transform: uppercase; margin-bottom: 8px;">
+              The Curated Althaïr
+            </p>
+            
+            <h1 style="font-size: 24px; font-weight: 300; color: #171717; margin-top: 0; margin-bottom: 32px; letter-spacing: -0.02em;">
+              Your Receipt
+            </h1>
+
+            <p style="color: #525252; font-size: 14px; line-height: 1.6; margin-bottom: 32px;">
+              Thank you for your order, ${safeSession.customer_details?.name || "Customer"}. We are preparing your items for shipment.
+            </p>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 32px;">
+              <thead>
+                <tr>
+                  <th style="text-align: left; padding-bottom: 12px; border-bottom: 1px solid #171717; color: #171717; font-weight: 500;">Item</th>
+                  <th style="text-align: right; padding-bottom: 12px; border-bottom: 1px solid #171717; color: #171717; font-weight: 500;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td style="padding-top: 24px; font-weight: 500; color: #171717;">Total (AUD)</td>
+                  <td style="padding-top: 24px; text-align: right; font-weight: 500; color: #171717;">$${orderTotal.toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <p style="color: #A3A3A3; font-size: 12px; line-height: 1.5; text-align: center; border-top: 1px solid #E5E5E5; padding-top: 32px;">
+              Order ID: ${internalOrderId} <br>
+              If you have any questions, reply directly to this email.
+            </p>
+
+          </div>
+        </div>
+      `;
       const xmlString = await invoiceRes.text();
 
       const buyerEmail = safeSession.customer_details?.email;
@@ -488,14 +552,14 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
           from: '"The Curated Althaïr" <jasonli3960@gmail.com>',
           to: buyerEmail,
           subject: `Your Invoice for Order ${internalOrderId}`,
-          text: "Thank you for your purchase. Please find your UBL XML invoice attached.",
+          html: htmlEmailTemplate,
           attachments: [
             {
               filename: `invoice_${internalOrderId}.xml`,
               content: xmlString,
-              contentType: "application/xml"
-            }
-          ]
+              contentType: "application/xml",
+            },
+          ],
         });
 
         console.log("invoice sent");
