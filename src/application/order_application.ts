@@ -502,7 +502,7 @@ export const createCheckoutSession = authHelper(
       },
       line_items: lineItems,
       mode: "payment",
-      return_url: `https://localhost:3000/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
+      return_url: `http://localhost:3000/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
       automatic_tax: { enabled: true },
     });
 
