@@ -613,7 +613,7 @@
           {
             "in": "body",
             "name": "body",
-            "description": "Profile object: include at least one of email, password, username, or biography (plus bearer token for auth).",
+            "description": "Profile object: include at least one of email, password, username, or biography.",
             "required": true,
             "schema": {
               "type": "object",
