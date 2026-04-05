@@ -12,7 +12,8 @@ DROP TABLE IF EXISTS users CASCADE;
 -- User & Auth Management
 CREATE TABLE users (
     user_id UUID PRIMARY KEY,
-    user_name VARCHAR(255), 
+    user_name VARCHAR(255),
+    biography TEXT,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     totp_key VARCHAR(255),
