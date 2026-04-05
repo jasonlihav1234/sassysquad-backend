@@ -10,11 +10,19 @@ import {
   updateOrdersById,
   deleteOrdersById,
 } from "../database/queries/order_queries";
+import nodemailer from "nodemailer";
 
 export const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY!)
   : null;
 export const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "jasonli3960@gmail.com",
+    pass: process.env.GOOGLE_APP_PASSWORD,
+  },
+});
 
 export const validateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
@@ -381,12 +389,16 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
       }
     }
 
+    console.log(paymentMethodCode);
+
     const safeSession = checkoutSession as any;
     // might be an issue need to check for this
     const destinationCountryCode =
       safeSession.shipping_details?.address?.country || "AU";
     const rawLineItems = checkoutSession.line_items?.data || [];
-    const orderLines = rawLineItems.map((stripeItem) => {
+    const internalOrderId = crypto.randomUUID();
+
+    const orderLines = rawLineItems.map((stripeItem, index) => {
       const product = stripeItem.price?.product as Stripe.Product;
       const itemId = product?.metadata?.item_id || "unknown_item";
 
@@ -398,6 +410,8 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
         quantity: stripeItem.quantity || 0,
         priceAtPurchase: priceAtPurchase,
         taxPercentPer: 0,
+        // invoice specific api fields
+        description: product?.name || "Item",
       };
     });
 
@@ -408,10 +422,17 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
     // here I would call the post orders method
     try {
       await processOrderCreation({
-        orderId: crypto.randomUUID(),
+        orderId: internalOrderId,
         buyerId,
         sellerId,
-        orderLines,
+        orderLines: orderLines.map(
+          ({ itemId, quantity, priceAtPurchase, taxPercentPer }) => ({
+            itemId,
+            quantity,
+            priceAtPurchase,
+            taxPercentPer,
+          }),
+        ),
         paymentMethodCode,
         documentCurrencyCode: "aud",
         pricingCurrencyCode: "aud",
@@ -420,6 +441,65 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
         accountingCost: 1.5,
         destinationCountryCode,
       });
+
+      const invoicePayload = {
+        purchaseOrder: {
+          orderId: internalOrderId,
+          buyerName: safeSession.customer_details?.name || "Customer",
+          buyerEmail: safeSession.customer_details?.email || "user@example.com",
+          sellerName: "The Curated Althair",
+          currency: checkoutSession.currency?.toUpperCase() || "AUD",
+          totalAmount: (checkoutSession.amount_total || 0) / 100,
+          items: orderLines.map(line => ({
+            desc: line.description,
+            qty: line.quantity,
+            price: line.priceAtPurchase
+          }))
+        },
+        fieldPurposeMapping: {
+          "orderId": "ORDER_ID",
+          "buyerName": "BUYER_NAME",
+          "buyerEmail": "BUYER_EMAIL",
+          "sellerName": "SELLER_NAME",
+          "currency": "CURRENCY_CODE",
+          "totalAmount": "TOTAL_AMOUNT",
+          "items": "LINE_ITEMS",
+          "items.desc": "LINE_ITEM_DESCRIPTION",
+          "items.qty": "LINE_ITEM_QUANTITY",
+          "items.price": "LINE_ITEM_PRICE"
+        }
+      };
+
+      const invoiceRes = await fetch("https://tte-invoice-api-production.up.railway.app/invoices/simple", {
+        method: "POST",
+        headers: { "Content-Type": "application/json "},
+        body: JSON.stringify(invoicePayload),
+      });
+
+      if (!invoiceRes.ok) {
+        throw new Error(`Invoice generation failed: other teams api doesn't work`);
+      }
+
+      const xmlString = await invoiceRes.text();
+
+      const buyerEmail = safeSession.customer_details?.email;
+      if (buyerEmail) {
+        await transporter.sendMail({
+          from: '"The Curated Althaïr" <jasonli3960@gmail.com>',
+          to: buyerEmail,
+          subject: `Your Invoice for Order ${internalOrderId}`,
+          text: "Thank you for your purchase. Please find your UBL XML invoice attached.",
+          attachments: [
+            {
+              filename: `invoice_${internalOrderId}.xml`,
+              content: xmlString,
+              contentType: "application/xml"
+            }
+          ]
+        });
+
+        console.log("invoice sent");
+      }
 
       return true;
     } catch (error) {
