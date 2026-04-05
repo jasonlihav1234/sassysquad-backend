@@ -543,11 +543,11 @@ export const checkCheckoutSessionStatus = authHelper(
   },
 );
 
-export async function serverWebhook(req: VercelRequest): Promise<Response> {
-  const body = req.body;
-  const signature = req.headers["stripe-signature"];
-
-  if (!body) {
+export async function serverWebhook(
+  rawBody: Buffer,
+  signature: string,
+): Promise<Response> {
+  if (!rawBody || rawBody.length === 0) {
     return jsonHelper(
       {
         error: "No body provided",
@@ -567,7 +567,7 @@ export async function serverWebhook(req: VercelRequest): Promise<Response> {
 
   try {
     event = await stripe!.webhooks.constructEventAsync(
-      body,
+      rawBody,
       signature,
       endpointSecret,
     );
@@ -597,7 +597,8 @@ export async function serverWebhook(req: VercelRequest): Promise<Response> {
     }
   }
 
-  return jsonHelper({ error: "No event types match" }, 404);
+  // prevent stripe from retrying
+  return jsonHelper({ message: "Unhandled event type ignored"}, 200);
 }
 
 // post with itemId and quantity and userId in body
