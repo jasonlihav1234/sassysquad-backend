@@ -648,6 +648,30 @@ export const createCheckoutSession = authHelper(
       mode: "payment",
       return_url: `http://localhost:3000/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
       automatic_tax: { enabled: true },
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: 1000, currency: "aud" },
+            display_name: "Australia Post Standard",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 3 },
+              maximum: { unit: "business_day", value: 5 },
+            },
+          },
+        },
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: 2500, currency: "aud" },
+            display_name: "DHL Express",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 1 },
+              maximum: { unit: "business_day", value: 2 },
+            },
+          },
+        },
+      ],
     });
 
     return jsonHelper({
