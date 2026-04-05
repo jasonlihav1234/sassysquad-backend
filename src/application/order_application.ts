@@ -512,36 +512,36 @@ export const createCheckoutSession = authHelper(
   },
 );
 
-export const checkCheckoutSessionStatus = authHelper(
-  async (req: AuthReq): Promise<Response> => {
-    if (!req.query || !req.query.session_id) {
-      return jsonHelper(
-        {
-          message: "Session cannot be found",
-        },
-        404,
-      );
-    }
-    const queryId = req.query.session_id;
-    const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
+export const checkCheckoutSessionStatus = async (
+  req: VercelRequest,
+): Promise<Response> => {
+  if (!req.query || !req.query.session_id) {
+    return jsonHelper(
+      {
+        message: "Session cannot be found",
+      },
+      404,
+    );
+  }
+  const queryId = req.query.session_id;
+  const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
 
-    try {
-      const session = await stripe!.checkout.sessions.retrieve(sessionId);
+  try {
+    const session = await stripe!.checkout.sessions.retrieve(sessionId);
 
-      return jsonHelper({
-        status: session.status,
-        customer_email: session.customer_details?.email ?? "No email provided",
-      });
-    } catch (error) {
-      return jsonHelper(
-        {
-          error: "Failed to retrieve session status",
-        },
-        500,
-      );
-    }
-  },
-);
+    return jsonHelper({
+      status: session.status,
+      customer_email: session.customer_details?.email ?? "No email provided",
+    });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: "Failed to retrieve session status",
+      },
+      500,
+    );
+  }
+};
 
 export async function serverWebhook(
   rawBody: Buffer,
