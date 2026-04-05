@@ -502,7 +502,7 @@ export const createCheckoutSession = authHelper(
       },
       line_items: lineItems,
       mode: "payment",
-      return_url: `https://sassysquad-backend.vercel.app/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
+      return_url: `https://localhost:3000/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
       automatic_tax: { enabled: true },
     });
 
@@ -598,7 +598,7 @@ export async function serverWebhook(
   }
 
   // prevent stripe from retrying
-  return jsonHelper({ message: "Unhandled event type ignored"}, 200);
+  return jsonHelper({ message: "Unhandled event type ignored" }, 200);
 }
 
 // post with itemId and quantity and userId in body

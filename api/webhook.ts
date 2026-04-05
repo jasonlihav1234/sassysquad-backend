@@ -7,7 +7,10 @@ export const config = {
   },
 };
 
-export default async function webhookHandler(req: VercelRequest, res: VercelResponse) {
+export default async function webhookHandler(
+  req: VercelRequest,
+  res: VercelResponse,
+) {
   if (req.method !== "POST") return res.status(405).end();
 
   const chunks = [];
@@ -21,7 +24,8 @@ export default async function webhookHandler(req: VercelRequest, res: VercelResp
   try {
     const result = await serverWebhook(rawBody, signature);
     return res.status(200).json(result);
-  } else {
+  } catch (error) {
+    console.log(error);
     return res.status(400).json({ error: "Webhook failed" });
   }
 }
