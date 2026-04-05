@@ -449,18 +449,8 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-  if (
-    url.match(/^\/checkout-session-status\/[a-zA-Z0-9_-]+$/) &&
-    method === "GET"
-  ) {
+  if (url.startsWith("/checkout-session-status") && method === "GET") {
     const response = await checkCheckoutSessionStatus(req);
-
-    const body = await response.json();
-    return res.status(response.status).json(body);
-  }
-
-  if (url === "/webhook" && method === "POST") {
-    const response = await serverWebhook(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
