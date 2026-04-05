@@ -515,6 +515,7 @@ export const createCheckoutSession = authHelper(
 export const checkCheckoutSessionStatus = async (
   req: VercelRequest,
 ): Promise<Response> => {
+  console.log(req.query, req);
   if (!req.query || !req.query.session_id) {
     return jsonHelper(
       {
