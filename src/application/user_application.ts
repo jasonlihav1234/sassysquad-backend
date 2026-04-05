@@ -686,7 +686,12 @@ export const updateProfile = authHelper(
       const userId = req.user?.subject_claim as string;
       const body = req.body;
 
-      if (!body.username && !body.email && !body.password) {
+      if (
+        !body.username &&
+        !body.email &&
+        !body.password &&
+        body.biography === undefined
+      ) {
         return jsonHelper(
           {
             message: "No fields to update for the user",
@@ -699,6 +704,7 @@ export const updateProfile = authHelper(
         user_name: body.username,
         email: body.email,
         password: body.password,
+        biography: body.biography,
       });
 
       return jsonHelper({

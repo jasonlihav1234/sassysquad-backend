@@ -566,6 +566,9 @@
                       "email": {
                         "type": "string"
                       },
+                      "biography": {
+                        "type": "string"
+                      },
                       "password_hash": {
                         "type": "string"
                       },
@@ -610,7 +613,7 @@
           {
             "in": "body",
             "name": "body",
-            "description": "Profile object needs atleast a email or password or username and an access token",
+            "description": "Profile object: include at least one of email, password, username, or biography.",
             "required": true,
             "schema": {
               "type": "object",
@@ -626,6 +629,10 @@
                 "password": {
                   "type": "string",
                   "example": "new_password"
+                },
+                "biography": {
+                  "type": "string",
+                  "example": "Designer and collector of mid-century pieces."
                 },
                 "accessToken": {
                   "type": "string"
