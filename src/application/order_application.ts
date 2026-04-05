@@ -396,7 +396,7 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
     const destinationCountryCode =
       safeSession.shipping_details?.address?.country || "AU";
     const rawLineItems = checkoutSession.line_items?.data || [];
-    const internalOrderId = crypto.randomUUID();
+    const internalOrderId = session.metadata?.orderId as string || sessionId;
 
     const orderLines = rawLineItems.map((stripeItem, index) => {
       const product = stripeItem.price?.product as Stripe.Product;
@@ -548,6 +548,9 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
 
       const buyerEmail = safeSession.customer_details?.email;
       if (buyerEmail) {
+        const cartKey = `cart:${buyerId}`;
+        await redis.del(cartKey);
+
         await transporter.sendMail({
           from: '"The Curated Althaïr" <jasonli3960@gmail.com>',
           to: buyerEmail,
@@ -577,21 +580,11 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
 export const createCheckoutSession = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim;
-    const sellerId = req.body.sellerId;
-    const email = req.body.email;
     const key = `cart:${userId}`;
-
-    if (!sellerId || !email) {
-      return jsonHelper(
-        {
-          message: "Missing email or sellerId",
-        },
-        400,
-      );
-    }
 
     // get the cart from the redis cache, need to save quantity and get info about item
     const itemIds = await redis.hkeys(key);
+    const internalOrderId = crypto.randomUUID();
 
     if (itemIds.length === 0) {
       return jsonHelper({
@@ -634,11 +627,10 @@ export const createCheckoutSession = authHelper(
 
     const session = await stripe!.checkout.sessions.create({
       metadata: {
-        userId: userId ?? "",
-        sellerId: sellerId ?? "",
+        buyerId: userId ?? "",
+        orderId: internalOrderId ?? "",
       },
       ui_mode: "embedded",
-      customer_email: email,
       submit_type: "pay",
       billing_address_collection: "auto",
       shipping_address_collection: {
