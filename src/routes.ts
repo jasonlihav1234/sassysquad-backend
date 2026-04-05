@@ -4,6 +4,7 @@ import {
   getOrderById,
   updateOrdersById,
 } from "./database/queries/order_queries";
+import { applyVoucher } from "./application/order_application";
 import googleCallback, {
   register,
   login,
@@ -480,6 +481,12 @@ export async function handleRequest(req: any, res: any) {
     const body = await response.json();
     return res.status(response.status).json(body);
   }
+
+  if (url === "/vouchers/apply" && method === "POST") {
+    const response = await applyVoucher(req);
+    const body = await response.json();
+    return res.status(response.status).json(body);
+}
 
   // 404 if no roiutes match
   return res.status(404).json({ error: "Not found" });
