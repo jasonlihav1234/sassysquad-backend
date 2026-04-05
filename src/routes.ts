@@ -4,7 +4,7 @@ import {
   getOrderById,
   updateOrdersById,
 } from "./database/queries/order_queries";
-import { applyVoucher } from "./application/order_application";
+import { applyVoucher, getCart } from "./application/order_application";
 import googleCallback, {
   register,
   login,
@@ -325,6 +325,13 @@ export async function handleRequest(req: any, res: any) {
     method === "DELETE"
   ) {
     const response = await deleteItemFromCart(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/cart" && method === "GET") {
+    const response = await getCart(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);

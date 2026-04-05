@@ -1196,7 +1196,7 @@ export const getCart = authHelper(
 
       let subtotal = 0;
 
-      const resultCart = items.map((item) => {
+      const resultCart = items.map((item: any) => {
         const quantity = parseInt(cartData[item.item_id], 10);
         const itemTotal = Number(item.price) * quantity;
 
@@ -1207,7 +1207,17 @@ export const getCart = authHelper(
           quantity: quantity,
           itemTotal: itemTotal
         };
-      }):
+      });
+
+      return jsonHelper({
+        items: resultCart,
+        subtotal: subtotal
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper({
+        error: "Failed to load shopping cart"
+      }, 500);
     }
   }
 )
