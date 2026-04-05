@@ -482,7 +482,7 @@ export const createCheckoutSession = authHelper(
           },
           unit_amount: stripePrice,
         },
-        quantity: Number(getQuantity),
+        quantity: Math.round(Number(getQuantity)),
       };
 
       lineItems.push(newObject);
