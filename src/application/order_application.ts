@@ -1175,3 +1175,39 @@ export const applyVoucher = authHelper( async (req: AuthReq): Promise<Response> 
     });
   }
 );
+
+export const getCart = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const userId = req.user?.subject_claim;
+    const cartKey = `cart:${userId}`;
+
+    try {
+      const cartData = await redis.hgetall(cartKey);
+      const itemIds = Object.keys(cartData);
+
+      if (itemIds.length === 0) {
+        return jsonHelper({
+          items: [],
+          subtotal: 0
+        });
+      }
+
+      const items = await pg `select item_id, item_name, price, image_url from items where item_id in ${pg(itemIds)} order by item_name`;
+
+      let subtotal = 0;
+
+      const resultCart = items.map((item) => {
+        const quantity = parseInt(cartData[item.item_id], 10);
+        const itemTotal = Number(item.price) * quantity;
+
+        subtotal += itemTotal;
+
+        return {
+          ...item,
+          quantity: quantity,
+          itemTotal: itemTotal
+        };
+      }):
+    }
+  }
+)
