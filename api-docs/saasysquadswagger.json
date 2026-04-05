@@ -566,6 +566,9 @@
                       "email": {
                         "type": "string"
                       },
+                      "biography": {
+                        "type": "string"
+                      },
                       "password_hash": {
                         "type": "string"
                       },
