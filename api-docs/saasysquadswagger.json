@@ -8,11 +8,11 @@
   "servers": [
     {
       "url": "https://sassysquad-backend.vercel.app",
-      "description": "Main Node.js Production Server"
+      "description": "Main Bun Production Server"
     },
     {
       "url": "https://sassysquad-backend-production.up.railway.app",
-      "description": "Python ML Service (Direct Access)"
+      "description": "Python ML Service"
     }
   ],
   "tags": [
@@ -22,9 +22,82 @@
     { "name": "cart", "description": "Shopping cart session management" },
     { "name": "order", "description": "Vouchers, Payments, and UBL XML" },
     { "name": "system", "description": "Backend health and webhooks" },
-    { "name": "checkout", "description": "Stripe checkout operations"}
+    { "name": "checkout", "description": "Stripe checkout operations" }
   ],
   "paths": {
+    "/predict": {
+      "post": {
+        "tags": ["machine-learning"],
+        "summary": "Estimate market based on tags and category",
+        "operationId": "predictMarket",
+        "servers": [
+          {
+            "url": "https://sassysquad-backend-production.up.railway.app",
+            "description": "Python ML Service"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tags", "category"],
+                "properties": {
+                  "tags": {
+                    "type": "string",
+                    "example": "saas, automation, ai"
+                  },
+                  "category": {
+                    "type": "string",
+                    "example": "productivity"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful prediction"
+          },
+          "400": {
+            "description": "Model not trained yet"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/train": {
+      "post": {
+        "tags": ["machine-learning"],
+        "summary": "Retrain and save the model",
+        "operationId": "trainModel",
+        "servers": [
+          {
+            "url": "https://sassysquad-backend-production.up.railway.app",
+            "description": "Python ML Service"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model retrained successfully",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "Retrained and saved model"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Training failed"
+          }
+        }
+      }
+    },
     "/auth/register": {
       "post": {
         "tags": ["auth"],
