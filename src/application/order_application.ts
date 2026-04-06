@@ -1166,12 +1166,18 @@ export const applyVoucher = authHelper( async (req: AuthReq): Promise<Response> 
     }
 
     // store in redis kind of liek cart
-    await redis.set(`voucher:${userId}`, JSON.stringify(voucher));
+    await redis.set(
+  `voucher:${userId}`,
+  JSON.stringify({
+    ...voucher,
+    discount_percent: Number(voucher.discount_percent),
+  })
+);
     await redis.expire(`voucher:${userId}`, 3600);
 
     return jsonHelper({
       message: "Voucher applied",
-      discount_percent: voucher.discount_percent,
+      discount_percent: Number(voucher.discount_percent),
     });
   }
 );
