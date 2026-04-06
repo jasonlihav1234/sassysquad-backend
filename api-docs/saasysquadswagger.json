@@ -5337,7 +5337,12 @@
             }
           }
         },
-        "x-codegen-request-body-name": "body"
+        "x-codegen-request-body-name": "body",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/auth/2fa/add": {
@@ -5389,7 +5394,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/vouchers/apply": {
