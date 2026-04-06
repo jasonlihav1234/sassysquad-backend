@@ -983,7 +983,7 @@
             "schema": {
               "type": "object",
               "properties": {
-              "order": {
+                "order": {
                   "type": "object",
                   "description": "The full order details",
                   "properties": {
@@ -1184,7 +1184,7 @@
             "schema": {
               "type": "object",
               "properties": {
-              "order": {
+                "order": {
                   "type": "object",
                   "description": "The full order details",
                   "properties": {
@@ -2170,7 +2170,7 @@
                   "type": "string",
                   "example": "Order successfully retrieved"
                 },
-"order": {
+                "order": {
                   "type": "object",
                   "description": "The full order details",
                   "properties": {
@@ -3115,6 +3115,83 @@
                 "error": {
                   "type": "string",
                   "example": "No event types match"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pricing/estimate": {
+      "post": {
+        "tags": ["pricing"],
+        "summary": "Retrieves a market price estimate based on tags and category",
+        "description": "Forwards item tags and category to the external prediction service to generate an optimal selling price.",
+        "operationId": "getMarketEstimate",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Details required for price estimation",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["tags", "category"],
+              "properties": {
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": ["vintage", "leather", "jacket"]
+                },
+                "category": {
+                  "type": "string",
+                  "example": "clothing"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prediction completed successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Prediction completed"
+                },
+                "prediction": {
+                  "type": "object",
+                  "description": "The prediction data returned from the external Railway service"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tags or category not provided",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Tags or category not provided"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error or upstream prediction service failure",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "description": "Error details from the server or upstream Railway service"
                 }
               }
             }
