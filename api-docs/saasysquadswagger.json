@@ -3591,6 +3591,65 @@
         }
       }
     },
+    "/categories": {
+      "get": {
+        "tags": ["category"],
+        "summary": "Retrieves all item categories",
+        "description": "Fetches a complete list of all available item categories from the database. Note: This route is protected by the `authHelper` middleware and requires a valid user session.",
+        "operationId": "getAllCategories",
+        "produces": ["application/json"],
+        "responses": {
+          "200": {
+            "description": "Categories successfully fetched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Categories successfully fetched"
+                },
+                "categories": {
+                  "type": "array",
+                  "description": "List of all available categories",
+                  "items": {
+                    "type": "object",
+                    "description": "Category details (e.g., category ID, name, description)"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - No categories currently exist in the database",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No categories found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Database query failed",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Getting all categories failed"
+                },
+                "error": {
+                  "type": "object",
+                  "description": "Detailed error object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["system"],
