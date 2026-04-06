@@ -1,12 +1,20 @@
 {
-  "swagger": "2.0",
+  "openapi": "3.0.0",
   "info": {
     "description": "SaasySquad Backend for Sengg2021. Uses a bun backend, neon postgres, and redis cache all deployed on Vercel :).",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "title": "SaasySquad API"
   },
-  "host": "sassysquad-backend.vercel.app",
-  "basePath": "",
+  "servers": [
+    {
+      "url": "https://sassysquad-backend.vercel.app",
+      "description": "Main Bun Production Server"
+    },
+    {
+      "url": "https://sassysquad-backend-production.up.railway.app",
+      "description": "Python ML Service (Direct Access)"
+    }
+  ],
   "tags": [
     {
       "name": "user",
@@ -33,13 +41,13 @@
       "description": "Operations about the health of our backend"
     }
   ],
-  "schemes": ["https", "http"],
-  "securityDefinitions": {
-    "bearerAuth": {
-      "type": "apiKey",
-      "name": "Authorization",
-      "in": "header",
-      "description": "Enter your bearer token in the format **Bearer &lt;token>**"
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
     }
   },
   "paths": {
