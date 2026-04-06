@@ -14,7 +14,7 @@ import {
   login,
   logout,
   logoutAll,
-  forgotPassword,
+  forgotPasswordV1,
   resetPassword,
   getUserPurchases,
   getUserSales,
@@ -371,7 +371,7 @@ describe("Forgot password test", () => {
       },
     );
 
-    const response = await forgotPassword(request);
+    const response = await forgotPasswordV1(request);
     const body = await response.json();
 
     expect(response.status).toBe(400);
@@ -387,7 +387,7 @@ describe("Forgot password test", () => {
       },
     );
 
-    const response = await forgotPassword(request);
+    const response = await forgotPasswordV1(request);
     const body = await response.json();
 
     expect(response.status).toBe(404);
@@ -483,7 +483,7 @@ describe("Reset password tests", () => {
       email: "jasonli3960@gmail.com",
     });
 
-    const response = await forgotPassword(request);
+    const response = await forgotPasswordV1(request);
     await response.json();
 
     let getToken = await redis.get(`resetPassword:jasonli3960@gmail.com`);
