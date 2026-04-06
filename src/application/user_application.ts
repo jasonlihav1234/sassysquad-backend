@@ -835,12 +835,12 @@ export const verifyTwoFactor = authHelper(
       }
 
       const query = await pg` 
-        select totp 
+        select totp_key 
         from users 
         where user_id = ${userId}
       `;
 
-      if (!query[0].totp) {
+      if (!query[0].totp_key) {
         return jsonHelper(
           {
             message: "2FA not yet added",
@@ -849,7 +849,7 @@ export const verifyTwoFactor = authHelper(
         );
       }
 
-      const result = await verify({ secret: query[0].totp, token: code });
+      const result = await verify({ secret: query[0].totp_key, token: code });
 
       if (!result.valid) {
         return jsonHelper(
@@ -893,7 +893,7 @@ export const addTwoFactor = authHelper(
       await pg` 
         update users 
         set totp_key = ${secret} 
-        where user_id ${userId}
+        where user_id = ${userId}
       `;
 
       // Generate QR code URI for authenticator apps

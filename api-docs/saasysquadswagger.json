@@ -3940,6 +3940,50 @@
         }
       }
     },
+    "/auth/2fa/add": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Generates a 2FA secret and QR code for setup",
+        "description": "Initializes Two-Factor Authentication for the authenticated user by generating a new TOTP secret. Returns a base64-encoded QR code that the user can scan with an authenticator app (like Google Authenticator or Authy).",
+        "operationId": "addTwoFactor",
+        "produces": ["application/json"],
+        "responses": {
+          "200": {
+            "description": "2FA secret generated and QR code successfully created",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "QR code successfully sent"
+                },
+                "qrCode": {
+                  "type": "string",
+                  "description": "A base64-encoded data URI of the QR code image.",
+                  "example": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Failed to generate secret, update database, or create QR code",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "2FA failed to set up"
+                },
+                "error": {
+                  "type": "object",
+                  "description": "Detailed error object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["system"],
