@@ -503,6 +503,12 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
+  if (url === "/vouchers" && method === "POST") {
+  const response = await createVoucher(req);
+  const body = await response.json();
+  return res.status(response.status).json(body);
+}
+
   // 404 if no roiutes match
   return res.status(404).json({ error: "Not found" });
 }

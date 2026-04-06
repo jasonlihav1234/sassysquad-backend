@@ -600,3 +600,15 @@ export async function incrementVoucherUsage(voucherId: string) {
     WHERE voucher_id = ${voucherId}
   `;
 }
+
+export async function createVoucherQuery(
+  code: string,
+  discount_percent: number,
+  usage_limit: number | null,
+  expires_at: string | null,
+) {
+  return await pg`
+    insert into vouchers (code, discount_percent, usage_limit, expires_at, times_used)
+    values (${code}, ${discount_percent}, ${usage_limit}, ${expires_at}, 0)
+  `;
+}

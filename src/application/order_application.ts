@@ -11,6 +11,7 @@ import {
   deleteOrdersById,
   getVoucherByCode, 
   incrementVoucherUsage,
+  createVoucherQuery,
 } from "../database/queries/order_queries";
 import nodemailer from "nodemailer";
 
@@ -1227,3 +1228,58 @@ export const getCart = authHelper(
     }
   }
 )
+
+export const createVoucher = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const {
+      code,
+      discount_percent,
+      usage_limit,
+      expires_at,
+    } = req.body || {};
+
+    // validation
+    if (
+      !code ||
+      typeof code !== "string" ||
+      typeof discount_percent !== "number"
+    ) {
+      return jsonHelper(
+        {
+          error: "VALIDATION_FAILED",
+          message: "Invalid voucher data",
+        },
+        422,
+      );
+    }
+
+    try {
+      // check if voucher already exists
+      const existing = await getVoucherByCode(code);
+      if (existing) {
+        return jsonHelper(
+          { error: "Voucher already exists" },
+          400,
+        );
+      }
+
+      await createVoucherQuery(
+        code,
+        discount_percent,
+        usage_limit ?? null,
+        expires_at ?? null,
+      );
+
+      return jsonHelper({
+        message: "Voucher created successfully",
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          error: "Failed to create voucher",
+        },
+        500,
+      );
+    }
+  },
+);
