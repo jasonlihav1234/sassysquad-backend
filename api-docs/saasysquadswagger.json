@@ -3199,6 +3199,102 @@
         }
       }
     },
+    "/items/recommendations": {
+      "post": {
+        "tags": ["item"],
+        "summary": "Generate AI-based item recommendations from an image",
+        "description": "Analyzes a base64-encoded image using the Gemini API to identify aesthetic tags, then returns matching items from the specified category. **WARNING: This endpoint consumes external AI tokens. Please implement strict rate-limiting and debounce inputs on the client side. Avoid excessive or automated polling during testing to prevent exhausting API quotas.**",
+        "operationId": "generateAIRecommendations",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Image data and item category for AI analysis",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["category", "image"],
+              "properties": {
+                "category": {
+                  "type": "string",
+                  "example": "furniture"
+                },
+                "image": {
+                  "type": "string",
+                  "description": "Base64 encoded image string including the data URI scheme (must be JPEG, PNG, or WEBP).",
+                  "example": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxISEh..."
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recommendations generated successfully. Note: The 'items' array may be omitted if no database matches are found for the generated tags.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "description": "An AI-generated explanation of the chosen aesthetic, or alternative suggestions if no exact matches are found.",
+                  "example": "I chose these tags because the room features warm wood tones and clean minimalist lines."
+                },
+                "items": {
+                  "type": "array",
+                  "description": "List of recommended items matching the AI-generated tags and selected category.",
+                  "items": {
+                    "type": "object",
+                    "description": "Item details"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing parameters or invalid image format",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Invalid image format. Please upload a JPEG, PNG, or WEBP."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - No aesthetic tags exist in the database to match against",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No tags exist"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - AI prompt failed or database query error",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Prompt failed"
+                },
+                "error": {
+                  "type": "object",
+                  "description": "Detailed error object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["system"],
