@@ -29,6 +29,7 @@ describe("voucher tests", () => {
     await pg`insert into vouchers (voucher_id, code, discount_percent, usage_limit) values (${voucherId}, ${"SAVE10"}, ${10}, ${5})`;
 
     const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "SAVE10" }, accessToken!);
+    (req as any).user = { subject_claim: userId };
 
     const res = await applyVoucher(req);
     const data = await res.json();
@@ -45,7 +46,10 @@ describe("voucher tests", () => {
   });
 
   test("missing voucher code should fail", async () => {
-    const res = await applyVoucher(generateAuthenticatedRequest("/vouchers/apply", "POST", {}, accessToken!));
+    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", {}, accessToken!);
+    (req as any).user = { subject_claim: userId };
+
+    const res = await applyVoucher(req);
     const data = await res.json();
 
     expect(res.status).toBe(400);
@@ -54,6 +58,7 @@ describe("voucher tests", () => {
 
   test("random voucher code should return not found", async () => {
     const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "NOTREAL123" }, accessToken!);
+    (req as any).user = { subject_claim: userId };
 
     const res = await applyVoucher(req);
     const data = await res.json();
@@ -67,7 +72,10 @@ describe("voucher tests", () => {
 
     await pg`insert into vouchers (voucher_id, code, discount_percent, expires_at) values (${voucherId}, ${"OLD10"}, ${10}, ${new Date(Date.now() - 2000)})`;
 
-    const res = await applyVoucher(generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "OLD10" }, accessToken!));
+    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "OLD10" }, accessToken!);
+    (req as any).user = { subject_claim: userId };
+
+    const res = await applyVoucher(req);
     const data = await res.json();
 
     expect(res.status).toBe(400);
@@ -79,7 +87,10 @@ describe("voucher tests", () => {
 
     await pg`insert into vouchers (voucher_id, code, discount_percent, usage_limit, times_used) values (${voucherId}, ${"LIMIT10"}, ${10}, ${1}, ${1})`;
 
-    const res = await applyVoucher(generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "LIMIT10" }, accessToken!));
+    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "LIMIT10" }, accessToken!);
+    (req as any).user = { subject_claim: userId };
+
+    const res = await applyVoucher(req);
     const data = await res.json();
 
     expect(res.status).toBe(400);
@@ -91,7 +102,10 @@ describe("voucher tests", () => {
 
     await pg`insert into vouchers (voucher_id, code, discount_percent) values (${voucherId}, ${"REDIS10"}, ${15})`;
 
-    await applyVoucher(generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "REDIS10" }, accessToken!));
+    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "REDIS10" }, accessToken!);
+    (req as any).user = { subject_claim: userId };
+
+    await applyVoucher(req);
 
     const keys = await redis.keys("voucher:*");
     expect(keys.length).toBe(1);
