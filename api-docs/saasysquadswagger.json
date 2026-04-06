@@ -3469,6 +3469,50 @@
         }
       }
     },
+    "/auth/google/login": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Initiates the Google OAuth2 login flow",
+        "description": "Generates OAuth state and PKCE code verifier, sets them as secure HttpOnly cookies, and redirects the user to the Google consent screen.",
+        "operationId": "googleLogin",
+        "produces": ["text/html"],
+        "responses": {
+          "302": {
+            "description": "Redirects the browser to the Google Authorization URL."
+          }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Google OAuth2 callback handler",
+        "description": "Handles the redirect back from Google. Validates the authorization code and state against stored cookies, fetches the Google user profile, and either registers or logs in the user. Finally, it redirects to the frontend application.",
+        "operationId": "googleCallback",
+        "produces": ["text/html"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "description": "The authorization code returned by Google",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "description": "The state parameter returned by Google to prevent CSRF attacks",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirects to the frontend. On success, tokens are appended as a URL fragment (e.g., `/auth/success#access_token=...&refresh_token=...`). On failure, redirects to the login page with an error query parameter (e.g., `/login?error=google_auth_failed`)."
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["system"],
