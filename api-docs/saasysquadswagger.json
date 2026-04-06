@@ -3984,6 +3984,80 @@
         }
       }
     },
+    "/vouchers/apply": {
+      "post": {
+        "tags": ["order"],
+        "summary": "Applies a discount voucher to the user's session",
+        "description": "Validates a voucher code against the database for existence, expiry, and usage limits. If valid, the voucher is cached in Redis for the current user session (1 hour) to be applied during the final checkout calculation.",
+        "operationId": "applyVoucher",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "The alphanumeric voucher code to be applied.",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["code"],
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "example": "SASSY2026"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Voucher successfully validated and applied to the session.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Voucher applied"
+                },
+                "discount_percent": {
+                  "type": "number",
+                  "description": "The percentage discount provided by the voucher.",
+                  "example": 15.0
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing code, voucher expired, or usage limit reached.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Voucher usage limit reached"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - The provided voucher code does not exist.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Invalid voucher"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Redis or Database connection failure."
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["system"],
