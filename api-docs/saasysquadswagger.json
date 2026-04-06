@@ -24,6 +24,15 @@
     { "name": "system", "description": "Backend health and webhooks" },
     { "name": "checkout", "description": "Stripe checkout operations" }
   ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
   "paths": {
     "/predict": {
       "post": {
@@ -5545,6 +5554,5 @@
       }
     }
   },
-  "components": {},
   "x-original-swagger-version": "2.0.0"
 }
