@@ -3189,7 +3189,12 @@
             }
           }
         },
-        "x-codegen-request-body-name": "body"
+        "x-codegen-request-body-name": "body",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/orders/{orderId}": {
@@ -4070,7 +4075,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       },
       "delete": {
         "tags": ["cart"],
@@ -4518,7 +4528,12 @@
             }
           }
         },
-        "x-codegen-request-body-name": "body"
+        "x-codegen-request-body-name": "body",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/items/recommendations": {
@@ -4631,7 +4646,12 @@
             }
           }
         },
-        "x-codegen-request-body-name": "body"
+        "x-codegen-request-body-name": "body",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/items/tags": {
@@ -4754,7 +4774,12 @@
             }
           }
         },
-        "x-codegen-request-body-name": "body"
+        "x-codegen-request-body-name": "body",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/items/{itemId}/tags": {
@@ -4842,7 +4867,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/auth/google/login": {
@@ -5055,7 +5085,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/v2/items": {
@@ -5205,7 +5240,12 @@
             }
           }
         },
-        "x-codegen-request-body-name": "body"
+        "x-codegen-request-body-name": "body",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/auth/2fa/verify": {
@@ -5426,7 +5466,12 @@
             "content": {}
           }
         },
-        "x-codegen-request-body-name": "body"
+        "x-codegen-request-body-name": "body",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/health": {
