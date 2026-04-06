@@ -3650,6 +3650,139 @@
         }
       }
     },
+    "/v2/items": {
+      "post": {
+        "tags": ["item"],
+        "summary": "Creates a new item (v2)",
+        "description": "Creates a new item listing under the authenticated user's account. This v2 endpoint accepts a unified payload including category and tags.",
+        "operationId": "createItemV2",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Item details including pricing, inventory, category, and tags",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "itemName",
+                "price",
+                "quantityAvailable",
+                "categoryName",
+                "tags"
+              ],
+              "properties": {
+                "itemName": {
+                  "type": "string",
+                  "example": "Vintage Leather Sofa"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional detailed description of the item",
+                  "example": "A beautifully restored mid-century leather sofa."
+                },
+                "price": {
+                  "type": "number",
+                  "format": "float",
+                  "minimum": 0,
+                  "example": 1200.5
+                },
+                "quantityAvailable": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "example": 1
+                },
+                "imageUrl": {
+                  "type": "string",
+                  "description": "Optional URL pointing to the item's image",
+                  "example": "https://example.com/images/sofa.jpg"
+                },
+                "categoryName": {
+                  "type": "string",
+                  "example": "furniture"
+                },
+                "tags": {
+                  "type": "array",
+                  "description": "Must contain at least one tag",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": ["vintage", "leather", "mid-century"]
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Item successfully created",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item created successfully"
+                },
+                "item": {
+                  "type": "object",
+                  "description": "The created item record returned from the database"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing required fields, invalid data types, or negative numerical values",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Bad Request"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Invalid/missing items fields"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type - The Content-Type header is missing or not application/json",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "UNSUPPORTED_TYPE"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This content type is not supported"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Database insertion failed",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Creating item failed"
+                },
+                "error": {
+                  "type": "object",
+                  "description": "Detailed error object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["system"],
