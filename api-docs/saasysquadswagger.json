@@ -3295,6 +3295,109 @@
         }
       }
     },
+    "/items/tags": {
+      "post": {
+        "tags": ["item"],
+        "summary": "Adds tags to a specific item",
+        "description": "Associates a list of aesthetic or descriptive tags with a specific item. The authenticated user must be the verified seller of the item to perform this action.",
+        "operationId": "addItemTags",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Item ID and the array of tags to add",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["itemId", "tags"],
+              "properties": {
+                "itemId": {
+                  "type": "integer",
+                  "description": "The unique identifier of the item",
+                  "example": 105
+                },
+                "tags": {
+                  "type": "array",
+                  "description": "A list of tag strings to associate with the item",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": ["minimalist", "leather", "vintage"]
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tags successfully added to the item",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Tag added to item"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing itemId or tags array is empty",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No itemId or tags provided"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authenticated user is not the seller of the item",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "User does not own the item"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - The specified item does not exist",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Item not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Database query failed",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Adding item tag failed"
+                },
+                "error": {
+                  "type": "object",
+                  "description": "Detailed error object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["system"],
