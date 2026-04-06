@@ -2832,6 +2832,79 @@
       }
     },
     "/cart": {
+      "get": {
+        "tags": ["cart"],
+        "summary": "Retrieves the user's shopping cart",
+        "description": "Fetches the current user's cart from Redis, joins it with item details from the PostgreSQL database, and calculates the total cost. Note: This route requires authentication.",
+        "operationId": "getCart",
+        "produces": ["application/json"],
+        "responses": {
+          "200": {
+            "description": "Cart successfully retrieved. Returns an empty items array and a subtotal of 0 if the cart is empty.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "description": "List of items currently in the cart",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "item_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "123e4567-e89b-12d3-a456-426614174000"
+                      },
+                      "item_name": {
+                        "type": "string",
+                        "example": "Vintage Leather Sofa"
+                      },
+                      "price": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 1200.5
+                      },
+                      "image_url": {
+                        "type": "string",
+                        "example": "https://example.com/images/sofa.jpg"
+                      },
+                      "quantity": {
+                        "type": "integer",
+                        "description": "Quantity of this item in the cart (fetched from Redis)",
+                        "example": 2
+                      },
+                      "itemTotal": {
+                        "type": "number",
+                        "format": "float",
+                        "description": "Calculated total for this specific item (price * quantity)",
+                        "example": 2401.0
+                      }
+                    }
+                  }
+                },
+                "subtotal": {
+                  "type": "number",
+                  "format": "float",
+                  "description": "The calculated total cost of all items in the cart",
+                  "example": 2401.0
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Failed to fetch cart from Redis or database",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Failed to load shopping cart"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": ["cart"],
         "summary": "Clears the entire cart",
@@ -3787,81 +3860,6 @@
                 "error": {
                   "type": "object",
                   "description": "Detailed error object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/cart": {
-      "get": {
-        "tags": ["cart"],
-        "summary": "Retrieves the user's shopping cart",
-        "description": "Fetches the current user's cart from Redis, joins it with item details from the PostgreSQL database, and calculates the total cost. Note: This route requires authentication.",
-        "operationId": "getCart",
-        "produces": ["application/json"],
-        "responses": {
-          "200": {
-            "description": "Cart successfully retrieved. Returns an empty items array and a subtotal of 0 if the cart is empty.",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "items": {
-                  "type": "array",
-                  "description": "List of items currently in the cart",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "item_id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "example": "123e4567-e89b-12d3-a456-426614174000"
-                      },
-                      "item_name": {
-                        "type": "string",
-                        "example": "Vintage Leather Sofa"
-                      },
-                      "price": {
-                        "type": "number",
-                        "format": "float",
-                        "example": 1200.5
-                      },
-                      "image_url": {
-                        "type": "string",
-                        "example": "https://example.com/images/sofa.jpg"
-                      },
-                      "quantity": {
-                        "type": "integer",
-                        "description": "Quantity of this item in the cart (fetched from Redis)",
-                        "example": 2
-                      },
-                      "itemTotal": {
-                        "type": "number",
-                        "format": "float",
-                        "description": "Calculated total for this specific item (price * quantity)",
-                        "example": 2401.0
-                      }
-                    }
-                  }
-                },
-                "subtotal": {
-                  "type": "number",
-                  "format": "float",
-                  "description": "The calculated total cost of all items in the cart",
-                  "example": 2401.0
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error - Failed to fetch cart from Redis or database",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "error": {
-                  "type": "string",
-                  "example": "Failed to load shopping cart"
                 }
               }
             }
