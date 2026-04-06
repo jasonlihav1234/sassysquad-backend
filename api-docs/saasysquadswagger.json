@@ -3398,6 +3398,77 @@
         }
       }
     },
+    "/items/{itemId}/tags": {
+      "delete": {
+        "tags": ["item"],
+        "summary": "Removes tags from a specific item",
+        "description": "Removes a specified list of tags from an item. The tags should be provided as a comma-separated list in the query string.",
+        "operationId": "deleteItemTags",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "itemId",
+            "description": "The unique identifier of the item",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "tags",
+            "description": "Comma-separated list of tags to remove (e.g., ?tags=minimalist,leather)",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tags successfully removed from the item",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Tags removed from item"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing itemId, missing tags query parameter, or empty tags list",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "No itemId or tags are not provided"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Database query failed",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Removing item tags failed"
+                },
+                "error": {
+                  "type": "object",
+                  "description": "Detailed error object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["system"],
