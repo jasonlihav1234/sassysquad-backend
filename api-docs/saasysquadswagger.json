@@ -1985,20 +1985,15 @@
       "post": {
         "tags": ["order"],
         "summary": "Create a new order and generate UBL XML",
-        "description": "Validates the order payload, creates the order in the database, and returns a UBL formatted XML document representing the order.",
-        "operationId": "create-order",
+        "description": "Creates a new order between a buyer (determined by the auth token) and a seller. Validates all required billing and currency fields, as well as the items in the order lines. On success, this endpoint returns an XML string (UBL format) instead of JSON.",
+        "operationId": "postOrder",
         "consumes": ["application/json"],
-        "produces": ["application/xml"],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
+        "produces": ["application/xml", "application/json"],
         "parameters": [
           {
             "in": "body",
             "name": "body",
-            "description": "The order data payload to create an order",
+            "description": "The order payload containing currency, billing, and line item details.",
             "required": true,
             "schema": {
               "type": "object",
@@ -2017,11 +2012,12 @@
               "properties": {
                 "orderName": {
                   "type": "string",
-                  "example": "Bulk Office Supplies"
+                  "example": "Purchase Order 2026-A"
                 },
                 "sellerId": {
                   "type": "string",
-                  "example": "seller_98765"
+                  "description": "UUID of the seller. Cannot be the same as the authenticated buyer.",
+                  "example": "987fcdeb-51a2-43d7-9012-345678901234"
                 },
                 "documentCurrencyCode": {
                   "type": "string",
@@ -2041,11 +2037,12 @@
                 },
                 "accountingCost": {
                   "type": "number",
-                  "example": 150.5
+                  "format": "float",
+                  "example": 150.0
                 },
                 "paymentMethodCode": {
                   "type": "string",
-                  "example": "visa"
+                  "example": "CreditCard"
                 },
                 "destinationCountryCode": {
                   "type": "string",
@@ -2053,25 +2050,26 @@
                 },
                 "orderLines": {
                   "type": "array",
-                  "minItems": 1,
-                  "description": "List of items in the order",
+                  "description": "Must be a non-empty array of items being purchased",
                   "items": {
                     "type": "object",
                     "required": ["itemID", "quantity", "priceAtPurchase"],
                     "properties": {
                       "itemID": {
                         "type": "string",
-                        "example": "item_12345"
+                        "example": "123e4567-e89b-12d3-a456-426614174000"
                       },
                       "quantity": {
                         "type": "number",
+                        "format": "float",
                         "minimum": 0.01,
-                        "example": 5
+                        "example": 2
                       },
                       "priceAtPurchase": {
                         "type": "number",
+                        "format": "float",
                         "minimum": 0,
-                        "example": 25.99
+                        "example": 75.0
                       }
                     }
                   }
@@ -2082,14 +2080,26 @@
         ],
         "responses": {
           "200": {
-            "description": "Order successfully created. Returns the UBL XML document.",
+            "description": "Order successfully created. Returns the raw UBL XML document.",
             "schema": {
               "type": "string",
-              "example": "<?xml version=\"1.0\"?>\n<Order xmlns=\"urn:oasis:names:specification:ubl:schema:xsd:Order-2\">\n  ...\n</Order>"
+              "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Order xmlns=\"urn:oasis:names:specification:ubl:schema:xsd:Order-2\">...</Order>"
+            }
+          },
+          "400": {
+            "description": "Bad Request - The buyer and seller IDs are the same",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "sellerId and buyerId must be unique"
+                }
+              }
             }
           },
           "415": {
-            "description": "Unsupported Media Type (Missing or invalid Content-Type)",
+            "description": "Unsupported Media Type - The Content-Type header is not application/json",
             "schema": {
               "type": "object",
               "properties": {
@@ -2105,7 +2115,7 @@
             }
           },
           "422": {
-            "description": "Validation Failed (Missing fields, wrong types, or invalid order lines)",
+            "description": "Unprocessable Entity - Missing mandatory fields, incorrect data types, or invalid order lines",
             "schema": {
               "type": "object",
               "properties": {
@@ -2121,7 +2131,7 @@
             }
           },
           "500": {
-            "description": "General error during order or XML creation",
+            "description": "Internal Server Error - Order creation or XML generation failed",
             "schema": {
               "type": "object",
               "properties": {
@@ -2130,7 +2140,8 @@
                   "example": "Order creation failed"
                 },
                 "error": {
-                  "type": "string"
+                  "type": "object",
+                  "description": "Detailed error object"
                 }
               }
             }
