@@ -16,35 +16,18 @@
     }
   ],
   "tags": [
-    {
-      "name": "user",
-      "description": "Operations about the user"
-    },
-    {
-      "name": "item",
-      "description": "Operations about items"
-    },
-    {
-      "name": "order",
-      "description": "Operations about orders"
-    },
-    {
-      "name": "cart",
-      "description": "Operations about the cart"
-    },
-    {
-      "name": "checkout",
-      "description": "Operations about the checkout of items"
-    },
-    {
-      "name": "system",
-      "description": "Operations about the health of our backend"
-    }
+    { "name": "auth", "description": "Login, MFA, and Security" },
+    { "name": "user", "description": "Profile and account details" },
+    { "name": "item", "description": "Marketplace listings and AI tools" },
+    { "name": "cart", "description": "Shopping cart session management" },
+    { "name": "order", "description": "Vouchers, Payments, and UBL XML" },
+    { "name": "system", "description": "Backend health and webhooks" },
+    { "name": "checkout", "description": "Stripe checkout operations"}
   ],
   "paths": {
     "/auth/register": {
       "post": {
-        "tags": ["user"],
+        "tags": ["auth"],
         "summary": "Registers a user",
         "operationId": "registerUser",
         "requestBody": {
@@ -145,7 +128,7 @@
     },
     "/auth/login": {
       "post": {
-        "tags": ["user"],
+        "tags": ["auth"],
         "summary": "Logs in a user",
         "operationId": "login",
         "requestBody": {
@@ -247,7 +230,7 @@
     },
     "/auth/refresh": {
       "post": {
-        "tags": ["user"],
+        "tags": ["auth"],
         "summary": "Refreshes a refresh token",
         "operationId": "refresh",
         "requestBody": {
@@ -329,7 +312,7 @@
     },
     "/auth/logout": {
       "post": {
-        "tags": ["user"],
+        "tags": ["auth"],
         "summary": "Logs out a user",
         "operationId": "logout",
         "requestBody": {
@@ -375,7 +358,7 @@
     },
     "/auth/logout-all": {
       "post": {
-        "tags": ["user"],
+        "tags": ["auth"],
         "summary": "Logs out all devices from a user",
         "operationId": "logout-all",
         "responses": {
@@ -404,7 +387,7 @@
     },
     "/auth/forgot-password": {
       "post": {
-        "tags": ["user"],
+        "tags": ["auth"],
         "summary": "Sends a forgot password email to given email if valid",
         "operationId": "forgot-password",
         "requestBody": {
@@ -477,7 +460,7 @@
     },
     "/auth/reset-password": {
       "post": {
-        "tags": ["user"],
+        "tags": ["auth"],
         "summary": "Resets the password of a user",
         "operationId": "reset-password",
         "requestBody": {
@@ -571,7 +554,7 @@
     },
     "/auth/clean-tokens": {
       "delete": {
-        "tags": ["user"],
+        "tags": ["auth"],
         "summary": "Deletes expired refresh tokens stored in the database",
         "operationId": "clean-tokens",
         "responses": {
@@ -838,7 +821,7 @@
     },
     "/auth/sessions": {
       "get": {
-        "tags": ["user"],
+        "tags": ["auth"],
         "summary": "Gets all active sessions of a user",
         "operationId": "sessions",
         "responses": {
@@ -4290,7 +4273,7 @@
     },
     "/webhook": {
       "post": {
-        "tags": ["webhook"],
+        "tags": ["system"],
         "summary": "Handles Stripe webhook events",
         "description": "Receives asynchronous event notifications from Stripe (e.g., checkout.session.completed). The payload is verified using the stripe-signature header. If verified and the event type matches, it fulfills the checkout.",
         "operationId": "server-webhook",
@@ -4377,7 +4360,7 @@
     },
     "/v1/pricing/estimate": {
       "post": {
-        "tags": ["pricing"],
+        "tags": ["item"],
         "summary": "Retrieves a market price estimate based on tags and category",
         "description": "Forwards item tags and category to the external prediction service to generate an optimal selling price.",
         "operationId": "getMarketEstimate",
@@ -4932,7 +4915,7 @@
     },
     "/categories": {
       "get": {
-        "tags": ["category"],
+        "tags": ["item"],
         "summary": "Retrieves all item categories",
         "description": "Fetches a complete list of all available item categories from the database. Note: This route is protected by the `authHelper` middleware and requires a valid user session.",
         "operationId": "getAllCategories",
