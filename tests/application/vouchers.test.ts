@@ -26,9 +26,11 @@ describe("voucher tests", () => {
   test("valid voucher gets applied and cached", async () => {
     const voucherId = crypto.randomUUID();
 
-    await pg`insert into vouchers (voucher_id, code, discount_percent, usage_limit) values (${voucherId}, ${"SAVE10"}, ${10}, ${5})`;
+    const code = `SAVE10_${crypto.randomUUID()}`;
 
-    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "SAVE10" }, accessToken!);
+    await pg`insert into vouchers (voucher_id, code, discount_percent, usage_limit) values (${voucherId}, ${code}, ${10}, ${5})`;
+
+    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code }, accessToken!);
 
     const res = await applyVoucher(req);
     const data = await res.json();
@@ -67,9 +69,11 @@ describe("voucher tests", () => {
   test("expired voucher code should not apply", async () => {
     const voucherId = crypto.randomUUID();
 
-    await pg`insert into vouchers (voucher_id, code, discount_percent, expires_at) values (${voucherId}, ${"OLD10"}, ${10}, ${new Date(Date.now() - 2000)})`;
+    const code = `OLD10_${crypto.randomUUID()}`;
 
-    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "OLD10" }, accessToken!);
+    await pg`insert into vouchers (voucher_id, code, discount_percent, expires_at) values (${voucherId}, ${code}, ${10}, ${new Date(Date.now() - 2000)})`;
+
+    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code }, accessToken!);
 
     const res = await applyVoucher(req);
     const data = await res.json();
@@ -81,9 +85,11 @@ describe("voucher tests", () => {
   test("usage limit reached should block voucher", async () => {
     const voucherId = crypto.randomUUID();
 
-    await pg`insert into vouchers (voucher_id, code, discount_percent, usage_limit, times_used) values (${voucherId}, ${"LIMIT10"}, ${10}, ${1}, ${1})`;
+    const code = `LIMIT10_${crypto.randomUUID()}`;
 
-    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "LIMIT10" }, accessToken!);
+    await pg`insert into vouchers (voucher_id, code, discount_percent, usage_limit, times_used) values (${voucherId}, ${code}, ${10}, ${1}, ${1})`;
+
+    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code }, accessToken!);
 
     const res = await applyVoucher(req);
     const data = await res.json();
@@ -95,9 +101,11 @@ describe("voucher tests", () => {
   test("voucher should be stored in redis with correct values", async () => {
     const voucherId = crypto.randomUUID();
 
-    await pg`insert into vouchers (voucher_id, code, discount_percent) values (${voucherId}, ${"REDIS10"}, ${15})`;
+    const code = `REDIS10_${crypto.randomUUID()}`;
 
-    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "REDIS10" }, accessToken!);
+    await pg`insert into vouchers (voucher_id, code, discount_percent) values (${voucherId}, ${code}, ${15})`;
+
+    const req = generateAuthenticatedRequest("/vouchers/apply", "POST", { code }, accessToken!);
 
     await applyVoucher(req);
 
@@ -109,7 +117,7 @@ describe("voucher tests", () => {
 
     const parsed = JSON.parse(raw!);
 
-    expect(parsed.code).toBe("REDIS10");
+    expect(parsed.code).toBe(code);
     expect(parsed.discount_percent).toBe(15);
   });
 });
