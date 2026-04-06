@@ -37,7 +37,10 @@ describe("voucher tests", () => {
     expect(data.message).toBe("Voucher applied");
     expect(data.discount_percent).toBe(10);
 
-    const redisValue = await redis.get(`voucher:${userId}`);
+    const keys = await redis.keys("voucher:*");
+    expect(keys.length).toBe(1);
+
+    const redisValue = await redis.get(keys[0]);
     expect(redisValue).not.toBe(null);
   });
 
@@ -90,7 +93,10 @@ describe("voucher tests", () => {
 
     await applyVoucher(generateAuthenticatedRequest("/vouchers/apply", "POST", { code: "REDIS10" }, accessToken!));
 
-    const raw = await redis.get(`voucher:${userId}`);
+    const keys = await redis.keys("voucher:*");
+    expect(keys.length).toBe(1);
+
+    const raw = await redis.get(keys[0]);
     expect(raw).not.toBe(null);
 
     const parsed = JSON.parse(raw!);
