@@ -863,7 +863,7 @@ export const verifyTwoFactor = authHelper(
       await pg`
         update users
         set two_factor = true
-        where user_if = ${userId}
+        where user_id = ${userId}
       `;
 
       return jsonHelper({
