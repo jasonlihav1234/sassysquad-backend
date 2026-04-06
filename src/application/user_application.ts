@@ -133,7 +133,11 @@ export default async function googleCallback(
     const user =
       await pg`select * from users where email = ${googleUser.email}`;
     const device = req.headers?.["user-agent"] || "null";
-    const token = await createSessionTokens(user[0].user_id, user[0].email, device);
+    const token = await createSessionTokens(
+      user[0].user_id,
+      user[0].email,
+      device,
+    );
 
     return res.redirect(
       302,
@@ -522,7 +526,7 @@ export async function forgotPasswordV2(request: VercelRequest) {
           <p>If you made this request, please follow the instructions below.</p>
 
           <p style="margin-top: 25px;">Click the link below to go to the last step to <span style="background-color: #ffeeba;">reset</span> your <span style="background-color: #ffeeba;">password</span>:/p>
-          <p>http://localhost:3000/new-password?reset-token=${resetPasswordToken}</p>
+          <p>http://localhost:3000/new-password?reset-token=${resetPasswordToken}&email=${recipentEmail}</p>
 
           <p>If you did not request to have your <span style="background-color: #ffeeba;">password</span> <span style="background-color: #ffeeba;">reset</span> you can safely ignore this email. Be assured your account is safe.</p>
         </div>
