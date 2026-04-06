@@ -9,7 +9,8 @@ import googleCallback, {
   register,
   login,
   refresh,
-  forgotPassword,
+  forgotPasswordV1,
+  forgotPasswordV2,
   resetPassword,
   logout,
   logoutAll,
@@ -242,7 +243,14 @@ export async function handleRequest(req: any, res: any) {
   }
 
   if (url === "/auth/forgot-password" && method === "POST") {
-    const response = await forgotPassword(req);
+    const response = await forgotPasswordV1(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/v2/auth/forgot-password" && method === "POST") {
+    const response = await forgotPasswordV2(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
@@ -493,7 +501,7 @@ export async function handleRequest(req: any, res: any) {
     const response = await applyVoucher(req);
     const body = await response.json();
     return res.status(response.status).json(body);
-}
+  }
 
   // 404 if no roiutes match
   return res.status(404).json({ error: "Not found" });

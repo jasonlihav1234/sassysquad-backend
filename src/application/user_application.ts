@@ -521,8 +521,8 @@ export async function forgotPasswordV2(request: VercelRequest) {
           <p>We received a request to <span style="background-color: #ffeeba;">reset</span> the <span style="background-color: #ffeeba;">password</span> associated with this email address.</p>
           <p>If you made this request, please follow the instructions below.</p>
 
-          <p style="margin-top: 25px;">Click the link below to go to the last step to <span style="background-color: #ffeeba;">reset</span> your <span style="background-color: #ffeeba;">password</span>: (need frontend for this part)</p>
-          <p>Testing reset password token: ${resetPasswordToken}</p>
+          <p style="margin-top: 25px;">Click the link below to go to the last step to <span style="background-color: #ffeeba;">reset</span> your <span style="background-color: #ffeeba;">password</span>:/p>
+          <p>http://localhost:3000/new-password?reset-token=${resetPasswordToken}</p>
 
           <p>If you did not request to have your <span style="background-color: #ffeeba;">password</span> <span style="background-color: #ffeeba;">reset</span> you can safely ignore this email. Be assured your account is safe.</p>
         </div>
