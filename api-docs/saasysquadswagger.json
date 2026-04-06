@@ -3513,6 +3513,84 @@
         }
       }
     },
+    "/v2/auth/forgot-password": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Sends a password reset email (v2)",
+        "description": "Generates a unique reset token and dispatches an email containing the secure recovery link. Note: This endpoint confirms whether a user exists, which may allow for email enumeration.",
+        "operationId": "forgotPasswordV2",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "User email required to dispatch the reset link",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["email"],
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "user@saasysquad.com"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Email containing the reset token was successfully dispatched",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Mail successfully sent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Email address was not provided in the payload",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Email not provided"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - The provided email does not exist in the database",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "User does not exist"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - SMTP transport failed to send the email",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Mail failed to send"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["system"],
