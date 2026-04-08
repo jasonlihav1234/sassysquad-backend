@@ -1,4 +1,4 @@
-import { expect, test, describe, spyOn, afterAll } from "bun:test";
+import { expect, test, describe, spyOn, afterAll, mock } from "bun:test";
 import { register, login } from "../../src/application/user_application";
 import pg, { redis } from "../../src/utils/db";
 import {
@@ -6,11 +6,14 @@ import {
   getItemsById,
   getAllItems,
   getItemByUserId,
+  getAllCategories,
   updateItem,
   deleteItem,
 } from "../../src/application/item_application";
 import { generateAuthenticatedRequest, generateRequest } from "../test_helper";
-import { beforeEach } from "node:test";
+import { beforeEach, afterEach } from "node:test";
+import * as itemQueries from "../../src/database/queries/item_queries";
+import * as authUtils from "../../src/utils/jwt_config";
 
 const itemId1 = "537d8f9c-bd93-484a-b14c-ce1853456a15";
 const itemId2 = "99c1a581-510a-4467-91b5-112b78362f03";
@@ -768,5 +771,76 @@ describe("Deleting item tests", () => {
 
     const query = await pg`select * from items`;
     expect(query.length).not.toBe(query2.length);
+  });
+});
+
+describe("Get all categories tests", () => {
+  afterEach(() => {
+    mock.restore();
+  });
+
+  test("returns 200 with category list", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: "user_123",
+    } as any);
+    spyOn(itemQueries, "getAllCategoriesQuery").mockResolvedValue([
+      { category_id: "cat_1", category_name: "Furniture" },
+      { category_id: "cat_2", category_name: "Decor" },
+    ] as any);
+
+    const request = generateAuthenticatedRequest(
+      "/items/categories",
+      "GET",
+      {},
+      "valid.fake.token",
+    );
+    const response = await getAllCategories(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Categories successfully fetched");
+    expect(body.categories.length).toBe(2);
+  });
+
+  test("returns 404 when no categories exist", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: "user_123",
+    } as any);
+    spyOn(itemQueries, "getAllCategoriesQuery").mockResolvedValue([] as any);
+
+    const request = generateAuthenticatedRequest(
+      "/items/categories",
+      "GET",
+      {},
+      "valid.fake.token",
+    );
+    const response = await getAllCategories(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.message).toBe("No categories found");
+    expect(body.categories).toBe(undefined);
+  });
+
+  test("returns 500 on query failure path", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: "user_123",
+    } as any);
+    spyOn(itemQueries, "getAllCategoriesQuery").mockRejectedValue(
+      new Error("categories query failed"),
+    );
+
+    const request = generateAuthenticatedRequest(
+      "/items/categories",
+      "GET",
+      {},
+      "valid.fake.token",
+    );
+    const response = await getAllCategories(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Getting all categories failed");
+    expect(body.error).not.toBe(undefined);
   });
 });
