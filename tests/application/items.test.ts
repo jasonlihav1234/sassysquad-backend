@@ -3,6 +3,7 @@ import { register, login } from "../../src/application/user_application";
 import pg, { redis } from "../../src/utils/db";
 import {
   createItem,
+  createItemV2,
   getItemsById,
   getAllItems,
   getItemByUserId,
@@ -264,6 +265,227 @@ describe("Create item tests", () => {
     expect(Number(query[0].price)).toBe(50);
     expect(Number(query[0].quantity_available)).toBe(10);
     expect(query[0].image_url).toBe("https://example.com/image.png");
+  });
+
+  test("returns 400 when price is invalid", async () => {
+    const request = generateAuthenticatedRequest(
+      "/items",
+      "POST",
+      {
+        itemName: "Keyboard",
+        price: -10,
+        quantityAvailable: 10,
+      },
+      accessToken,
+    );
+
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItem(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Bad Request");
+    expect(body.message).toBe("Invalid/missing items fields");
+  });
+
+  test("returns 400 when quantityAvailable is invalid", async () => {
+    const request = generateAuthenticatedRequest(
+      "/items",
+      "POST",
+      {
+        itemName: "Keyboard",
+        price: 50,
+        quantityAvailable: -1,
+      },
+      accessToken,
+    );
+
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItem(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Bad Request");
+    expect(body.message).toBe("Invalid/missing items fields");
+  });
+});
+
+describe("Create item v2 tests", () => {
+  let accessToken: string;
+
+  beforeEach(async () => {
+    await pg`delete from refresh_tokens`;
+    await pg`delete from users where email in ('createitemv2@gmail.com')`;
+
+    const registerReq = generateRequest("http://localhost/auth/register", "POST", {
+      email: "createitemv2@gmail.com",
+      username: "createitemv2user",
+      password: "testing123",
+    });
+
+    await register(registerReq);
+
+    const loginReq = generateRequest("http://localhost/auth/login", "POST", {
+      email: "createitemv2@gmail.com",
+      password: "testing123",
+    });
+
+    const loginRes = await login(loginReq);
+    accessToken = (await loginRes.json()).accessToken;
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  afterAll(async () => {
+    await pg`delete from refresh_tokens`;
+    await pg`delete from users where email in ('createitemv2@gmail.com')`;
+  });
+
+  test("returns 401 when authorization header is missing", async () => {
+    const request = generateRequest("/items/v2", "POST", {
+      itemName: "Chair",
+      price: 100,
+      quantityAvailable: 3,
+      categoryName: "Furniture",
+      tags: ["Modern"],
+    });
+    request.headers = {
+      "content-type": "application/json",
+    };
+
+    const response = await createItemV2(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body.error).toBe("Authorization is header missing");
+  });
+
+  test("returns 415 for unsupported content type", async () => {
+    const request = generateAuthenticatedRequest(
+      "/items/v2",
+      "POST",
+      {
+        itemName: "Chair",
+        price: 100,
+        quantityAvailable: 3,
+        categoryName: "Furniture",
+        tags: ["Modern"],
+      },
+      accessToken,
+    );
+    request.headers = {
+      "content-type": "text/plain",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItemV2(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(415);
+    expect(body.error).toBe("UNSUPPORTED_TYPE");
+    expect(body.message).toBe("This content type is not supported");
+  });
+
+  test("returns 400 when required fields are missing/invalid", async () => {
+    const request = generateAuthenticatedRequest(
+      "/items/v2",
+      "POST",
+      {
+        itemName: "Chair",
+        price: "100",
+        quantityAvailable: -1,
+        tags: [],
+      },
+      accessToken,
+    );
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItemV2(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Bad Request");
+    expect(body.message).toBe("Invalid/missing items fields");
+  });
+
+  test("creates item successfully with category and tags", async () => {
+    spyOn(itemQueries, "createItemQueryV2").mockResolvedValue({
+      item_id: "item_1",
+      item_name: "Chair",
+      category_name: "Furniture",
+    } as any);
+
+    const request = generateAuthenticatedRequest(
+      "/items/v2",
+      "POST",
+      {
+        itemName: "Chair",
+        description: "Wooden chair",
+        price: 100,
+        quantityAvailable: 3,
+        imageUrl: "https://example.com/chair.png",
+        categoryName: "Furniture",
+        tags: ["Modern", "Minimalist"],
+      },
+      accessToken,
+    );
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItemV2(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.message).toBe("Item created successfully");
+    expect(body.item).not.toBe(undefined);
+    expect(itemQueries.createItemQueryV2).toHaveBeenCalled();
+  });
+
+  test("returns 500 when create item v2 query fails", async () => {
+    spyOn(itemQueries, "createItemQueryV2").mockRejectedValue(
+      new Error("create v2 failed"),
+    );
+
+    const request = generateAuthenticatedRequest(
+      "/items/v2",
+      "POST",
+      {
+        itemName: "Chair",
+        description: "Wooden chair",
+        price: 100,
+        quantityAvailable: 3,
+        imageUrl: "https://example.com/chair.png",
+        categoryName: "Furniture",
+        tags: ["Modern"],
+      },
+      accessToken,
+    );
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await createItemV2(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Creating item failed");
+    expect(body.error).not.toBe(undefined);
   });
 });
 
