@@ -4156,6 +4156,47 @@
         ]
       }
     },
+    "/vouchers/apply": {
+      "post": {
+        "tags": ["voucher"],
+        "summary": "Apply a voucher code",
+        "description": "Validates a voucher and applies relevant discount to the user's checkout session",
+        "operationId": "apply-voucher",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["code"],
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "example": "SAVE10"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Voucher successfully applied"
+          },
+          "400": {
+            "description": "Invalid or expired voucher"
+          },
+          "404": {
+            "description": "Voucher not found"
+          }
+        }
+      }
+    },
     "/create-checkout-session": {
       "post": {
         "tags": ["checkout"],
