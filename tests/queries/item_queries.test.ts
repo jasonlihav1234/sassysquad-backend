@@ -3,6 +3,8 @@ import {
   getItemIdByName,
   createItemQueryV2,
   updateItemQueryV2,
+  addItemTagsQuery,
+  deleteItemTagsQuery,
 } from "../../src/database/queries/item_queries";
 import { insertUser, insertItem, deleteTestData } from "../test_helper";
 import pg from "../../src/utils/db";
@@ -201,6 +203,160 @@ describe("updateItemQueryV2", () => {
         userIds: [seller.user_id],
       });
       await pg`delete from categories where category_id = ${existingCategoryId}`;
+    }
+  }, 15000);
+});
+
+describe("addItemTagsQuery", () => {
+  test("returns early when tags are empty", async () => {
+    const seller = await insertUser();
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `add-tags-empty-${crypto.randomUUID()}`,
+    });
+
+    try {
+      await addItemTagsQuery(item.item_id, []);
+
+      const mappings = await pg`
+        select * from item_tags where item_id = ${item.item_id}
+      `;
+      expect(mappings.length).toBe(0);
+    } finally {
+      await deleteTestData({
+        itemIds: [item.item_id],
+        userIds: [seller.user_id],
+      });
+    }
+  }, 15000);
+
+  test("inserts tags and avoids duplicate mappings on repeated calls", async () => {
+    const seller = await insertUser();
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `add-tags-repeat-${crypto.randomUUID()}`,
+    });
+    const tagSuffix = crypto.randomUUID().slice(0, 8);
+    const tags = [`Modern-${tagSuffix}`, `Minimalist-${tagSuffix}`];
+    const expectedLowerTags = tags.map((tag) => tag.toLowerCase()).sort();
+
+    try {
+      await addItemTagsQuery(item.item_id, tags);
+      await addItemTagsQuery(item.item_id, tags);
+
+      const mappings = await pg`
+        select t.tag_name
+        from item_tags it
+        join tags t on t.tag_id = it.tag_id
+        where it.item_id = ${item.item_id}
+        order by t.tag_name asc
+      `;
+      expect(mappings.length).toBe(2);
+      expect(mappings[0].tag_name).toBe(expectedLowerTags[0]);
+      expect(mappings[1].tag_name).toBe(expectedLowerTags[1]);
+    } finally {
+      await pg`delete from item_tags where item_id = ${item.item_id}`;
+      await deleteTestData({
+        itemIds: [item.item_id],
+        userIds: [seller.user_id],
+      });
+      await pg`delete from tags where tag_name in ${pg(expectedLowerTags)}`;
+    }
+  }, 15000);
+});
+
+describe("deleteItemTagsQuery", () => {
+  test("returns early when tags are empty", async () => {
+    const seller = await insertUser();
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `delete-tags-empty-${crypto.randomUUID()}`,
+    });
+    const tagSuffix = crypto.randomUUID().slice(0, 8);
+    const tags = [`Scandi-${tagSuffix}`, `Boho-${tagSuffix}`];
+
+    try {
+      await addItemTagsQuery(item.item_id, tags);
+      await deleteItemTagsQuery(item.item_id, []);
+
+      const mappings = await pg`
+        select * from item_tags where item_id = ${item.item_id}
+      `;
+      expect(mappings.length).toBe(2);
+    } finally {
+      const lowerTags = tags.map((tag) => tag.toLowerCase());
+      await pg`delete from item_tags where item_id = ${item.item_id}`;
+      await deleteTestData({
+        itemIds: [item.item_id],
+        userIds: [seller.user_id],
+      });
+      await pg`delete from tags where tag_name in ${pg(lowerTags)}`;
+    }
+  }, 15000);
+
+  test("no-op when provided tags do not exist", async () => {
+    const seller = await insertUser();
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `delete-tags-noop-${crypto.randomUUID()}`,
+    });
+    const tagSuffix = crypto.randomUUID().slice(0, 8);
+    const existingTags = [`Japandi-${tagSuffix}`, `Rustic-${tagSuffix}`];
+    const nonExistingTag = `NonExisting-${crypto.randomUUID()}`;
+
+    try {
+      await addItemTagsQuery(item.item_id, existingTags);
+      await deleteItemTagsQuery(item.item_id, [nonExistingTag]);
+
+      const mappings = await pg`
+        select t.tag_name
+        from item_tags it
+        join tags t on t.tag_id = it.tag_id
+        where it.item_id = ${item.item_id}
+        order by t.tag_name asc
+      `;
+      expect(mappings.length).toBe(2);
+    } finally {
+      const lowerTags = existingTags.map((tag) => tag.toLowerCase());
+      await pg`delete from item_tags where item_id = ${item.item_id}`;
+      await deleteTestData({
+        itemIds: [item.item_id],
+        userIds: [seller.user_id],
+      });
+      await pg`delete from tags where tag_name in ${pg(lowerTags)}`;
+    }
+  }, 15000);
+
+  test("deletes only matching tag mappings for item", async () => {
+    const seller = await insertUser();
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `delete-tags-success-${crypto.randomUUID()}`,
+    });
+    const tagSuffix = crypto.randomUUID().slice(0, 8);
+    const tags = [`Industrial-${tagSuffix}`, `Coastal-${tagSuffix}`];
+    const lowerTags = tags.map((tag) => tag.toLowerCase()).sort();
+
+    try {
+      await addItemTagsQuery(item.item_id, tags);
+      await deleteItemTagsQuery(item.item_id, [tags[0]]);
+
+      const mappings = await pg`
+        select t.tag_name
+        from item_tags it
+        join tags t on t.tag_id = it.tag_id
+        where it.item_id = ${item.item_id}
+        order by t.tag_name asc
+      `;
+      expect(mappings.length).toBe(1);
+      expect(mappings[0].tag_name).toBe(lowerTags[0] === tags[0].toLowerCase() ? lowerTags[1] : lowerTags[0]);
+    } finally {
+      await pg`delete from item_tags where item_id = ${item.item_id}`;
+      await deleteTestData({
+        itemIds: [item.item_id],
+        userIds: [seller.user_id],
+      });
+      await pg`delete from tags where tag_name in ${pg(lowerTags)}`;
     }
   }, 15000);
 });
