@@ -7,6 +7,7 @@ import {
   getAllItems,
   getItemByUserId,
   getAllCategories,
+  getAllTags,
   updateItem,
   deleteItem,
 } from "../../src/application/item_application";
@@ -841,6 +842,77 @@ describe("Get all categories tests", () => {
 
     expect(response.status).toBe(500);
     expect(body.message).toBe("Getting all categories failed");
+    expect(body.error).not.toBe(undefined);
+  });
+});
+
+describe("Get all tags tests", () => {
+  afterEach(() => {
+    mock.restore();
+  });
+
+  test("returns 200 with tags list", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: "user_123",
+    } as any);
+    spyOn(itemQueries, "getAllTagsQuery").mockResolvedValue([
+      { tag_id: "tag_1", tag_name: "Minimalist" },
+      { tag_id: "tag_2", tag_name: "Modern" },
+    ] as any);
+
+    const request = generateAuthenticatedRequest(
+      "/items/tags",
+      "GET",
+      {},
+      "valid.fake.token",
+    );
+    const response = await getAllTags(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Tags successfully fetched");
+    expect(body.tags.length).toBe(2);
+  });
+
+  test("returns 404 when tags table is empty", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: "user_123",
+    } as any);
+    spyOn(itemQueries, "getAllTagsQuery").mockResolvedValue([] as any);
+
+    const request = generateAuthenticatedRequest(
+      "/items/tags",
+      "GET",
+      {},
+      "valid.fake.token",
+    );
+    const response = await getAllTags(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.message).toBe("No tags found");
+    expect(body.tags).toBe(undefined);
+  });
+
+  test("returns 500 on internal failure path", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: "user_123",
+    } as any);
+    spyOn(itemQueries, "getAllTagsQuery").mockRejectedValue(
+      new Error("tags query failed"),
+    );
+
+    const request = generateAuthenticatedRequest(
+      "/items/tags",
+      "GET",
+      {},
+      "valid.fake.token",
+    );
+    const response = await getAllTags(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Getting all tags failed");
     expect(body.error).not.toBe(undefined);
   });
 });
