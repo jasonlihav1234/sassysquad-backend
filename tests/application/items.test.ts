@@ -4,6 +4,8 @@ import pg, { redis } from "../../src/utils/db";
 import {
   createItem,
   createItemV2,
+  addItemTags,
+  deleteItemTags,
   getItemsById,
   getAllItems,
   getItemByUserId,
@@ -1135,6 +1137,376 @@ describe("Get all tags tests", () => {
 
     expect(response.status).toBe(500);
     expect(body.message).toBe("Getting all tags failed");
+    expect(body.error).not.toBe(undefined);
+  });
+});
+
+describe("Add item tags tests", () => {
+  let ownerAccessToken: string;
+  let ownerId: string;
+  let itemId: string;
+
+  beforeEach(async () => {
+    itemId = crypto.randomUUID();
+    await pg`
+      delete from item_tags
+      where item_id in (
+        select item_id from items
+        where seller_id in (
+          select user_id from users
+          where email in ('itemtags-owner@gmail.com', 'itemtags-other@gmail.com')
+        )
+      )
+    `;
+    await pg`
+      delete from items
+      where seller_id in (
+        select user_id from users
+        where email in ('itemtags-owner@gmail.com', 'itemtags-other@gmail.com')
+      )
+    `;
+    await pg`delete from refresh_tokens`;
+    await pg`delete from users where email in ('itemtags-owner@gmail.com', 'itemtags-other@gmail.com')`;
+
+    const ownerRegister = generateRequest("http://localhost/auth/register", "POST", {
+      email: "itemtags-owner@gmail.com",
+      username: "itemtagsowner",
+      password: "testing123",
+    });
+    const ownerRes = await register(ownerRegister);
+    ownerId = (await ownerRes.json()).user;
+
+    const ownerLogin = generateRequest("http://localhost/auth/login", "POST", {
+      email: "itemtags-owner@gmail.com",
+      password: "testing123",
+    });
+    ownerAccessToken = (await (await login(ownerLogin)).json()).accessToken;
+
+    const otherRegister = generateRequest("http://localhost/auth/register", "POST", {
+      email: "itemtags-other@gmail.com",
+      username: "itemtagsother",
+      password: "testing123",
+    });
+    await register(otherRegister);
+
+    const otherLogin = generateRequest("http://localhost/auth/login", "POST", {
+      email: "itemtags-other@gmail.com",
+      password: "testing123",
+    });
+    await login(otherLogin);
+
+    await pg`
+      insert into items (item_id, seller_id, item_name, price, quantity_available)
+      values (${itemId}, ${ownerId}, ${"taggable_item"}, ${12.5}, ${4})
+    `;
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  afterAll(async () => {
+    await pg`
+      delete from item_tags
+      where item_id in (
+        select item_id from items
+        where seller_id in (
+          select user_id from users
+          where email in ('itemtags-owner@gmail.com', 'itemtags-other@gmail.com')
+        )
+      )
+    `;
+    await pg`
+      delete from items
+      where seller_id in (
+        select user_id from users
+        where email in ('itemtags-owner@gmail.com', 'itemtags-other@gmail.com')
+      )
+    `;
+    await pg`delete from refresh_tokens`;
+    await pg`delete from users where email in ('itemtags-owner@gmail.com', 'itemtags-other@gmail.com')`;
+  });
+
+  test("missing itemId/tags -> 400", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: ownerId,
+    } as any);
+    const request = generateAuthenticatedRequest(
+      "/items/tags",
+      "POST",
+      {
+        itemId: itemId,
+      },
+      "valid.fake.token",
+    );
+
+    const response = await addItemTags(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe("No itemId or tags provided");
+  });
+
+  test("item not found -> 404", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: ownerId,
+    } as any);
+    const request = generateAuthenticatedRequest(
+      "/items/tags",
+      "POST",
+      {
+        itemId: crypto.randomUUID(),
+        tags: ["Modern"],
+      },
+      "valid.fake.token",
+    );
+
+    const response = await addItemTags(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.message).toBe("Item not found");
+  });
+
+  test("unauthorized owner -> 401", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: "not-owner-user-id",
+    } as any);
+    const request = generateAuthenticatedRequest(
+      "/items/tags",
+      "POST",
+      {
+        itemId: itemId,
+        tags: ["Modern"],
+      },
+      "valid.fake.token",
+    );
+
+    const response = await addItemTags(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body.message).toBe("User does not own the item");
+  });
+
+  test("success case -> 200 and DB mapping verification", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: ownerId,
+    } as any);
+    const request = generateAuthenticatedRequest(
+      "/items/tags",
+      "POST",
+      {
+        itemId: itemId,
+        tags: ["Modern", "Minimalist"],
+      },
+      "valid.fake.token",
+    );
+
+    const response = await addItemTags(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Tag added to item");
+
+    const mapping = await pg`
+      select t.tag_name
+      from item_tags it
+      join tags t on it.tag_id = t.tag_id
+      where it.item_id = ${itemId}
+      order by t.tag_name asc
+    `;
+
+    expect(mapping.length).toBe(2);
+    expect(mapping[0].tag_name).toBe("minimalist");
+    expect(mapping[1].tag_name).toBe("modern");
+  });
+
+  test("query failure -> 500", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: ownerId,
+    } as any);
+    spyOn(itemQueries, "getItemByItemIdQuery").mockRejectedValue(
+      new Error("query failed"),
+    );
+
+    const request = generateAuthenticatedRequest(
+      "/items/tags",
+      "POST",
+      {
+        itemId: itemId,
+        tags: ["Modern"],
+      },
+      "valid.fake.token",
+    );
+
+    const response = await addItemTags(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Adding item tag failed");
+    expect(body.error).not.toBe(undefined);
+  });
+});
+
+describe("Delete item tags tests", () => {
+  let accessToken: string;
+  let userId: string;
+  let itemId: string;
+
+  beforeEach(async () => {
+    itemId = crypto.randomUUID();
+    await pg`
+      delete from item_tags
+      where item_id in (
+        select item_id from items
+        where seller_id in (
+          select user_id from users
+          where email in ('deleteitemtags@gmail.com')
+        )
+      )
+    `;
+    await pg`
+      delete from items
+      where seller_id in (
+        select user_id from users
+        where email in ('deleteitemtags@gmail.com')
+      )
+    `;
+    await pg`delete from refresh_tokens`;
+    await pg`delete from users where email in ('deleteitemtags@gmail.com')`;
+
+    const registerReq = generateRequest("http://localhost/auth/register", "POST", {
+      email: "deleteitemtags@gmail.com",
+      username: "deleteitemtagsuser",
+      password: "testing123",
+    });
+    const regRes = await register(registerReq);
+    userId = (await regRes.json()).user;
+
+    const loginReq = generateRequest("http://localhost/auth/login", "POST", {
+      email: "deleteitemtags@gmail.com",
+      password: "testing123",
+    });
+    accessToken = (await (await login(loginReq)).json()).accessToken;
+
+    await pg`
+      insert into items (item_id, seller_id, item_name, price, quantity_available)
+      values (${itemId}, ${userId}, ${"delete_taggable"}, ${18.5}, ${3})
+    `;
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  afterAll(async () => {
+    await pg`
+      delete from item_tags
+      where item_id in (
+        select item_id from items
+        where seller_id in (
+          select user_id from users
+          where email in ('deleteitemtags@gmail.com')
+        )
+      )
+    `;
+    await pg`
+      delete from items
+      where seller_id in (
+        select user_id from users
+        where email in ('deleteitemtags@gmail.com')
+      )
+    `;
+    await pg`delete from refresh_tokens`;
+    await pg`delete from users where email in ('deleteitemtags@gmail.com')`;
+  });
+
+  test("missing itemId or tags -> 400", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: userId,
+    } as any);
+    const request = generateAuthenticatedRequest(
+      "/items",
+      "DELETE",
+      {},
+      "valid.fake.token",
+    );
+    (request as any).query = {};
+
+    const response = await deleteItemTags(request as any);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe("No itemId or tags are not provided");
+  });
+
+  test("empty tags array -> 400", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: userId,
+    } as any);
+    const request = generateAuthenticatedRequest(
+      `/items/${itemId}/tags`,
+      "DELETE",
+      {},
+      "valid.fake.token",
+    );
+    (request as any).query = { tags: [] };
+
+    const response = await deleteItemTags(request as any);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe("Tags are empty");
+  });
+
+  test("comma-separated tags parsing path and deletion success -> 200", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: userId,
+    } as any);
+    await itemQueries.addItemTagsQuery(itemId, ["Modern", "Minimalist"]);
+
+    const request = generateAuthenticatedRequest(
+      `/items/${itemId}/tags`,
+      "DELETE",
+      {},
+      "valid.fake.token",
+    );
+    (request as any).query = { tags: "modern, minimalist" };
+
+    const response = await deleteItemTags(request as any);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Tags removed from item");
+
+    const remaining = await pg`
+      select * from item_tags
+      where item_id = ${itemId}
+    `;
+    expect(remaining.length).toBe(0);
+  });
+
+  test("failure path (500) with invalid UUID/query failure", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: userId,
+    } as any);
+    spyOn(itemQueries, "deleteItemTagsQuery").mockRejectedValue(
+      new Error("delete item tags failed"),
+    );
+    const request = generateAuthenticatedRequest(
+      `/items/${itemId}/tags`,
+      "DELETE",
+      {},
+      "valid.fake.token",
+    );
+    (request as any).query = { tags: "modern" };
+
+    const response = await deleteItemTags(request as any);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Removing item tags failed");
     expect(body.error).not.toBe(undefined);
   });
 });
