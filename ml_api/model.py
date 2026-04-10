@@ -19,8 +19,88 @@ class SaasySquadModel:
     self.p99_price = None
     # says if model has been trained
     self.trained = False
+    
+    # records highest normal price for each category
+    self.category_max_prices = None
+    # records total units sold per category, is to be used for confidence checking
+    self.cateogry_order_counts = None
 
   def load_and_preprocess(self):
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+
+    # sales agg, looks at order history, groups everything by item_id, adds up total number sold, calculates average price paid
+    # tags_agg, looks at item tags, squishes all individual tags into a single ccsv
+    # final seelect takes sales totals and join tehm with tags, item details, and category names, coalesce as a safety net
+    query = """
+    with sales_agg as (
+      select item_id,
+        sum(quantity) as quantity_sold,
+        avg(price_at_purchase) as price
+      from
+        order_lines
+      group by
+        item_id
+    ),
+    tags_agg as (
+      select it.item_id,
+        string_agg(t.tag_name, ',') as tags
+      from
+        item_tags it
+      join tags t on
+        it.tag_id = t.tag_id
+      group by
+        it.item_id
+    )
+    select
+      s.item_id,
+      s.quantity_sold,
+      s.price,
+      coalesce(t.tags, '') as tags,
+      coalesce(c.category_name, 'unknown') as category_name
+    from
+      sales_agg s
+    left join
+      items i on s.item_id = i.item_id
+    left join
+      categories c on i.category_id = c.category_id
+    left join
+      tags_agg t on s.item_id = t.item_id
+    """
+
+    with psycopg2.connect(DATABASE_URL) as conn:
+      with conn.cursor() as cur:
+        cur.execute(query)
+        records = cur.fetchall()
+
+        col_names = [desc[0] for desc in cur.description]
+
+    # dumps results into pandas.DataFrame (invisible Excel spreadsheet in computer memory)
+    df = pandas.DataFrame(records, columns=col_names)
+    # forces prices to be floats
+    df["price"] = df["price"].astype(float)
+    # forces quantity to be integers
+    df["quantity_sold"] = df["quantity_sold"].astype(int)
+
+    # should probably normalise the category names so match the database
+    df["category_name"] = df["category_name"].str.strip().str.lower()
+
+    # finds the 99th percentile price
+    self.global_p99 = df["price"].quantile(0.99)
+    # creates a dictionary recording highest normal price for every category, so model knows realistic ceiling
+    self.category_max_prices = df.groupby("category_name")["price"].max().to_dict()
+
+    # looks through columns and explodes them into dozens of individual yes/no columns
+    df_tags = df["tags"].str.get_dummies(sep=',')
+    df_category = pandas.get_dummies(df["category_name"], prefix="cat")
+
+    # takes original price column, exploded tag columns, and exploded category columns, glues them together
+    X = pandas.concat([df["price"], df_tags, df_category], axis=1)
+    # isolates quantity sold as the target we want to predict
+    y = df["quantity_sold"]
+
+    return X, y
+
+def v2_load_and_preprocess(self):
     DATABASE_URL = os.environ.get("DATABASE_URL")
 
     # sales agg, looks at order history, groups everything by item_id, adds up total number sold, calculates average price paid
