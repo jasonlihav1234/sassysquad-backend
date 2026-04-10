@@ -1,10 +1,18 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from model import SaasySquadModel
+from fastapi.middleware.cors import CORSMiddleware
 import os
 
 app = FastAPI()
 predictor = SaasySquadModel()
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["*"],
+  allow_credentials=True,
+  allow_method=["*"],
+  allows_headers=["*"],
+)
 
 try:
   predictor.load(path="./models")
