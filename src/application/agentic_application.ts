@@ -55,6 +55,25 @@ export async function getPricing(
       expected_monthly_volume: mlResult.expected_monthly_volume,
     };
   }
+
+  if (mlResult.staus === "No Market Demand") {
+    return { source: "none", message: mlResult.message };
+  }
+
+  // low confidence
+  const knownCategories =
+    mlResult.status === "Insufficient data"
+      ? mlResult.known_categories
+      : undefined;
+
+  const llm = await callLLMFallback(
+    productName,
+    tags,
+    category,
+    knownCategories,
+  );
+
+  return { source: "llm", ...llm };
 }
 
 export const agentProcess = authHelper(
