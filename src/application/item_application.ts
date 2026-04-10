@@ -49,6 +49,12 @@ const llmFallbackSchema = z.object({
   reasoning: z.string(),
 });
 
+const enrichmentSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  tags: z.array(z.string()),
+});
+
 export async function callLLMFallback(
   productName: string,
   tags: string,
@@ -68,7 +74,7 @@ export async function callLLMFallback(
   Tags: ${tags}
   ${categoryHint}
 
-  Suggest a realistic reatil price range that maximises revenue based on comparable goods.
+  Suggest a realistic retail price range that maximises revenue based on comparable goods.
   Return ONLY this JSON format:
   {
     "price_low": number,
@@ -97,8 +103,44 @@ export async function callLLMFallback(
   return {
     price_range: [low, high],
     midpoint: Math.round((low + high) / 2),
-    reasoning: parsed.reasoning
+    reasoning: parsed.reasoning,
   };
+}
+
+export async function enrichListing(
+  name: string,
+  category: string,
+  tags: string,
+): Promise<any> {
+  const prompt = `
+  Write a product listing optimised for maximum revenue.
+
+  Product: ${name}
+  Category: ${category}
+  Tags: ${tags}
+  
+  Return ONLY this JSON format:
+  {
+    "title": "string (max 80 chars, SEO optimised)",
+    "description": "string (150-200 words)",
+    "tags": ["array", "of", "8", "strings"]
+  }
+  `;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-flash-lite-preview",
+    contents: [prompt],
+    config: {
+      responseMimeType: "application/json",
+      responseJsonSchema: toJSONSchema(enrichmentSchema),
+    },
+  });
+
+  if (!response.text) {
+    throw new Error("No response from Gemini");
+  }
+
+  return enrichmentSchema.parse(JSON.parse(response.text));
 }
 
 export async function analyseImageForExtraction(
