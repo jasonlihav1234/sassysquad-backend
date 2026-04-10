@@ -36,8 +36,10 @@ def predict_market(req: EstimateRequest):
   
 @app.post("/v2/predict")
 def v2_predict_market(req: EstimateRequest):
+  if not predictor.trained:
+    raise HTTPException(status_code=400, detail="Model not yet trained")
   try:
-    result = predictor.estimate_market()
+    result = predictor.v2_estimate_market(req.tags, req.category)
     return result
   except Exception as e:
     raise HTTPException(status_code=500, detail=str(e))
