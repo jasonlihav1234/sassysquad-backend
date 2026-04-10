@@ -100,7 +100,7 @@ class SaasySquadModel:
 
     return X, y
 
-def v2_load_and_preprocess(self):
+  def v2_load_and_preprocess(self):
     DATABASE_URL = os.environ.get("DATABASE_URL")
 
     # sales agg, looks at order history, groups everything by item_id, adds up total number sold, calculates average price paid
@@ -163,6 +163,7 @@ def v2_load_and_preprocess(self):
     self.global_p99 = df["price"].quantile(0.99)
     # creates a dictionary recording highest normal price for every category, so model knows realistic ceiling
     self.category_max_prices = df.groupby("category_name")["price"].max().to_dict()
+    self.category_order_counts = df.groupby("category_name")["quantity_sold"].sum().to_dict()
 
     # looks through columns and explodes them into dozens of individual yes/no columns
     df_tags = df["tags"].str.get_dummies(sep=',')
@@ -261,6 +262,31 @@ def v2_load_and_preprocess(self):
       "suggested_price_range": (round(safe_prices.min(), 2), round(safe_prices.max(), 2)),
       "expected_monthly_volume": (int(safe_volumes.max()), int(safe_volumes.min()))
     }
+  
+  def v2_estimate_market(self, tags, category):
+    if not self.trained:
+      return
+    
+    category = category.strip().lower()
+    tags = tags.strip().lower()
+    warnings = []
+
+    # creates a blank items with 50 empty slots or the number of feature columns
+    base_dict = {col: 0 for col in self.feature_columns}
+
+    cat_col = f"cat_{category}"
+    category_known = cat_col in self.feature_columns
+
+    if not category_known:
+      warnings.append(f"Category {category} has not sales history. Prediction will be based on global prices. Conduer using a known category instead: ")
+
+    unknown_tags = [t for t in tags_list if t not in self.feature_columns]
+    known_tags = [t for t in tags_list if t in self.feature_columns]
+
+    if unknown_tags:
+      warnings.append(f"Tags not seen in training data and ignored: {unknown_tags}. They won't influence the prediction")
+
+    
 
   # joblib saves them as pickle files permananently in the hard drive
   def save(self, path="models/"):
