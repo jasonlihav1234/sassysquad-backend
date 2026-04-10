@@ -46,6 +46,13 @@ const listFormatter = new Intl.ListFormat("en", {
 async function analyseImageForExtraction(
   image: string, // assume in base64
 ): Promise<{ name: string; category: string; tags: string }> {
+  const imageTypeMatch = image.match(/^data:(image\/(jpeg|png|webp));base64,/);
+  if (!imageTypeMatch) {
+    throw Error("Invalid image format. Please upload a JPEG, PNG, or WEBP.");
+  }
+
+  const imageType = imageTypeMatch[1];
+  const rawImage = image.replace(/^data:image\/\w+;base64,/, "");
   const [categoriesQuery, tagsQuery] = await Promise.all([
     pg`select category_name from categories`,
     pg`select tag_name from tags`,
@@ -75,6 +82,27 @@ async function analyseImageForExtraction(
     "tags": ["tag1", "tag2"]
   }
   `;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-flash-lite-preview",
+    contents: [prompt, { inlineData: { mimeType: imageType, data: rawImage } }],
+    config: {
+      responseMimeType: "application/json",
+      responseJsonSchema: toJSONSchema(extractionSchema),
+    },
+  });
+
+  if (!response.text) {
+    throw new Error("No text response from Gemini");
+  }
+
+  const parsed = extractionSchema.parse(JSON.parse(response.text));
+
+  return {
+    name: parsed.name,
+    category: parsed.category,
+    tags: parsed.tags.join(","),
+  };
 }
 
 export const getMarketEstimate = authHelper(
