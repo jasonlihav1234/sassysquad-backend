@@ -43,7 +43,35 @@ const listFormatter = new Intl.ListFormat("en", {
   type: "conjunction",
 });
 
-async function analyseImageForExtraction(
+export async function callLLMFallback(
+  productName: string,
+  tags: string,
+  category: string,
+  knownCategories?: string[],
+): Promise<any> {
+  const categoryHint = knownCategories?.length
+    ? `Known categorieson this marketplace: ${knownCategories.slice(0, 10).join(", ")}.`
+    : "";
+
+  const prompt = `
+  You are a marketplace pricing expert optimising for maximum revenue.
+  The ML pricing model has insufficient sales history for this item.
+
+  Product: ${productName}
+  Category: ${category}
+  Tags: ${tags}
+  ${categoryHint}
+
+  Suggest a realistic reatil price range that maximises revenue based on comparable goods.
+  Return ONLY this JSON format:
+  {
+    "price_low": number,
+    "price_high": number,
+    "reasoning": "one sentence explaination"
+  }`;
+}
+
+export async function analyseImageForExtraction(
   image: string, // assume in base64
 ): Promise<{ name: string; category: string; tags: string }> {
   const imageTypeMatch = image.match(/^data:(image\/(jpeg|png|webp));base64,/);
