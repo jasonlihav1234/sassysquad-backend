@@ -34,6 +34,14 @@ def predict_market(req: EstimateRequest):
   except Exception as e:
     raise HTTPException(status_code=500, detail=str(e))
   
+@app.post("/v2/predict")
+def v2_predict_market(req: EstimateRequest):
+  try:
+    result = predictor.estimate_market()
+    return result
+  except Exception as e:
+    raise HTTPException(status_code=500, detail=str(e))
+  
 @app.post("/train")
 def train_model():
   try:
@@ -41,6 +49,17 @@ def train_model():
     predictor.save(path="./models/")
     return {
       "status": "Retrained and saved model"
+    }
+  except Exception as e:
+    raise HTTPException(status_code=500, detail=str(e))
+  
+@app.post("/v2/train")
+def v2_train_model():
+  try:
+    predictor.train_model()
+    predictor.save(path="./models/")
+    return {
+      "status": "Retrained and saved v2 model"
     }
   except Exception as e:
     raise HTTPException(status_code=500, detail=str(e))
