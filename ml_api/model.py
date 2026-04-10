@@ -189,9 +189,18 @@ class SaasySquadModel:
     joblib.dump(self.feature_columns, f"{path}features.pkl")
     joblib.dump(self.global_p99, f"{path}p99.pkl")
 
+    joblib.dump(self.category_max_prices, f"{path}category_max_prices.pkl")
+
   def load(self, path="models/"):
     if os.path.exists(f"{path}vol_model.pkl"):
       self.vol_model = joblib.load(f"{path}vol_model.pkl")
       self.feature_columns = joblib.load(f"{path}features.pkl")
       self.global_p99 = joblib.load(f"{path}p99.pkl")
+      prices_path = f"{path}category_max_prices.pkl"
+      self.category_max_prices = joblib.load(prices_path) if os.path.exists(prices_path) else {}
+
       self.trained = True
+
+sm = SaasySquadModel()
+sm.train_model()
+print(sm.estimate_market("white-oak", "bookshelf"))
