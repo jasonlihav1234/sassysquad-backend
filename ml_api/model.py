@@ -16,7 +16,7 @@ class SaasySquadModel:
     # it will flatten to cat_apparel 1, cat_electronics 0, depending on which was selected
     self.feature_columns = None
     # holds the 99th percentile price of all historical items
-    self.p99_price = None
+    self.global_p99 = None
     # says if model has been trained
     self.trained = False
     
@@ -274,9 +274,6 @@ class SaasySquadModel:
     tags_list = [t.strip().lower() for t in tags.split(",") if t.strip()]
     warnings = []
 
-    # creates a blank items with 50 empty slots or the number of feature columns
-    base_dict = {col: 0 for col in self.feature_columns}
-
     cat_col = f"cat_{category}"
     category_known = cat_col in self.feature_columns
 
@@ -311,7 +308,64 @@ class SaasySquadModel:
 
     if order_count < MIN_ORDERS:
       warnings.append(f"Category '{category}' only has {order_count} historical order(s) (minimum recommended: {MIN_ORDERS}). The prediction may be unreliable.")
-  
+
+    # creates a blank items with 50 empty slots or the number of feature columns
+    base_dict = {col: 0 for col in self.feature_columns}
+
+    for tag in known_tags:
+      base_dict[tag] = 1
+    
+    if category_known:
+      base_dict[cat_col] = 1
+
+    # price simulation ceiling
+    if category_known and category in self.category_max_prices:
+      sim_limit = self.category_max_prices[category] * 1.05
+    else:
+      sim_limit = self.global_p99
+    
+    test_prices = numpy.linspace(1.0, sim_limit, num=100)
+
+    sim_data = [base_dict.copy() for _ in range(100)]
+    for i, price in enumerate(test_prices):
+      sim_data[i]["price"] = price
+
+    X_sim = pandas.DataFrame(sim_data)[self.feature_columns]
+    raw_volumes = self.vol_model.predict(X_sim.values)
+    volumes = numpy.maximum(0, numpy.round(raw_volumes).astype(int))
+
+    revenues = test_prices * volumes
+    max_rev = numpy.max(revenues)
+
+    if max_rev <= 0:
+      return {
+        "status": "No Market Demand",
+        "confidence": confidence,
+        "warnings": warnings,
+        "message": "Model predicts zero demand across all simulated price points"
+      }
+    
+    profit_zone_indices = numpy.where(revenues >= (max_rev * 0.90))[0]
+    safe_prices = test_prices[profit_zone_indices]
+    safe_volumes = volumes[profit_zone_indices]
+    optimal_idx = numpy.argmax(revenues)
+
+    return {
+      "status": "Success",
+      "confidence": confidence,
+      "warnings": warnings,
+      "optimal_price": round(float(test_prices[optimal_idx]), 2),
+      "max_expected_revenue": round(float(max_rev), 2),
+      "suggested_price_range": (
+          round(float(safe_prices.min()), 2),
+          round(float(safe_prices.max()), 2),
+      ),
+      "expected_monthly_volume": (
+        int(safe_volumes.max()),
+        int(safe_volumes.min())
+      )
+    }
+
   def _known_categories(self):
     pass
 
