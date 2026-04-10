@@ -278,7 +278,7 @@ class SaasySquadModel:
     category_known = cat_col in self.feature_columns
 
     if not category_known:
-      warnings.append(f"Category {category} has not sales history. Prediction will be based on global prices. Conduer using a known category instead: ")
+      warnings.append(f"Category '{category}' has no sales history. Prediction will be based on global pricing trends only. Consider using a known category instead: {self._known_categories()}")
 
     unknown_tags = [t for t in tags_list if t not in self.feature_columns]
     known_tags = [t for t in tags_list if t in self.feature_columns]
@@ -287,7 +287,6 @@ class SaasySquadModel:
       warnings.append(f"Tags not seen in training data and ignored: {unknown_tags}. They won't influence the prediction")
 
     # if neither cateogry nor tag tag has training data, return and use an llm to predict
-
     if not category_known and not known_tags:
       return {
         "status": "Insufficient data",
@@ -306,8 +305,14 @@ class SaasySquadModel:
     MIN_ORDERS = 5
     order_count = self.category_order_counts.get(category, 0)
 
+    # if there are not enough orders to get an accurate prediction should fallback to llm
     if order_count < MIN_ORDERS:
-      warnings.append(f"Category '{category}' only has {order_count} historical order(s) (minimum recommended: {MIN_ORDERS}). The prediction may be unreliable.")
+      return {
+        "status": "Insufficient data",
+        "message": f"Category '{category}' has only {order_count} historical order(s) (minimum required: {MIN_ORDERS}). Deferring to LLM for pricing estimate.",
+        "confidence": confidence,
+        "warnings": warnings,
+      }
 
     # creates a blank items with 50 empty slots or the number of feature columns
     base_dict = {col: 0 for col in self.feature_columns}
@@ -366,11 +371,19 @@ class SaasySquadModel:
       )
     }
 
+  # returns all categories the model was trained on
   def _known_categories(self):
-    pass
+    if not self.feature_columns:
+      return []
+    
+    return sorted([col.replace("cat_", "") for col in self.feature_columns if col.startswith("cat_")])
 
+  # returns all tags the model was trained on
   def _known_tags(self):
-    pass
+    if not self.feature_columns:
+      return []
+    
+    return sorted([col for col in self.feature_columns if not col.startswith("cat_") and col != "price"])
 
   # joblib saves them as pickle files permananently in the hard drive
   def save(self, path="models/"):
@@ -378,8 +391,8 @@ class SaasySquadModel:
     joblib.dump(self.vol_model, f"{path}vol_model.pkl")
     joblib.dump(self.feature_columns, f"{path}features.pkl")
     joblib.dump(self.global_p99, f"{path}p99.pkl")
-
     joblib.dump(self.category_max_prices, f"{path}category_max_prices.pkl")
+    joblib.dump(self.category_order_counts, f"{path}category_order_counts.pkl")
 
   def load(self, path="models/"):
     if os.path.exists(f"{path}vol_model.pkl"):
@@ -387,7 +400,9 @@ class SaasySquadModel:
       self.feature_columns = joblib.load(f"{path}features.pkl")
       self.global_p99 = joblib.load(f"{path}p99.pkl")
       prices_path = f"{path}category_max_prices.pkl"
+      counts_path = f"{path}category_order_counts.pkl"
       self.category_max_prices = joblib.load(prices_path) if os.path.exists(prices_path) else {}
+      self.category_order_counts = joblib.load(counts_path) if os.path.exists(counts_path) else {}
 
       self.trained = True
 
