@@ -200,6 +200,30 @@ class SaasySquadModel:
     # flip internal state to true
     self.trained = True
 
+  def v2_train_model(self):
+    X, y = self.v2_load_and_preprocess()
+
+    # s = Spline (smooth, wavy curve), tells model to draw flexible curve to represent how this feature affects sales
+    # 0 = look at column 0 in our data, because we glued our data, column 0 is our price
+    # monotonic_dec = as price goes up, sales volume must strictly go down or stay flat
+    gam_terms = s(0, constraints="monotonic_dec")
+    # X.shape[1] = the number of columns, X.shape[0] = number of rows
+    for i in range(1, X.shape[1]):
+      # l() = simple linear rule
+      # if it learns that cat_Electronics + 1 then add +20 to predicted sales
+      # if it learns tag_refurbished is 1, subtract -5 from predicted sales
+      gam_terms += l(i)
+
+    # create brain usig blueprint of rules we created, smooth downward curve for price + flat bonuses from tags/categories
+    self.vol_model = LinearGAM(gam_terms)
+    # give your historical data and pass it to ml model
+    self.vol_model.gridsearch(X.values, y.values)
+
+    # saves master list of oclumn names, knows what format to expect in future
+    self.feature_columns = X.columns.tolist()
+    # flip internal state to true
+    self.trained = True
+
   def estimate_market(self, tags, category):
     if not self.trained:
       return

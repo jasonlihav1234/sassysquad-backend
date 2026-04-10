@@ -52,11 +52,11 @@ def train_model():
     }
   except Exception as e:
     raise HTTPException(status_code=500, detail=str(e))
-  
+
 @app.post("/v2/train")
 def v2_train_model():
   try:
-    predictor.train_model()
+    predictor.v2_train_model()
     predictor.save(path="./models/")
     return {
       "status": "Retrained and saved v2 model"
