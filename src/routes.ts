@@ -55,6 +55,7 @@ import {
   getAllCategories,
   getAllTags,
 } from "./application/item_application";
+import { agentProcess, agentAccept } from "./application/agentic_application";
 import { deleteItemTagsQuery } from "./database/queries/item_queries";
 import { UnexpectedResponseError } from "arctic";
 import { ur } from "zod/locales";
@@ -159,6 +160,20 @@ export async function handleRequest(req: any, res: any) {
       </body>
     </html>
     `);
+  }
+
+  if (url === "/v1/agent/process" && method === "POST") {
+    const response = await agentProcess(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/v1/agent/accept" && method === "POST") {
+    const response = await agentAccept(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/v1/pricing/estimate" && method === "POST") {
