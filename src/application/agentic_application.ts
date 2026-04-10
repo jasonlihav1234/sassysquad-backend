@@ -179,7 +179,29 @@ export const agentAccept = authHelper(
         )
         returning item_id
       `;
-    } catch (error) {}
+
+      if (body.tags && body.tags.length > 0) {
+        await pg`
+          insert into item_tags (item_id, tag_id)
+          select ${item.item_id}, tag_id
+          from tags
+          where tag_name = any(${body.tags})
+        `;
+      }
+
+      return jsonHelper({
+        message: "Listing published",
+        itemId: item.item_id,
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper(
+        {
+          message: "Failed to create listing",
+        },
+        500,
+      );
+    }
   },
 );
 
