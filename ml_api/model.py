@@ -265,10 +265,13 @@ class SaasySquadModel:
   
   def v2_estimate_market(self, tags, category):
     if not self.trained:
-      return
-    
+      return {
+        "status": "Error",
+        "message": "Model has not been trained yet"
+      }
+      
     category = category.strip().lower()
-    tags = tags.strip().lower()
+    tags_list = [t.strip().lower() for t in tags.split(",") if t.strip()]
     warnings = []
 
     # creates a blank items with 50 empty slots or the number of feature columns
@@ -286,7 +289,34 @@ class SaasySquadModel:
     if unknown_tags:
       warnings.append(f"Tags not seen in training data and ignored: {unknown_tags}. They won't influence the prediction")
 
+    # if neither cateogry nor tag tag has training data, return and use an llm to predict
+
+    if not category_known and not known_tags:
+      return {
+        "status": "Insufficient data",
+        "message": "Neither the category nor any of the provided tags have sales history in the training data. A high confidence score is not possible. Now predicting with an LLM. Suggested actions: assign item to known cateogry or use existing tags.",
+        "known_categories": self._known_categories(),
+        "known_tags": self._known_tags()
+      }
     
+    total_inputs = len(tags_list) + (1 if category else 0)
+    matched_inputs = len(known_tags) + (1 if category_known else 0)
+    confidence = round(matched_inputs / total_inputs, 2) if total_inputs > 0 else 0.0
+
+    if confidence < 0.5:
+      warnings.append(f"Low confidence ({int(confidence * 100)}%): fewer than half of the provided inputs have training data on them. Treat this estimate as a rough guide only.")
+
+    MIN_ORDERS = 5
+    order_count = self.category_order_counts.get(category, 0)
+
+    if order_count < MIN_ORDERS:
+      warnings.append(f"Category '{category}' only has {order_count} historical order(s) (minimum recommended: {MIN_ORDERS}). The prediction may be unreliable.")
+  
+  def _known_categories(self):
+    pass
+
+  def _known_tags(self):
+    pass
 
   # joblib saves them as pickle files permananently in the hard drive
   def save(self, path="models/"):
