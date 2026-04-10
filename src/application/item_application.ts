@@ -32,10 +32,50 @@ const responseSchema = z.object({
   message: z.string().describe("Message the LLM responds with"),
 });
 
+const extractionSchema = z.object({
+  name: z.string(),
+  category: z.string(),
+  tags: z.array(z.string()),
+});
+
 const listFormatter = new Intl.ListFormat("en", {
   style: "long",
   type: "conjunction",
 });
+
+async function analyseImageForExtraction(
+  image: string, // assume in base64
+): Promise<{ name: string; category: string; tags: string }> {
+  const [categoriesQuery, tagsQuery] = await Promise.all([
+    pg`select category_name from categories`,
+    pg`select tag_name from tags`,
+  ]);
+
+  // extracting the names of the category and tags
+  const categories = categoriesQuery.map((c: any) => c.category_name);
+  const tags = tagsQuery.map((t: any) => t.tag_name);
+
+  const prompt = `
+  You are a product listing expert for a luxury marketplace.
+
+  Allowed categories: ${categories.join(", ")}
+  Allowed tags: ${tags.join(", ")}
+
+  Analyse the provided product image and extract the following details.
+
+  CRITICAL INSTRUCTIONS:
+  - category MUST be chosen from the allowed categories list exactly as written
+  - tags MUST only be chosen from the allowed tags list exactly as written
+  - Do not invent new categories or tags
+
+  Return ONLY this JSON format:
+  {
+    "name": "short descriptive product name",
+    "category": "one category from the allowed list",
+    "tags": ["tag1", "tag2"]
+  }
+  `;
+}
 
 export const getMarketEstimate = authHelper(
   async (req: AuthReq): Promise<Response> => {
