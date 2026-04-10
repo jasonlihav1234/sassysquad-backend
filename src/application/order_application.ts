@@ -9,12 +9,22 @@ import {
   createOrderQuery,
   updateOrdersById,
   deleteOrdersById,
+  getVoucherByCode, 
+  incrementVoucherUsage,
 } from "../database/queries/order_queries";
+import nodemailer from "nodemailer";
 
 export const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY!)
   : null;
 export const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "jasonli3960@gmail.com",
+    pass: process.env.GOOGLE_APP_PASSWORD,
+  },
+});
 
 export const validateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
@@ -321,12 +331,23 @@ export async function processOrderCreation(data: {
   };
 
   const xml = create(orderJson).end({ prettyPrint: true });
+  const voucherData = await redis.get(`voucher:${buyerId}`);
+  let discountPercent = 0;
+  let voucher = null;
 
-  const items = newOrder.orderLines.map((line: any) => ({
+  if (voucherData) {
+    voucher = JSON.parse(voucherData);
+    discountPercent = voucher.discount_percent;
+  }
+
+  const items = newOrder.orderLines.map((line: any) => {
+  const discountedPrice = line.priceAtPurchase;
+  return {
     itemId: line.itemID,
     quantity: line.quantity,
-    priceAtPurchase: line.priceAtPurchase,
-  }));
+    priceAtPurchase: discountedPrice,
+  };
+});
 
   const response = await createOrderQuery(
     newOrder.orderId,
@@ -343,6 +364,9 @@ export async function processOrderCreation(data: {
     xml,
     items,
   );
+  if (voucher) {
+    await incrementVoucherUsage(voucher.voucher_id);
+  }
 
   return { xml, response };
 }
@@ -381,12 +405,16 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
       }
     }
 
+    console.log(paymentMethodCode);
+
     const safeSession = checkoutSession as any;
     // might be an issue need to check for this
     const destinationCountryCode =
       safeSession.shipping_details?.address?.country || "AU";
     const rawLineItems = checkoutSession.line_items?.data || [];
-    const orderLines = rawLineItems.map((stripeItem) => {
+    const internalOrderId = session.metadata?.orderId as string || sessionId;
+
+    const orderLines = rawLineItems.map((stripeItem, index) => {
       const product = stripeItem.price?.product as Stripe.Product;
       const itemId = product?.metadata?.item_id || "unknown_item";
 
@@ -398,6 +426,8 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
         quantity: stripeItem.quantity || 0,
         priceAtPurchase: priceAtPurchase,
         taxPercentPer: 0,
+        // invoice specific api fields
+        description: product?.name || "Item",
       };
     });
 
@@ -408,10 +438,17 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
     // here I would call the post orders method
     try {
       await processOrderCreation({
-        orderId: crypto.randomUUID(),
+        orderId: internalOrderId,
         buyerId,
         sellerId,
-        orderLines,
+        orderLines: orderLines.map(
+          ({ itemId, quantity, priceAtPurchase, taxPercentPer }) => ({
+            itemId,
+            quantity,
+            priceAtPurchase,
+            taxPercentPer,
+          }),
+        ),
         paymentMethodCode,
         documentCurrencyCode: "aud",
         pricingCurrencyCode: "aud",
@@ -420,6 +457,133 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
         accountingCost: 1.5,
         destinationCountryCode,
       });
+      await redis.del(`voucher:${buyerId}`);
+
+      const invoicePayload = {
+        purchaseOrder: {
+          orderId: internalOrderId,
+          buyerName: safeSession.customer_details?.name || "Customer",
+          buyerEmail: safeSession.customer_details?.email || "user@example.com",
+          sellerName: "The Curated Althair",
+          currency: checkoutSession.currency?.toUpperCase() || "AUD",
+          totalAmount: (checkoutSession.amount_total || 0) / 100,
+          items: orderLines.map((line) => ({
+            desc: line.description,
+            qty: line.quantity,
+            price: line.priceAtPurchase,
+          })),
+        },
+        fieldPurposeMapping: {
+          orderId: "ORDER_ID",
+          buyerName: "BUYER_NAME",
+          buyerEmail: "BUYER_EMAIL",
+          sellerName: "SELLER_NAME",
+          currency: "CURRENCY_CODE",
+          totalAmount: "TOTAL_AMOUNT",
+          items: "LINE_ITEMS",
+          "items.desc": "LINE_ITEM_DESCRIPTION",
+          "items.qty": "LINE_ITEM_QUANTITY",
+          "items.price": "LINE_ITEM_PRICE",
+        },
+      };
+
+      const invoiceRes = await fetch(
+        "https://tte-invoice-api-production.up.railway.app/invoices/simple",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json " },
+          body: JSON.stringify(invoicePayload),
+        },
+      );
+
+      if (!invoiceRes.ok) {
+        throw new Error(
+          `Invoice generation failed: other teams api doesn't work`,
+        );
+      }
+
+      const orderTotal = (checkoutSession.amount_total || 0) / 100;
+      const itemsHtml = orderLines
+        .map(
+          (line) => `
+        <tr>
+          <td style="padding: 16px 0; border-bottom: 1px solid #E5E5E5; color: #171717;">
+            ${line.description} <br>
+            <span style="color: #737373; font-size: 12px;">Qty: ${line.quantity}</span>
+          </td>
+          <td style="padding: 16px 0; border-bottom: 1px solid #E5E5E5; text-align: right; color: #171717;">
+            $${(line.priceAtPurchase * line.quantity).toFixed(2)}
+          </td>
+        </tr>
+      `,
+        )
+        .join("");
+
+      const htmlEmailTemplate = `
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #FAFAFA; padding: 40px 20px; text-align: center;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; padding: 40px; border: 1px solid #F5F5F5; border-radius: 8px; text-align: left;">
+            
+            <p style="font-size: 10px; letter-spacing: 0.2em; color: #A3A3A3; text-transform: uppercase; margin-bottom: 8px;">
+              The Curated Althaïr
+            </p>
+            
+            <h1 style="font-size: 24px; font-weight: 300; color: #171717; margin-top: 0; margin-bottom: 32px; letter-spacing: -0.02em;">
+              Your Receipt
+            </h1>
+
+            <p style="color: #525252; font-size: 14px; line-height: 1.6; margin-bottom: 32px;">
+              Thank you for your order, ${safeSession.customer_details?.name || "Customer"}. We are preparing your items for shipment.
+            </p>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 32px;">
+              <thead>
+                <tr>
+                  <th style="text-align: left; padding-bottom: 12px; border-bottom: 1px solid #171717; color: #171717; font-weight: 500;">Item</th>
+                  <th style="text-align: right; padding-bottom: 12px; border-bottom: 1px solid #171717; color: #171717; font-weight: 500;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td style="padding-top: 24px; font-weight: 500; color: #171717;">Total (AUD)</td>
+                  <td style="padding-top: 24px; text-align: right; font-weight: 500; color: #171717;">$${orderTotal.toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <p style="color: #A3A3A3; font-size: 12px; line-height: 1.5; text-align: center; border-top: 1px solid #E5E5E5; padding-top: 32px;">
+              Order ID: ${internalOrderId} <br>
+              If you have any questions, reply directly to this email.
+            </p>
+
+          </div>
+        </div>
+      `;
+      const xmlString = await invoiceRes.text();
+
+      const buyerEmail = safeSession.customer_details?.email;
+      if (buyerEmail) {
+        const cartKey = `cart:${buyerId}`;
+        await redis.del(cartKey);
+
+        await transporter.sendMail({
+          from: '"The Curated Althaïr" <jasonli3960@gmail.com>',
+          to: buyerEmail,
+          subject: `Your Invoice for Order ${internalOrderId}`,
+          html: htmlEmailTemplate,
+          attachments: [
+            {
+              filename: `invoice_${internalOrderId}.xml`,
+              content: xmlString,
+              contentType: "application/xml",
+            },
+          ],
+        });
+
+        console.log("invoice sent");
+      }
 
       return true;
     } catch (error) {
@@ -433,21 +597,17 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
 export const createCheckoutSession = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim;
-    const sellerId = req.body.sellerId;
-    const email = req.body.email;
     const key = `cart:${userId}`;
-
-    if (!sellerId || !email) {
-      return jsonHelper(
-        {
-          message: "Missing email or sellerId",
-        },
-        400,
-      );
+    const voucherData = await redis.get(`voucher:${userId}`);
+    let discountPercent = 0;
+    if (voucherData) {
+      const voucher = JSON.parse(voucherData);
+      discountPercent = voucher.discount_percent;
     }
 
     // get the cart from the redis cache, need to save quantity and get info about item
     const itemIds = await redis.hkeys(key);
+    const internalOrderId = crypto.randomUUID();
 
     if (itemIds.length === 0) {
       return jsonHelper({
@@ -468,19 +628,21 @@ export const createCheckoutSession = authHelper(
     for (const item of getItems) {
       const getQuantity = await redis.hget(key, item.item_id);
 
+      const originalPrice = Number(item.price);
+      const discountedPrice = originalPrice * (1 - discountPercent / 100);
+
       const newObject = {
         price_data: {
           currency: "aud",
           product_data: {
             name: item.item_name,
-            images: [item.image_url],
             tax_code: "txcd_99999999",
             description: item.description,
             metadata: {
               item_id: item.item_id,
             },
           },
-          unit_amount: Number(item.price) * 100,
+          unit_amount: Math.round(discountedPrice * 100),
         },
         quantity: Number(getQuantity),
       };
@@ -490,11 +652,10 @@ export const createCheckoutSession = authHelper(
 
     const session = await stripe!.checkout.sessions.create({
       metadata: {
-        userId: userId ?? "",
-        sellerId: sellerId ?? "",
+        buyerId: userId ?? "",
+        orderId: internalOrderId ?? "",
       },
       ui_mode: "embedded",
-      customer_email: email,
       submit_type: "pay",
       billing_address_collection: "auto",
       shipping_address_collection: {
@@ -502,8 +663,32 @@ export const createCheckoutSession = authHelper(
       },
       line_items: lineItems,
       mode: "payment",
-      return_url: `https://sassysquad-backend.vercel.app/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
+      return_url: `http://localhost:3000/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
       automatic_tax: { enabled: true },
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: 1000, currency: "aud" },
+            display_name: "Australia Post Standard",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 3 },
+              maximum: { unit: "business_day", value: 5 },
+            },
+          },
+        },
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: 2500, currency: "aud" },
+            display_name: "DHL Express",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 1 },
+              maximum: { unit: "business_day", value: 2 },
+            },
+          },
+        },
+      ],
     });
 
     return jsonHelper({
@@ -512,42 +697,43 @@ export const createCheckoutSession = authHelper(
   },
 );
 
-export const checkCheckoutSessionStatus = authHelper(
-  async (req: AuthReq): Promise<Response> => {
-    if (!req.query || !req.query.session_id) {
-      return jsonHelper(
-        {
-          message: "Session cannot be found",
-        },
-        404,
-      );
-    }
-    const queryId = req.query.session_id;
-    const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
+export const checkCheckoutSessionStatus = async (
+  req: VercelRequest,
+): Promise<Response> => {
+  console.log(req.query, req);
+  if (!req.query || !req.query.session_id) {
+    return jsonHelper(
+      {
+        message: "Session cannot be found",
+      },
+      404,
+    );
+  }
+  const queryId = req.query.session_id;
+  const sessionId = Array.isArray(queryId) ? queryId[0] : queryId;
 
-    try {
-      const session = await stripe!.checkout.sessions.retrieve(sessionId);
+  try {
+    const session = await stripe!.checkout.sessions.retrieve(sessionId);
 
-      return jsonHelper({
-        status: session.status,
-        customer_email: session.customer_details?.email ?? "No email provided",
-      });
-    } catch (error) {
-      return jsonHelper(
-        {
-          error: "Failed to retrieve session status",
-        },
-        500,
-      );
-    }
-  },
-);
+    return jsonHelper({
+      status: session.status,
+      customer_email: session.customer_details?.email ?? "No email provided",
+    });
+  } catch (error) {
+    return jsonHelper(
+      {
+        error: "Failed to retrieve session status",
+      },
+      500,
+    );
+  }
+};
 
-export async function serverWebhook(req: VercelRequest): Promise<Response> {
-  const body = req.body;
-  const signature = req.headers["stripe-signature"];
-
-  if (!body) {
+export async function serverWebhook(
+  rawBody: Buffer,
+  signature: string,
+): Promise<Response> {
+  if (!rawBody || rawBody.length === 0) {
     return jsonHelper(
       {
         error: "No body provided",
@@ -567,7 +753,7 @@ export async function serverWebhook(req: VercelRequest): Promise<Response> {
 
   try {
     event = await stripe!.webhooks.constructEventAsync(
-      body,
+      rawBody,
       signature,
       endpointSecret,
     );
@@ -597,7 +783,8 @@ export async function serverWebhook(req: VercelRequest): Promise<Response> {
     }
   }
 
-  return jsonHelper({ error: "No event types match" }, 404);
+  // prevent stripe from retrying
+  return jsonHelper({ message: "Unhandled event type ignored" }, 200);
 }
 
 // post with itemId and quantity and userId in body
@@ -950,3 +1137,93 @@ export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
     );
   }
 });
+
+export const applyVoucher = authHelper( async (req: AuthReq): Promise<Response> => {
+    const { code } = req.body;
+    const userId = req.user?.subject_claim;
+
+    if (!code) {
+      return jsonHelper({ error: "Voucher code required" }, 400);
+    }
+
+    const voucher = await getVoucherByCode(code);
+
+    if (!voucher) {
+      return jsonHelper({ error: "Invalid voucher" }, 404);
+    }
+
+    // check for expiry
+    if (voucher.expires_at && new Date(voucher.expires_at) < new Date()) {
+      return jsonHelper({ error: "Voucher expired" }, 400);
+    }
+
+    // check usage limit for voucher
+    if (
+      voucher.usage_limit &&
+      voucher.times_used >= voucher.usage_limit
+    ) {
+      return jsonHelper({ error: "Voucher usage limit reached" }, 400);
+    }
+
+    // store in redis kind of liek cart
+    await redis.set(
+  `voucher:${userId}`,
+  JSON.stringify({
+    ...voucher,
+    discount_percent: Number(voucher.discount_percent),
+  })
+);
+    await redis.expire(`voucher:${userId}`, 3600);
+
+    return jsonHelper({
+      message: "Voucher applied",
+      discount_percent: Number(voucher.discount_percent),
+    });
+  }
+);
+
+export const getCart = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const userId = req.user?.subject_claim;
+    const cartKey = `cart:${userId}`;
+
+    try {
+      const cartData = await redis.hgetall(cartKey);
+      const itemIds = Object.keys(cartData);
+
+      if (itemIds.length === 0) {
+        return jsonHelper({
+          items: [],
+          subtotal: 0
+        });
+      }
+
+      const items = await pg `select item_id, item_name, price, image_url from items where item_id in ${pg(itemIds)} order by item_name`;
+
+      let subtotal = 0;
+
+      const resultCart = items.map((item: any) => {
+        const quantity = parseInt(cartData[item.item_id], 10);
+        const itemTotal = Number(item.price) * quantity;
+
+        subtotal += itemTotal;
+
+        return {
+          ...item,
+          quantity: quantity,
+          itemTotal: itemTotal
+        };
+      });
+
+      return jsonHelper({
+        items: resultCart,
+        subtotal: subtotal
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper({
+        error: "Failed to load shopping cart"
+      }, 500);
+    }
+  }
+)

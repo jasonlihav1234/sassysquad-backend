@@ -9,10 +9,13 @@ DROP TABLE IF EXISTS categories CASCADE;
 DROP TABLE IF EXISTS tags CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
+DROP TABLE IF EXISTS vouchers CASCADE;
+
 -- User & Auth Management
 CREATE TABLE users (
     user_id UUID PRIMARY KEY,
-    user_name VARCHAR(255), 
+    user_name VARCHAR(255),
+    biography TEXT,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     totp_key VARCHAR(255),
@@ -102,6 +105,16 @@ CREATE TABLE item_tags (
   tag_id UUID REFERENCES tags(tag_id),
   item_id UUID REFERENCES items(item_id),
   PRIMARY KEY (tag_id, item_id)
+);
+
+CREATE TABLE vouchers (
+    voucher_id UUID PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    discount_percent DECIMAL NOT NULL CHECK (discount_percent > 0 AND discount_percent <= 100),
+    expires_at TIMESTAMP,
+    usage_limit INT,
+    times_used INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 INSERT INTO tags (tag_id, tag_name) VALUES

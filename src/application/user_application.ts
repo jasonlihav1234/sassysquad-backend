@@ -122,7 +122,7 @@ export default async function googleCallback(
     );
     const googleUser = await googleResponse.json();
 
-    const googlePassword = await bcrypt.hash(crypto.randomUUID(), SALT_ROUNDS);
+    const googlePassword = crypto.randomUUID();
     const query =
       await pg`select * from users where email = ${googleUser.email}`;
 
@@ -130,9 +130,14 @@ export default async function googleCallback(
       await generateUser(googleUser.email, googleUser.name, googlePassword);
     }
 
-    const user = await checkUser(googleUser.email, googlePassword);
+    const user =
+      await pg`select * from users where email = ${googleUser.email}`;
     const device = req.headers?.["user-agent"] || "null";
-    const token = await createSessionTokens(user!.id, user!.email, device);
+    const token = await createSessionTokens(
+      user[0].user_id,
+      user[0].email,
+      device,
+    );
 
     return res.redirect(
       302,
@@ -356,7 +361,8 @@ export const logoutAll = authHelper(async (req: AuthReq): Promise<Response> => {
 
   return jsonHelper({ message: "All sessions logged out" });
 });
-export async function forgotPassword(request: VercelRequest) {
+
+export async function forgotPasswordV1(request: VercelRequest) {
   const body = await request.body;
 
   if (!body.email) {
@@ -426,6 +432,101 @@ export async function forgotPassword(request: VercelRequest) {
 
           <p style="margin-top: 25px;">Click the link below to go to the last step to <span style="background-color: #ffeeba;">reset</span> your <span style="background-color: #ffeeba;">password</span>: (need frontend for this part)</p>
           <p>Testing reset password token: ${resetPasswordToken}</p>
+
+          <p>If you did not request to have your <span style="background-color: #ffeeba;">password</span> <span style="background-color: #ffeeba;">reset</span> you can safely ignore this email. Be assured your account is safe.</p>
+        </div>
+      </div>
+    </div>
+    `,
+    attachments: [
+      {
+        filename: "office_pic.jpg",
+        path: imagePath,
+        cid: "office_pic",
+      },
+    ],
+  };
+
+  try {
+    await transporter.sendMail(mailData);
+
+    return jsonHelper({ message: "Mail successfully sent" });
+  } catch (error) {
+    console.log(error);
+    return jsonHelper({ error: "Mail failed to send" }, 500);
+  }
+}
+
+export async function forgotPasswordV2(request: VercelRequest) {
+  const body = await request.body;
+
+  if (!body.email) {
+    return jsonHelper(
+      {
+        error: "Email not provided",
+      },
+      400,
+    );
+  }
+
+  // verify that email is valid, and that the email exists in the database
+  const recipentEmail = body.email;
+  const checkEmail =
+    await pg`select * from users where email = ${recipentEmail}`;
+
+  if (checkEmail.length === 0) {
+    return jsonHelper(
+      {
+        error: "User does not exist",
+      },
+      404,
+    );
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "jasonli3960@gmail.com",
+      pass: process.env.GOOGLE_APP_PASSWORD,
+    },
+  });
+
+  const imagePath = path.join(
+    process.cwd(),
+    "public",
+    "pictures",
+    "office_pic.jpg",
+  );
+
+  const resetPasswordToken = crypto.randomUUID();
+  const key = `resetPassword:${recipentEmail}`;
+
+  // conflicting keys
+  await redis.set(key, resetPasswordToken);
+  await redis.expire(key, 600); // reset password token lasts 30 minutes
+
+  const mailData = {
+    from: '"SaasySquad" <jasonli3960@gmail.com>',
+    to: `${recipentEmail}`,
+    subject: "Password Reset - SaasySquad",
+    html: `
+    <div style="background-color: #f0f4f8; padding: 40px 0; font-family: Arial, sans-serif;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #ddd;">
+      
+        <div style="padding: 30px 40px 10px 40px;">
+          <h1 style="font-size: 35px; font-weight: bold; color: #000; margin: 0;">Your password reset</h1>
+        </div>
+
+        <div style="padding: 25px 0;">
+          <img src="cid:office_pic" alt="Office Speaking Tings" style="width: 100%; display: block;">
+        </div>
+
+        <div style="padding: 20px 40px; color: #333; line-height: 1.6; font-size: 14px;">
+          <p>We received a request to <span style="background-color: #ffeeba;">reset</span> the <span style="background-color: #ffeeba;">password</span> associated with this email address.</p>
+          <p>If you made this request, please follow the instructions below.</p>
+
+          <p style="margin-top: 25px;">Click the link below to go to the last step to <span style="background-color: #ffeeba;">reset</span> your <span style="background-color: #ffeeba;">password</span>:/p>
+          <p>https://saasysquad-frontend.vercel.app/new-password?reset-token=${resetPasswordToken}&email=${recipentEmail}</p>
 
           <p>If you did not request to have your <span style="background-color: #ffeeba;">password</span> <span style="background-color: #ffeeba;">reset</span> you can safely ignore this email. Be assured your account is safe.</p>
         </div>
@@ -685,7 +786,12 @@ export const updateProfile = authHelper(
       const userId = req.user?.subject_claim as string;
       const body = req.body;
 
-      if (!body.username && !body.email && !body.password) {
+      if (
+        !body.username &&
+        !body.email &&
+        !body.password &&
+        body.biography === undefined
+      ) {
         return jsonHelper(
           {
             message: "No fields to update for the user",
@@ -698,6 +804,7 @@ export const updateProfile = authHelper(
         user_name: body.username,
         email: body.email,
         password: body.password,
+        biography: body.biography,
       });
 
       return jsonHelper({
@@ -728,26 +835,26 @@ export const verifyTwoFactor = authHelper(
       }
 
       const query = await pg` 
-        select totp 
+        select totp_key 
         from users 
         where user_id = ${userId}
       `;
-      
-      if (!query[0].totp) {
+
+      if (!query[0].totp_key) {
         return jsonHelper(
           {
-            message: "2FA not yet added"
+            message: "2FA not yet added",
           },
           400,
         );
       }
 
-      const result = await verify({ secret: query[0].totp, token: code });
+      const result = await verify({ secret: query[0].totp_key, token: code });
 
       if (!result.valid) {
         return jsonHelper(
           {
-            message: "Code given is invalid"
+            message: "Code given is invalid",
           },
           400,
         );
@@ -756,17 +863,14 @@ export const verifyTwoFactor = authHelper(
       await pg`
         update users
         set two_factor = true
-        where user_if = ${userId}
-      `
+        where user_id = ${userId}
+      `;
 
       return jsonHelper({
         message: "2FA successfully verified",
       });
     } catch (error) {
-      return jsonHelper(
-        { message: "2FA failed to verify", error: error },
-        500,
-      );
+      return jsonHelper({ message: "2FA failed to verify", error: error }, 500);
     }
   },
 );
@@ -789,7 +893,7 @@ export const addTwoFactor = authHelper(
       await pg` 
         update users 
         set totp_key = ${secret} 
-        where user_id ${userId}
+        where user_id = ${userId}
       `;
 
       // Generate QR code URI for authenticator apps
@@ -799,17 +903,14 @@ export const addTwoFactor = authHelper(
         secret,
       });
 
-      const qrCode = await qrcode.toDataURL(uri)
+      const qrCode = await qrcode.toDataURL(uri);
 
       return jsonHelper({
         message: "QR code successfully sent",
-        qrCode
+        qrCode,
       });
     } catch (error) {
-      return jsonHelper(
-        { message: "2FA failed to set up", error: error },
-        500
-      );
-    } 
-  }
-)
+      return jsonHelper({ message: "2FA failed to set up", error: error }, 500);
+    }
+  },
+);

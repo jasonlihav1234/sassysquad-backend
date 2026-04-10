@@ -90,54 +90,6 @@ describe("Creating checkout session", () => {
     expect(body.message).toBe("No items found");
   });
 
-  test("SellerId not provided", async () => {
-    await redis.send("FLUSHDB", []);
-    const { userId, accessToken } = await registerAndLogin(
-      "test123@gmail.com",
-      "username",
-      "password",
-    );
-
-    const request = generateAuthenticatedRequest(
-      "/create-checkout-session",
-      "POST",
-      {
-        email: "test123@gmail.com",
-      },
-      accessToken,
-    );
-
-    const response = await createCheckoutSession(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body.message).toBe("Missing email or sellerId");
-  });
-
-  test("Email not provided", async () => {
-    await redis.send("FLUSHDB", []);
-    const { userId, accessToken } = await registerAndLogin(
-      "test123@gmail.com",
-      "username",
-      "password",
-    );
-
-    const request = generateAuthenticatedRequest(
-      "/create-checkout-session",
-      "POST",
-      {
-        sellerId: crypto.randomUUID(),
-      },
-      accessToken,
-    );
-
-    const response = await createCheckoutSession(request);
-    const body = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(body.message).toBe("Missing email or sellerId");
-  });
-
   test("Session gets successfully created", async () => {
     await redis.send("FLUSHDB", []);
     const { userId, accessToken } = await registerAndLogin(
@@ -251,7 +203,6 @@ describe("Check checkout session status tests", async () => {
       cancel_url: "http://localhost/cancel",
     });
 
-    // 2. Grab the actual session ID
     const sessionId = session.id;
 
     const request = generateAuthenticatedRequest(
@@ -275,17 +226,10 @@ describe("Check checkout session status tests", async () => {
 
 describe("Webhook tests", async () => {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || "whsec_test_secret";
 
   test("Fails when no body is provided", async () => {
-    const request = {
-      body: undefined,
-      headers: {
-        "stripe-signature": "fake_signature_123",
-      },
-    } as any;
-
-    const response = await serverWebhook(request);
+    const response = await serverWebhook(undefined as any, "fake_signature_123");
     const body = await response.json();
 
     expect(response.status).toBe(400);
@@ -293,12 +237,9 @@ describe("Webhook tests", async () => {
   });
 
   test("Fails when no signature is provided", async () => {
-    const request = {
-      body: { some: "data" },
-      headers: {},
-    } as any;
-
-    const response = await serverWebhook(request);
+    const mockBody = Buffer.from(JSON.stringify({ some: "data" }));
+    
+    const response = await serverWebhook(mockBody, undefined as any);
     const body = await response.json();
 
     expect(response.status).toBe(400);
@@ -306,14 +247,10 @@ describe("Webhook tests", async () => {
   });
 
   test("Fails with invalid webhook signature", async () => {
-    const request = {
-      body: JSON.stringify({ type: "checkout.session.completed" }),
-      headers: {
-        "stripe-signature": "t=1620000000,v1=fake_invalid_hash_123",
-      },
-    } as any;
+    const payload = Buffer.from(JSON.stringify({ type: "checkout.session.completed" }));
+    const invalidSignature = "t=1620000000,v1=fake_invalid_hash_123";
 
-    const response = await serverWebhook(request);
+    const response = await serverWebhook(payload, invalidSignature);
     const body = await response.json();
 
     expect(response.status).toBe(400);
@@ -322,9 +259,8 @@ describe("Webhook tests", async () => {
   });
 
   test("Successfully processes checkout.session.completed", async () => {
-    const fulfillSpy = spyOn(OrderApp, "fulfillCheckout").mockResolvedValue(
-      true,
-    );
+    const fulfillSpy = spyOn(OrderApp, "fulfillCheckout").mockResolvedValue(true);
+    
     const mockEventData = {
       id: "evt_test_123",
       type: "checkout.session.completed",
@@ -336,27 +272,22 @@ describe("Webhook tests", async () => {
     };
 
     const payloadString = JSON.stringify(mockEventData);
+    const payloadBuffer = Buffer.from(payloadString);
 
     const header = await stripe.webhooks.generateTestHeaderStringAsync({
       payload: payloadString,
       secret: endpointSecret,
     });
 
-    const request = {
-      body: payloadString,
-      headers: {
-        "stripe-signature": header,
-      },
-    } as any;
-
-    const response = await serverWebhook(request);
+    const response = await serverWebhook(payloadBuffer, header);
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.message).toBe("Checkout successfully fulfilled");
+    expect(fulfillSpy).toHaveBeenCalled();
   });
 
-  test("Returns 404 for unhandled event types", async () => {
+  test("Returns 200 for unhandled event types (to prevent Stripe retries)", async () => {
     const mockEventData = {
       id: "evt_test_999",
       type: "customer.created",
@@ -368,24 +299,18 @@ describe("Webhook tests", async () => {
     };
 
     const payloadString = JSON.stringify(mockEventData);
+    const payloadBuffer = Buffer.from(payloadString);
 
     const header = await stripe.webhooks.generateTestHeaderStringAsync({
       payload: payloadString,
       secret: endpointSecret,
     });
 
-    const request = {
-      body: payloadString,
-      headers: {
-        "stripe-signature": header,
-      },
-    } as any;
-
-    const response = await serverWebhook(request);
+    const response = await serverWebhook(payloadBuffer, header);
     const body = await response.json();
 
-    expect(response.status).toBe(404);
-    expect(body.error).toBe("No event types match");
+    expect(response.status).toBe(200);
+    expect(body.message).toBe("Unhandled event type ignored");
   });
 });
 

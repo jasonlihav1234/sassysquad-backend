@@ -7,6 +7,7 @@ interface UpdateUserPayload {
   user_name?: string | null;
   email?: string | null;
   password?: string;
+  biography?: string | null;
 }
 
 /**
@@ -88,6 +89,7 @@ export async function updateProfileQuery(
     const desiredState: Record<string, any> = {
       user_name: update.user_name,
       email: update.email,
+      biography: update.biography,
     };
 
     if (update.password) {

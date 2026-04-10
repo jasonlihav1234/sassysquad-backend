@@ -63,4 +63,22 @@ describe("updateProfileQuery", () => {
 
     await deleteTestData({ userIds: [user.user_id] });
   });
+
+  test("updates biography when biography is provided", async () => {
+    const user = await insertUser({ user_name: `bio-${crypto.randomUUID()}` });
+    const text = "I love lamps.";
+
+    const result = await updateProfileQuery(user.user_id, {
+      biography: text,
+    });
+
+    expect(result).not.toBeInstanceOf(Response);
+
+    const rows = await pg`
+      select biography from users where user_id = ${user.user_id}
+    `;
+    expect(rows[0].biography).toBe(text);
+
+    await deleteTestData({ userIds: [user.user_id] });
+  });
 });

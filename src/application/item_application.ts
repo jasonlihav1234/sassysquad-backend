@@ -538,7 +538,7 @@ export const getAllTags = authHelper(
           {
             message: "No tags found",
           },
-          404
+          404,
         );
       }
 
@@ -547,13 +547,16 @@ export const getAllTags = authHelper(
         tags: response,
       });
     } catch (error) {
-      return jsonHelper({
-        message: "Getting all tags failed",
-        error: error
-      }, 500);
+      return jsonHelper(
+        {
+          message: "Getting all tags failed",
+          error: error,
+        },
+        500,
+      );
     }
-  }
-)
+  },
+);
 
 // update item
 export const updateItem = authHelper(

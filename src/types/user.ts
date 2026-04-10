@@ -3,6 +3,7 @@ export interface User {
   user_name: string;
   email: string;
   password_hash: string;
+  biography: string | null;
   created_at: Date;
 }
 
@@ -12,5 +13,6 @@ export type InsertUserOverrides = Partial<{
   user_name: string | null;
   email: string;
   password_hash: string;
+  biography: string | null;
   created_at: Date;
 }>;

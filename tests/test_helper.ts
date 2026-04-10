@@ -94,11 +94,12 @@ export async function insertUser(
   const email = overrides.email ?? `test_${crypto.randomUUID()}@something.com`;
   const password_hash = overrides.password_hash ?? "random_placeholder_string";
   const user_name = overrides.user_name ?? null;
+  const biography = overrides.biography ?? null;
   const created_at = overrides.created_at ?? new Date();
 
   const rows = await pg`
-    insert into users (user_id, user_name, email, password_hash, created_at)
-    values (${user_id}, ${user_name}, ${email}, ${password_hash}, ${created_at})
+    insert into users (user_id, user_name, biography, email, password_hash, created_at)
+    values (${user_id}, ${user_name}, ${biography}, ${email}, ${password_hash}, ${created_at})
     returning *
   `;
 

@@ -584,3 +584,19 @@ export async function deleteItem(itemId: string) {
     );
   }
 }
+
+export async function getVoucherByCode(code: string) {
+  const result = await pg`
+    SELECT * FROM vouchers WHERE code = ${code}
+  `;
+
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function incrementVoucherUsage(voucherId: string) {
+  await pg`
+    UPDATE vouchers
+    SET times_used = times_used + 1
+    WHERE voucher_id = ${voucherId}
+  `;
+}

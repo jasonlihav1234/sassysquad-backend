@@ -4,11 +4,13 @@ import {
   getOrderById,
   updateOrdersById,
 } from "./database/queries/order_queries";
+import { applyVoucher, getCart } from "./application/order_application";
 import googleCallback, {
   register,
   login,
   refresh,
-  forgotPassword,
+  forgotPasswordV1,
+  forgotPasswordV2,
   resetPassword,
   logout,
   logoutAll,
@@ -241,7 +243,14 @@ export async function handleRequest(req: any, res: any) {
   }
 
   if (url === "/auth/forgot-password" && method === "POST") {
-    const response = await forgotPassword(req);
+    const response = await forgotPasswordV1(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/v2/auth/forgot-password" && method === "POST") {
+    const response = await forgotPasswordV2(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
@@ -324,6 +333,13 @@ export async function handleRequest(req: any, res: any) {
     method === "DELETE"
   ) {
     const response = await deleteItemFromCart(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/cart" && method === "GET") {
+    const response = await getCart(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
@@ -448,18 +464,8 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
-  if (
-    url.match(/^\/checkout-session-status\/[a-zA-Z0-9_-]+$/) &&
-    method === "GET"
-  ) {
+  if (url.startsWith("/checkout-session-status") && method === "GET") {
     const response = await checkCheckoutSessionStatus(req);
-
-    const body = await response.json();
-    return res.status(response.status).json(body);
-  }
-
-  if (url === "/webhook" && method === "POST") {
-    const response = await serverWebhook(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
@@ -487,6 +493,12 @@ export async function handleRequest(req: any, res: any) {
   if (url === "/auth/2fa/add" && method === "POST") {
     const response = await addTwoFactor(req);
 
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/vouchers/apply" && method === "POST") {
+    const response = await applyVoucher(req);
     const body = await response.json();
     return res.status(response.status).json(body);
   }

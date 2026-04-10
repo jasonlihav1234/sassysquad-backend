@@ -807,7 +807,118 @@
           }
         }
       }
+    },
+"/orders": {
+  "post": {
+    "tags": ["store"],
+    "summary": "Create a new order",
+    "description": "Creates a new order and returns a generated UBL XML document.",
+    "operationId": "postOrder",
+    "consumes": ["application/json"],
+    "produces": ["application/xml"],
+    "security": [
+      {
+        "api_key": []
+      }
+    ],
+    "parameters": [
+      {
+        "in": "body",
+        "name": "body",
+        "description": "Order payload",
+        "required": true,
+        "schema": {
+          "type": "object",
+          "required": [
+            "orderName",
+            "sellerId",
+            "documentCurrencyCode",
+            "pricingCurrencyCode",
+            "taxCurrencyCode",
+            "requestedInvoiceCurrencyCode",
+            "accountingCost",
+            "paymentMethodCode",
+            "destinationCountryCode",
+            "orderLines"
+          ],
+          "properties": {
+            "orderName": {
+              "type": "string",
+              "example": "Example Order"
+            },
+            "sellerId": {
+              "type": "string",
+              "example": "seller123"
+            },
+            "documentCurrencyCode": {
+              "type": "string",
+              "example": "AUD"
+            },
+            "pricingCurrencyCode": {
+              "type": "string",
+              "example": "AUD"
+            },
+            "taxCurrencyCode": {
+              "type": "string",
+              "example": "AUD"
+            },
+            "requestedInvoiceCurrencyCode": {
+              "type": "string",
+              "example": "AUD"
+            },
+            "accountingCost": {
+              "type": "number",
+              "example": 1.5
+            },
+            "paymentMethodCode": {
+              "type": "string",
+              "example": "card"
+            },
+            "destinationCountryCode": {
+              "type": "string",
+              "example": "AU"
+            },
+            "orderLines": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["itemID", "quantity", "priceAtPurchase"],
+                "properties": {
+                  "itemID": {
+                    "type": "string",
+                    "example": "item123"
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "example": 2
+                  },
+                  "priceAtPurchase": {
+                    "type": "number",
+                    "example": 19.99
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Order successfully created and returned as UBL XML"
+      },
+      "415": {
+        "description": "Unsupported content type"
+      },
+      "422": {
+        "description": "Validation failed - missing mandatory fields"
+      },
+      "500": {
+        "description": "Order creation failed due to internal error"
+      }
     }
+  }
+}
   },
   "securityDefinitions": {
     "api_key": {
