@@ -76,6 +76,9 @@ class SaasySquadModel:
     # forces quantity to be integers
     df["quantity_sold"] = df["quantity_sold"].astype(int)
 
+    # should probably normalise the category names so match the database
+    df["category_name"] = df["category_name"].str.strip().str.lower()
+
     # finds the 99th percentile price
     self.global_p99 = df["price"].quantile(0.99)
     # creates a dictionary recording highest normal price for every category, so model knows realistic ceiling
@@ -119,6 +122,9 @@ class SaasySquadModel:
   def estimate_market(self, tags, category):
     if not self.trained:
       return
+    
+    category = category.strip().lower()
+    tags = tags.strip().lower()
 
     # creates a blank items with 50 empty slots or the number of feature columns
     base_dict = {col: 0 for col in self.feature_columns}
@@ -140,8 +146,6 @@ class SaasySquadModel:
       # else set the limit to highest ever sold
       sim_limit = self.global_p99
 
-    # make sure it doesn't cross the limit in the 99th percentile
-    sim_limit = min(sim_limit, self.global_p99)
     # takes min price (1.0) and max price, generate 100 evenly spaced prices between them
     test_prices = numpy.linspace(1.0, sim_limit, num=100)
 
