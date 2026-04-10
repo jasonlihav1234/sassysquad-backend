@@ -1,4 +1,5 @@
 import { authHelper, jsonHelper, AuthReq } from "../utils/jwt_helpers";
+import { callLLMFallback } from "./item_application";
 
 async function callMLModel(tags: string, category: string): Promise<any> {
   const response = await fetch(
@@ -20,6 +21,40 @@ async function callMLModel(tags: string, category: string): Promise<any> {
   }
 
   return await response.json();
+}
+
+export async function getPricing(
+  productName: string,
+  tags: string,
+  category: string,
+): Promise<any> {
+  const CONFIDENCE_THRESHOLD = 0.5;
+
+  let mlResult;
+
+  try {
+    mlResult = await callMLModel(tags, category);
+  } catch (error) {
+    console.log("ML model unreachable", error);
+
+    const llm = await callLLMFallback(productName, tags, category);
+    return { source: "llm", ...llm };
+  }
+
+  if (
+    mlResult.status === "Success" &&
+    mlResult.confidence >= CONFIDENCE_THRESHOLD
+  ) {
+    return {
+      source: "ml",
+      confidence: mlResult.confidence,
+      warnings: mlResult.warnings,
+      optimal_price: mlResult.optimal_price,
+      max_expected_revenue: mlResult.max_expected_revenue,
+      suggested_price_range: mlResult.suggested_price_range,
+      expected_monthly_volume: mlResult.expected_monthly_volume,
+    };
+  }
 }
 
 export const agentProcess = authHelper(
