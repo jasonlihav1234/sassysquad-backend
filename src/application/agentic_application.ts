@@ -1,5 +1,9 @@
 import { authHelper, jsonHelper, AuthReq } from "../utils/jwt_helpers";
-import { callLLMFallback } from "./item_application";
+import {
+  analyseImageForExtraction,
+  callLLMFallback,
+  enrichListing,
+} from "./item_application";
 
 async function callMLModel(tags: string, category: string): Promise<any> {
   const response = await fetch(
@@ -78,37 +82,37 @@ export async function getPricing(
 
 export const agentProcess = authHelper(
   async (req: AuthReq): Promise<Response> => {
-    const { image, mimeType, fileName } = req.body;
+    const { image } = req.body;
 
-    if (!image || !mimeType || !fileName) {
-      return jsonHelper(
-        { message: "Missing iamge, mimeType or fileName" },
-        400,
-      );
+    if (!image) {
+      return jsonHelper({ message: "Missing image" }, 400);
     }
 
     try {
-    } catch (error) {
+      const draft = await processImage(image);
+      return jsonHelper({
+        message: "Draft generated"
+      });
+    } catch (error: any) {
+      if (error.message?.startsWith("Invalid image format")) {
+        return jsonHelper({
+          message: error.message
+        }, 400);
+      }
       console.log("Agent failed ", error);
       return jsonHelper({ message: "Agent failed", error }, 500);
     }
   },
 );
 
-async function extractProductDetails(imageUrl: string): Promise<{
-  name: string;
-  category: string;
-  tags: string;
-  attributes: Record<string, string>;
-}> {}
-
-export async function processImage(
-  imageBase64: string,
-  mimeType: string,
-  fileName: string,
-): Promise<any> {
-  const extracted = await extractProductDetails(imageBase64);
-  const enriched = await enrichListing(extracted);
+export async function processImage(imageBase64: string): Promise<any> {
+  const extracted = await analyseImageForExtraction(imageBase64);
+  const enriched = await enrichListing(
+    extracted.name,
+    extracted.category,
+    extracted.tags,
+  );
+  // get the pricing if ml model is confident, else use the LLM fallback
   const pricing = await getPricing(
     extracted.name,
     extracted.tags,
