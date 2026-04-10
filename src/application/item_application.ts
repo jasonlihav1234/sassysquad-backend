@@ -43,6 +43,12 @@ const listFormatter = new Intl.ListFormat("en", {
   type: "conjunction",
 });
 
+const llmFallbackSchema = z.object({
+  price_low: z.number(),
+  price_high: z.number(),
+  reasoning: z.string(),
+});
+
 export async function callLLMFallback(
   productName: string,
   tags: string,
@@ -69,6 +75,30 @@ export async function callLLMFallback(
     "price_high": number,
     "reasoning": "one sentence explaination"
   }`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-flash-lite-preview",
+    contents: [prompt],
+    config: {
+      responseMimeType: "application/json",
+      responseJsonSchema: toJSONSchema(llmFallbackSchema),
+    },
+  });
+
+  if (!response.text) {
+    throw new Error("No response from Gemini");
+  }
+
+  const parsed = llmFallbackSchema.parse(JSON.parse(response.text));
+
+  const low = Math.round(parsed.price_low);
+  const high = Math.round(parsed.price_high);
+
+  return {
+    price_range: [low, high],
+    midpoint: Math.round((low + high) / 2),
+    reasoning: parsed.reasoning
+  };
 }
 
 export async function analyseImageForExtraction(
