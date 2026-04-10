@@ -5,6 +5,7 @@ import {
   callLLMFallback,
   enrichListing,
 } from "./item_application";
+import pg from "../utils/db";
 
 async function callMLModel(tags: string, category: string): Promise<any> {
   const response = await fetch(
@@ -115,28 +116,72 @@ export const agentAccept = authHelper(
     const body = req.body;
 
     if (!body) {
-      return jsonHelper({
-        message: "Missing request body"
-      }, 400);
+      return jsonHelper(
+        {
+          message: "Missing request body",
+        },
+        400,
+      );
     }
     // if it doesn't have a seller price must have a suggested price
     const finalPrice = body.sellerPrice ?? body.suggestedPrice;
 
     if (!finalPrice || finalPrice <= 0) {
-      return jsonHelper({
-        message: "A valid price is required"
-      }, 400);
+      return jsonHelper(
+        {
+          message: "A valid price is required",
+        },
+        400,
+      );
     }
-    
+
     const userId = req.body.subject_claim;
+    const quantity = body.quantityAvailable ?? 1;
 
     try {
-      const [item] = await pg``
-    }
+      const [categoryRow] = await pg`
+        select category_id
+        from category
+        where category_name = ${body.category}
+        limit 1
+      `;
 
+      if (!categoryRow) {
+        return jsonHelper(
+          {
+            message: `Category '${body.category}' not found`,
+          },
+          400,
+        );
+      }
 
-  }
-)
+      const [item] = await pg`
+        insert into items (
+          item_id,
+          seller_id,
+          item_name,
+          description,
+          price,
+          quantity_available,
+          image_url,
+          created_at,
+          last_updated,
+          category_id
+        ) values (
+          ${crypto.randomUUID()},
+          ${userId},
+          ${body.title},
+          ${body.description},
+          ${finalPrice},
+          ${quantity},
+          ${body.imageBase64},
+          ${categoryRow.category_id} 
+        )
+        returning item_id
+      `;
+    } catch (error) {}
+  },
+);
 
 export async function processImage(imageBase64: string): Promise<any> {
   const extracted = await analyseImageForExtraction(imageBase64);
@@ -168,5 +213,6 @@ export async function processImage(imageBase64: string): Promise<any> {
     category: extracted.category,
     pricing,
     suggestedPrice,
+    quantityAvailable: 1, // can be chanaged by reviewer on board
   };
 }
