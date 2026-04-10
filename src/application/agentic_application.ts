@@ -1,3 +1,4 @@
+import { brotliDecompressSync } from "node:zlib";
 import { authHelper, jsonHelper, AuthReq } from "../utils/jwt_helpers";
 import {
   analyseImageForExtraction,
@@ -91,19 +92,51 @@ export const agentProcess = authHelper(
     try {
       const draft = await processImage(image);
       return jsonHelper({
-        message: "Draft generated"
+        message: "Draft generated",
+        draft,
       });
     } catch (error: any) {
       if (error.message?.startsWith("Invalid image format")) {
-        return jsonHelper({
-          message: error.message
-        }, 400);
+        return jsonHelper(
+          {
+            message: error.message,
+          },
+          400,
+        );
       }
       console.log("Agent failed ", error);
       return jsonHelper({ message: "Agent failed", error }, 500);
     }
   },
 );
+
+export const agentAccept = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const body = req.body;
+
+    if (!body) {
+      return jsonHelper({
+        message: "Missing request body"
+      }, 400);
+    }
+    // if it doesn't have a seller price must have a suggested price
+    const finalPrice = body.sellerPrice ?? body.suggestedPrice;
+
+    if (!finalPrice || finalPrice <= 0) {
+      return jsonHelper({
+        message: "A valid price is required"
+      }, 400);
+    }
+    
+    const userId = req.body.subject_claim;
+
+    try {
+      const [item] = await pg``
+    }
+
+
+  }
+)
 
 export async function processImage(imageBase64: string): Promise<any> {
   const extracted = await analyseImageForExtraction(imageBase64);
