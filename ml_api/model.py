@@ -155,6 +155,9 @@ class SaasySquadModel:
 
     # dumps results into pandas.DataFrame (invisible Excel spreadsheet in computer memory)
     df = pandas.DataFrame(records, columns=col_names)
+
+    if df.empty:
+      raise ValueError("Not enough data to train model.")
     # forces prices to be floats
     df["price"] = df["price"].astype(float)
     # forces quantity to be integers
