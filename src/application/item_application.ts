@@ -24,6 +24,7 @@ import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
 import pg from "../utils/db";
 import { z, toJSONSchema } from "zod";
+import { isMainThread } from "node:worker_threads";
 
 const ai = new GoogleGenAI({});
 
@@ -32,10 +33,206 @@ const responseSchema = z.object({
   message: z.string().describe("Message the LLM responds with"),
 });
 
+const extractionSchema = z.object({
+  name: z.string(),
+  category: z.string(),
+  tags: z.array(z.string()),
+});
+
 const listFormatter = new Intl.ListFormat("en", {
   style: "long",
   type: "conjunction",
 });
+
+const llmFallbackSchema = z.object({
+  price_low: z.number(),
+  price_high: z.number(),
+  reasoning: z.string(),
+});
+
+const enrichmentSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  tags: z.array(z.string()),
+});
+
+async function withRetry(
+  func: any,
+  maxRetries: number = 3,
+  baseDelay: number = 1000,
+) {
+  for (let i = 0; i <= maxRetries; ++i) {
+    try {
+      return await func();
+    } catch (error: any) {
+      if (i === maxRetries || error?.status !== 503) throw error;
+      // random delay before looping again
+      const delay = baseDelay * 2 ** i + Math.random() * 500;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+
+  throw new Error("Unreachable");
+}
+
+export async function callLLMFallback(
+  productName: string,
+  tags: string,
+  category: string,
+  knownCategories?: string[],
+): Promise<any> {
+  const categoryHint = knownCategories?.length
+    ? `Known categorieson this marketplace: ${knownCategories.slice(0, 10).join(", ")}.`
+    : "";
+
+  const prompt = `
+  You are a marketplace pricing expert optimising for maximum revenue.
+  The ML pricing model has insufficient sales history for this item.
+
+  Product: ${productName}
+  Category: ${category}
+  Tags: ${tags}
+  ${categoryHint}
+
+  Suggest a realistic retail price range that maximises revenue based on comparable goods.
+  Return ONLY this JSON format:
+  {
+    "price_low": number,
+    "price_high": number,
+    "reasoning": "one sentence explaination"
+  }`;
+
+  const response = await withRetry(() =>
+    ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: [prompt],
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: toJSONSchema(llmFallbackSchema),
+      },
+    }),
+  );
+
+  if (!response.text) {
+    throw new Error("No response from Gemini");
+  }
+
+  const parsed = llmFallbackSchema.parse(JSON.parse(response.text));
+
+  const low = Math.round(parsed.price_low);
+  const high = Math.round(parsed.price_high);
+
+  return {
+    price_range: [low, high],
+    midpoint: Math.round((low + high) / 2),
+    reasoning: parsed.reasoning,
+  };
+}
+
+export async function enrichListing(
+  name: string,
+  category: string,
+  tags: string,
+): Promise<any> {
+  const prompt = `
+  Write a product listing optimised for maximum revenue.
+
+  Product: ${name}
+  Category: ${category}
+  Tags: ${tags}
+  
+  Return ONLY this JSON format:
+  {
+    "title": "string (max 80 chars, SEO optimised)",
+    "description": "string (150-200 words)",
+    "tags": ["array", "of", "8", "strings"]
+  }
+  `;
+
+  const response = await withRetry(() =>
+    ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: [prompt],
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: toJSONSchema(enrichmentSchema),
+      },
+    }),
+  );
+
+  if (!response.text) {
+    throw new Error("No response from Gemini");
+  }
+
+  return enrichmentSchema.parse(JSON.parse(response.text));
+}
+
+export async function analyseImageForExtraction(
+  image: string, // assume in base64
+): Promise<{ name: string; category: string; tags: string }> {
+  const imageTypeMatch = image.match(/^data:(image\/(jpeg|png|webp));base64,/);
+  if (!imageTypeMatch) {
+    throw Error("Invalid image format. Please upload a JPEG, PNG, or WEBP.");
+  }
+
+  const imageType = imageTypeMatch[1];
+  const rawImage = image.replace(/^data:image\/\w+;base64,/, "");
+  const [categoriesQuery, tagsQuery] = await Promise.all([
+    pg`select category_name from categories`,
+    pg`select tag_name from tags`,
+  ]);
+
+  // extracting the names of the category and tags
+  const categories = categoriesQuery.map((c: any) => c.category_name);
+  const tags = tagsQuery.map((t: any) => t.tag_name);
+
+  const prompt = `
+  You are a product listing expert for a luxury marketplace.
+
+  Allowed categories: ${categories.join(", ")}
+  Allowed tags: ${tags.join(", ")}
+
+  Analyse the provided product image and extract the following details.
+
+  CRITICAL INSTRUCTIONS:
+  - category MUST be chosen from the allowed categories list exactly as written
+  - tags MUST only be chosen from the allowed tags list exactly as written
+  - Do not invent new categories or tags
+
+  Return ONLY this JSON format:
+  {
+    "name": "short descriptive product name",
+    "category": "one category from the allowed list",
+    "tags": ["tag1", "tag2"]
+  }
+  `;
+
+  const response = await withRetry(() =>
+    ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: [
+        prompt,
+        { inlineData: { mimeType: imageType, data: rawImage } },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: toJSONSchema(extractionSchema),
+      },
+    }),
+  );
+
+  if (!response.text) {
+    throw new Error("No text response from Gemini");
+  }
+
+  const parsed = extractionSchema.parse(JSON.parse(response.text));
+
+  return {
+    name: parsed.name,
+    category: parsed.category,
+    tags: parsed.tags.join(","),
+  };
+}
 
 export const getMarketEstimate = authHelper(
   async (req: AuthReq): Promise<Response> => {
@@ -166,14 +363,16 @@ export const generateAIRecommendations = authHelper(
     ];
     // https://ai.google.dev/gemini-api/docs/structured-output?example=recipe
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite-preview",
-        contents: contents,
-        config: {
-          responseMimeType: "application/json",
-          responseJsonSchema: toJSONSchema(responseSchema),
-        },
-      });
+      const response = await withRetry(() =>
+        ai.models.generateContent({
+          model: "gemini-3.1-flash-lite-preview",
+          contents: contents,
+          config: {
+            responseMimeType: "application/json",
+            responseJsonSchema: toJSONSchema(responseSchema),
+          },
+        }),
+      );
 
       if (!response.text) {
         throw Error("No text response given");
@@ -538,7 +737,7 @@ export const getAllTags = authHelper(
           {
             message: "No tags found",
           },
-          404
+          404,
         );
       }
 
@@ -547,13 +746,16 @@ export const getAllTags = authHelper(
         tags: response,
       });
     } catch (error) {
-      return jsonHelper({
-        message: "Getting all tags failed",
-        error: error
-      }, 500);
+      return jsonHelper(
+        {
+          message: "Getting all tags failed",
+          error: error,
+        },
+        500,
+      );
     }
-  }
-)
+  },
+);
 
 // update item
 export const updateItem = authHelper(
