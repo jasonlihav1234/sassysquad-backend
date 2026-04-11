@@ -23,7 +23,7 @@ class SaasySquadModel:
     # records highest normal price for each category
     self.category_max_prices = None
     # records total units sold per category, is to be used for confidence checking
-    self.cateogry_order_counts = None
+    self.category_order_counts = None
 
   def load_and_preprocess(self):
     DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -76,6 +76,10 @@ class SaasySquadModel:
 
     # dumps results into pandas.DataFrame (invisible Excel spreadsheet in computer memory)
     df = pandas.DataFrame(records, columns=col_names)
+
+    if df.empty:
+      raise ValueError("Not enough data to train model.")
+    
     # forces prices to be floats
     df["price"] = df["price"].astype(float)
     # forces quantity to be integers
@@ -90,7 +94,7 @@ class SaasySquadModel:
     self.category_max_prices = df.groupby("category_name")["price"].max().to_dict()
 
     # looks through columns and explodes them into dozens of individual yes/no columns
-    df_tags = df["tags"].str.get_dummies(sep=',')
+    df_tags = df["tags"].str.get_dummies(sep=',').add_prefix("tag_")
     df_category = pandas.get_dummies(df["category_name"], prefix="cat")
 
     # takes original price column, exploded tag columns, and exploded category columns, glues them together
@@ -151,6 +155,9 @@ class SaasySquadModel:
 
     # dumps results into pandas.DataFrame (invisible Excel spreadsheet in computer memory)
     df = pandas.DataFrame(records, columns=col_names)
+
+    if df.empty:
+      raise ValueError("Not enough data to train model.")
     # forces prices to be floats
     df["price"] = df["price"].astype(float)
     # forces quantity to be integers
@@ -166,7 +173,7 @@ class SaasySquadModel:
     self.category_order_counts = df.groupby("category_name")["quantity_sold"].sum().to_dict()
 
     # looks through columns and explodes them into dozens of individual yes/no columns
-    df_tags = df["tags"].str.get_dummies(sep=',')
+    df_tags = df["tags"].str.get_dummies(sep=',').add_prefix("tag_")
     df_category = pandas.get_dummies(df["category_name"], prefix="cat")
 
     # takes original price column, exploded tag columns, and exploded category columns, glues them together
@@ -304,8 +311,8 @@ class SaasySquadModel:
     if not category_known:
       warnings.append(f"Category '{category}' has no sales history. Prediction will be based on global pricing trends only. Consider using a known category instead: {self._known_categories()}")
 
-    unknown_tags = [t for t in tags_list if t not in self.feature_columns]
-    known_tags = [t for t in tags_list if t in self.feature_columns]
+    unknown_tags = [t for t in tags_list if f"tag_{t}" not in self.feature_columns]
+    known_tags = [t for t in tags_list if f"tag_{t}" in self.feature_columns]
 
     if unknown_tags:
       warnings.append(f"Tags not seen in training data and ignored: {unknown_tags}. They won't influence the prediction")
@@ -342,7 +349,7 @@ class SaasySquadModel:
     base_dict = {col: 0 for col in self.feature_columns}
 
     for tag in known_tags:
-      base_dict[tag] = 1
+      base_dict[f"tag_{tag}"] = 1
     
     if category_known:
       base_dict[cat_col] = 1
@@ -407,7 +414,7 @@ class SaasySquadModel:
     if not self.feature_columns:
       return []
     
-    return sorted([col for col in self.feature_columns if not col.startswith("cat_") and col != "price"])
+    return sorted([col.replace("tag_", "") for col in self.feature_columns if col.startswith("tag_")])
 
   # joblib saves them as pickle files permananently in the hard drive
   def save(self, path="models/"):
@@ -429,7 +436,3 @@ class SaasySquadModel:
       self.category_order_counts = joblib.load(counts_path) if os.path.exists(counts_path) else {}
 
       self.trained = True
-
-sm = SaasySquadModel()
-sm.train_model()
-print(sm.estimate_market("white-oak", "bookshelf"))
