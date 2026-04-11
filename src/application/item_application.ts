@@ -24,6 +24,7 @@ import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
 import pg from "../utils/db";
 import { z, toJSONSchema } from "zod";
+import { isMainThread } from "node:worker_threads";
 
 const ai = new GoogleGenAI({});
 
@@ -55,6 +56,25 @@ const enrichmentSchema = z.object({
   tags: z.array(z.string()),
 });
 
+async function withRetry(
+  func: any,
+  maxRetries: number = 3,
+  baseDelay: number = 1000,
+) {
+  for (let i = 0; i <= maxRetries; ++i) {
+    try {
+      return await func();
+    } catch (error: any) {
+      if (i === maxRetries || error?.status !== 503) throw error;
+      // random delay before looping again
+      const delay = baseDelay * 2 ** i + Math.random() * 500;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+
+  throw new Error("Unreachable");
+}
+
 export async function callLLMFallback(
   productName: string,
   tags: string,
@@ -82,14 +102,16 @@ export async function callLLMFallback(
     "reasoning": "one sentence explaination"
   }`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite-preview",
-    contents: [prompt],
-    config: {
-      responseMimeType: "application/json",
-      responseJsonSchema: toJSONSchema(llmFallbackSchema),
-    },
-  });
+  const response = await withRetry(() =>
+    ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: [prompt],
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: toJSONSchema(llmFallbackSchema),
+      },
+    }),
+  );
 
   if (!response.text) {
     throw new Error("No response from Gemini");
@@ -127,14 +149,16 @@ export async function enrichListing(
   }
   `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite-preview",
-    contents: [prompt],
-    config: {
-      responseMimeType: "application/json",
-      responseJsonSchema: toJSONSchema(enrichmentSchema),
-    },
-  });
+  const response = await withRetry(() =>
+    ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: [prompt],
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: toJSONSchema(enrichmentSchema),
+      },
+    }),
+  );
 
   if (!response.text) {
     throw new Error("No response from Gemini");
@@ -183,14 +207,19 @@ export async function analyseImageForExtraction(
   }
   `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite-preview",
-    contents: [prompt, { inlineData: { mimeType: imageType, data: rawImage } }],
-    config: {
-      responseMimeType: "application/json",
-      responseJsonSchema: toJSONSchema(extractionSchema),
-    },
-  });
+  const response = await withRetry(() =>
+    ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: [
+        prompt,
+        { inlineData: { mimeType: imageType, data: rawImage } },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: toJSONSchema(extractionSchema),
+      },
+    }),
+  );
 
   if (!response.text) {
     throw new Error("No text response from Gemini");
@@ -334,14 +363,16 @@ export const generateAIRecommendations = authHelper(
     ];
     // https://ai.google.dev/gemini-api/docs/structured-output?example=recipe
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite-preview",
-        contents: contents,
-        config: {
-          responseMimeType: "application/json",
-          responseJsonSchema: toJSONSchema(responseSchema),
-        },
-      });
+      const response = await withRetry(() =>
+        ai.models.generateContent({
+          model: "gemini-3.1-flash-lite-preview",
+          contents: contents,
+          config: {
+            responseMimeType: "application/json",
+            responseJsonSchema: toJSONSchema(responseSchema),
+          },
+        }),
+      );
 
       if (!response.text) {
         throw Error("No text response given");
