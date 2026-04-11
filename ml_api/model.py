@@ -23,7 +23,7 @@ class SaasySquadModel:
     # records highest normal price for each category
     self.category_max_prices = None
     # records total units sold per category, is to be used for confidence checking
-    self.cateogry_order_counts = None
+    self.category_order_counts = None
 
   def load_and_preprocess(self):
     DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -76,6 +76,10 @@ class SaasySquadModel:
 
     # dumps results into pandas.DataFrame (invisible Excel spreadsheet in computer memory)
     df = pandas.DataFrame(records, columns=col_names)
+
+    if df.empty:
+      raise ValueError("Not enough data to train model.")
+    
     # forces prices to be floats
     df["price"] = df["price"].astype(float)
     # forces quantity to be integers
