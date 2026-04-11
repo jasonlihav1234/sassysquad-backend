@@ -94,7 +94,7 @@ class SaasySquadModel:
     df_category = pandas.get_dummies(df["category_name"], prefix="cat")
 
     # takes original price column, exploded tag columns, and exploded category columns, glues them together
-    X = pandas.concat([df["price"].reset_index(drop=True), df_tags.reset_index(drop=True), df_category.reset_index(drop=True)], axis=1)
+    X = pandas.concat([df["price"], df_tags, df_category], axis=1)
     # isolates quantity sold as the target we want to predict
     y = df["quantity_sold"]
 
