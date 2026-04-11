@@ -90,11 +90,11 @@ class SaasySquadModel:
     self.category_max_prices = df.groupby("category_name")["price"].max().to_dict()
 
     # looks through columns and explodes them into dozens of individual yes/no columns
-    df_tags = df["tags"].str.get_dummies(sep=',')
+    df_tags = df["tags"].str.get_dummies(sep=',').add_prefix("tag_")
     df_category = pandas.get_dummies(df["category_name"], prefix="cat")
 
     # takes original price column, exploded tag columns, and exploded category columns, glues them together
-    X = pandas.concat([df["price"], df_tags, df_category], axis=1)
+    X = pandas.concat([df["price"].reset_index(drop=True), df_tags.reset_index(drop=True), df_category.reset_index(drop=True)], axis=1)
     # isolates quantity sold as the target we want to predict
     y = df["quantity_sold"]
 
@@ -429,7 +429,3 @@ class SaasySquadModel:
       self.category_order_counts = joblib.load(counts_path) if os.path.exists(counts_path) else {}
 
       self.trained = True
-
-sm = SaasySquadModel()
-sm.train_model()
-print(sm.estimate_market("white-oak", "bookshelf"))
