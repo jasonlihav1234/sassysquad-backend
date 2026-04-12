@@ -10,7 +10,7 @@ import joblib
 class SaasySquadModel:
   def __init__(self):
     # holds the actual mathemetical engine (LinearGAM algorithm) that predicts sales volume
-    self.volume_model = None
+    self.vol_model = None
     # master lsit of all column names the model used for learning (price, ...)
     # if you have Category apparel, tags - red, cotton
     # it will flatten to cat_apparel 1, cat_electronics 0, depending on which was selected
@@ -243,9 +243,10 @@ class SaasySquadModel:
 
     for tag in tags.split(","):
       tag = tag.strip()
+      tag_col = f"tag_{tag}"
       # flip 1 for each tag that the person asks for
-      if tag in base_dict:
-        base_dict[tag] = 1
+      if tag_col in base_dict:
+        base_dict[tag_col] = 1
     # flip 1 for the category the user asks for
     cat_col = f"cat_{category}"
     if cat_col in base_dict:
@@ -326,9 +327,15 @@ class SaasySquadModel:
         "known_tags": self._known_tags()
       }
     
-    total_inputs = len(tags_list) + (1 if category else 0)
-    matched_inputs = len(known_tags) + (1 if category_known else 0)
-    confidence = round(matched_inputs / total_inputs, 2) if total_inputs > 0 else 0.0
+    # category is the primary signal (drives the price ceiling and the spline shape),
+    # so it gets heavier weight than any individual tag in the confidence score.
+    # this prevents a known, well-sold category from being dragged below the threshold
+    # just because the seller added a few novel tags.
+    CATEGORY_WEIGHT = 3
+    tag_count = len(tags_list)
+    total_weight = (CATEGORY_WEIGHT if category else 0) + tag_count
+    matched_weight = (CATEGORY_WEIGHT if category_known else 0) + len(known_tags)
+    confidence = round(matched_weight / total_weight, 2) if total_weight > 0 else 0.0
 
     if confidence < 0.5:
       warnings.append(f"Low confidence ({int(confidence * 100)}%): fewer than half of the provided inputs have training data on them. Treat this estimate as a rough guide only.")

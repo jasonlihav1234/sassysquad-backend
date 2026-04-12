@@ -1,4 +1,3 @@
-import { brotliDecompressSync } from "node:zlib";
 import { authHelper, jsonHelper, AuthReq } from "../utils/jwt_helpers";
 import {
   analyseImageForExtraction,
@@ -62,7 +61,7 @@ export async function getPricing(
     };
   }
 
-  if (mlResult.staus === "No Market Demand") {
+  if (mlResult.status === "No Market Demand") {
     return { source: "none", message: mlResult.message };
   }
 
@@ -141,7 +140,7 @@ export const agentAccept = authHelper(
     try {
       const [categoryRow] = await pg`
         select category_id
-        from category
+        from categories
         where category_name = ${body.category}
         limit 1
       `;
@@ -175,6 +174,8 @@ export const agentAccept = authHelper(
           ${finalPrice},
           ${quantity},
           ${body.imageBase64},
+          ${new Date().toISOString()},
+          ${new Date().toISOString()},
           ${categoryRow.category_id} 
         )
         returning item_id
@@ -221,7 +222,7 @@ export async function processImage(imageBase64: string): Promise<any> {
 
   const suggestedPrice =
     pricing.source === "ml"
-      ? pricing.optimalPrice
+      ? pricing.optimal_price
       : pricing.source === "llm"
         ? pricing.midpoint
         : null;
