@@ -186,13 +186,13 @@ export const agentAccept = authHelper(
           ? body.tags
           : body.tags.split(",").map((t: string) => t.trim());
 
+        const tagsCsv = tagsArray.join(",");
+
         await pg`
           insert into item_tags (item_id, tag_id)
           select ${item.item_id}, tag_id
           from tags
-          where tag_name in (
-            select jsonb_array_elements_text(${JSON.stringify(tagsArray)}::jsonb)
-          )
+          where tag_name = any(string_to_array(${tagsCsv}, ','))
         `;
       }
 
