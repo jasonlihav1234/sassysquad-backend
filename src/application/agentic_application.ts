@@ -182,11 +182,15 @@ export const agentAccept = authHelper(
       `;
 
       if (body.tags && body.tags.length > 0) {
+        const tagsArray = Array.isArray(body.tags)
+          ? body.tags
+          : body.tags.split(",").map((t: string) => t.trim());
+
         await pg`
           insert into item_tags (item_id, tag_id)
           select ${item.item_id}, tag_id
           from tags
-          where tag_name = any(${body.tags})
+          where tag_name = any(${pg.array(tagsArray)})
         `;
       }
 
