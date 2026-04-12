@@ -190,7 +190,9 @@ export const agentAccept = authHelper(
           insert into item_tags (item_id, tag_id)
           select ${item.item_id}, tag_id
           from tags
-          where tag_name = any(${tagsArray})
+          where tag_name in (
+            select jsonb_array_elements_text(${JSON.stringify(tagsArray)}::jsonb)
+          )
         `;
       }
 
