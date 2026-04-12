@@ -134,7 +134,7 @@ export const agentAccept = authHelper(
       );
     }
 
-    const userId = req.body.subject_claim;
+    const userId = req.user?.subject_claim as string;
     const quantity = body.quantityAvailable ?? 1;
 
     try {
