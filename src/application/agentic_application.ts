@@ -134,7 +134,7 @@ export const agentAccept = authHelper(
       );
     }
 
-    const userId = req.body.subject_claim;
+    const userId = req.user?.subject_claim as string;
     const quantity = body.quantityAvailable ?? 1;
 
     try {
@@ -186,11 +186,13 @@ export const agentAccept = authHelper(
           ? body.tags
           : body.tags.split(",").map((t: string) => t.trim());
 
+        const tagsCsv = tagsArray.join(",");
+
         await pg`
           insert into item_tags (item_id, tag_id)
           select ${item.item_id}, tag_id
           from tags
-          where tag_name = any(${pg.array(tagsArray)})
+          where tag_name = any(string_to_array(${tagsCsv}, ','))
         `;
       }
 
