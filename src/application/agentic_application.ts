@@ -8,7 +8,7 @@ import pg from "../utils/db";
 
 async function callMLModel(tags: string, category: string): Promise<any> {
   const response = await fetch(
-    `https://sassysquad-backend-production.up.railway.app/predict`,
+    `https://sassysquad-backend-production.up.railway.app/v2/predict`,
     {
       method: "POST",
       headers: {
