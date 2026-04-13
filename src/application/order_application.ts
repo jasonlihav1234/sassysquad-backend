@@ -9,7 +9,7 @@ import {
   createOrderQuery,
   updateOrdersById,
   deleteOrdersById,
-  getVoucherByCode, 
+  getVoucherByCode,
   incrementVoucherUsage,
 } from "../database/queries/order_queries";
 import nodemailer from "nodemailer";
@@ -341,13 +341,13 @@ export async function processOrderCreation(data: {
   }
 
   const items = newOrder.orderLines.map((line: any) => {
-  const discountedPrice = line.priceAtPurchase;
-  return {
-    itemId: line.itemID,
-    quantity: line.quantity,
-    priceAtPurchase: discountedPrice,
-  };
-});
+    const discountedPrice = line.priceAtPurchase;
+    return {
+      itemId: line.itemID,
+      quantity: line.quantity,
+      priceAtPurchase: discountedPrice,
+    };
+  });
 
   const response = await createOrderQuery(
     newOrder.orderId,
@@ -412,7 +412,7 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
     const destinationCountryCode =
       safeSession.shipping_details?.address?.country || "AU";
     const rawLineItems = checkoutSession.line_items?.data || [];
-    const internalOrderId = session.metadata?.orderId as string || sessionId;
+    const internalOrderId = (session.metadata?.orderId as string) || sessionId;
 
     const orderLines = rawLineItems.map((stripeItem, index) => {
       const product = stripeItem.price?.product as Stripe.Product;
@@ -598,12 +598,29 @@ export const createCheckoutSession = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim;
     const key = `cart:${userId}`;
+
+    const userResult =
+      await pg`select subscription_tier from users where user_id = ${userId}`;
+    const userTier = userResult[0]?.subscription_tier || "free";
+
+    const tierDiscounts: Record<string, number> = {
+      free: 0,
+      pro: 20,
+      enterprise: 40,
+    };
+    const tierDiscountPercent = tierDiscounts[userTier] || 0;
+
     const voucherData = await redis.get(`voucher:${userId}`);
     let discountPercent = 0;
     if (voucherData) {
       const voucher = JSON.parse(voucherData);
       discountPercent = voucher.discount_percent;
     }
+
+    const totalDiscountPercent = Math.min(
+      tierDiscountPercent + discountPercent,
+      100,
+    );
 
     // get the cart from the redis cache, need to save quantity and get info about item
     const itemIds = await redis.hkeys(key);
@@ -629,7 +646,7 @@ export const createCheckoutSession = authHelper(
       const getQuantity = await redis.hget(key, item.item_id);
 
       const originalPrice = Number(item.price);
-      const discountedPrice = originalPrice * (1 - discountPercent / 100);
+      const discountedPrice = originalPrice * (1 - totalDiscountPercent / 100);
 
       const newObject = {
         price_data: {
@@ -637,9 +654,10 @@ export const createCheckoutSession = authHelper(
           product_data: {
             name: item.item_name,
             tax_code: "txcd_99999999",
-            description: item.description,
+            description: `${item.description} (${userTier} tier discount applied)`,
             metadata: {
               item_id: item.item_id,
+              tier_applied: userTier,
             },
           },
           unit_amount: Math.round(discountedPrice * 100),
@@ -654,6 +672,7 @@ export const createCheckoutSession = authHelper(
       metadata: {
         buyerId: userId ?? "",
         orderId: internalOrderId ?? "",
+        appliedTier: userTier,
       },
       ui_mode: "embedded",
       submit_type: "pay",
@@ -663,7 +682,7 @@ export const createCheckoutSession = authHelper(
       },
       line_items: lineItems,
       mode: "payment",
-      return_url: `http://localhost:3000/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
+      return_url: `https://saasysquad-frontend.vercel.app/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
       automatic_tax: { enabled: true },
       shipping_options: [
         {
@@ -1138,7 +1157,8 @@ export const getOrder = authHelper(async (req: AuthReq): Promise<Response> => {
   }
 });
 
-export const applyVoucher = authHelper( async (req: AuthReq): Promise<Response> => {
+export const applyVoucher = authHelper(
+  async (req: AuthReq): Promise<Response> => {
     const { code } = req.body;
     const userId = req.user?.subject_claim;
 
@@ -1158,72 +1178,71 @@ export const applyVoucher = authHelper( async (req: AuthReq): Promise<Response> 
     }
 
     // check usage limit for voucher
-    if (
-      voucher.usage_limit &&
-      voucher.times_used >= voucher.usage_limit
-    ) {
+    if (voucher.usage_limit && voucher.times_used >= voucher.usage_limit) {
       return jsonHelper({ error: "Voucher usage limit reached" }, 400);
     }
 
     // store in redis kind of liek cart
     await redis.set(
-  `voucher:${userId}`,
-  JSON.stringify({
-    ...voucher,
-    discount_percent: Number(voucher.discount_percent),
-  })
-);
+      `voucher:${userId}`,
+      JSON.stringify({
+        ...voucher,
+        discount_percent: Number(voucher.discount_percent),
+      }),
+    );
     await redis.expire(`voucher:${userId}`, 3600);
 
     return jsonHelper({
       message: "Voucher applied",
       discount_percent: Number(voucher.discount_percent),
     });
-  }
+  },
 );
 
-export const getCart = authHelper(
-  async (req: AuthReq): Promise<Response> => {
-    const userId = req.user?.subject_claim;
-    const cartKey = `cart:${userId}`;
+export const getCart = authHelper(async (req: AuthReq): Promise<Response> => {
+  const userId = req.user?.subject_claim;
+  const cartKey = `cart:${userId}`;
 
-    try {
-      const cartData = await redis.hgetall(cartKey);
-      const itemIds = Object.keys(cartData);
+  try {
+    const cartData = await redis.hgetall(cartKey);
+    const itemIds = Object.keys(cartData);
 
-      if (itemIds.length === 0) {
-        return jsonHelper({
-          items: [],
-          subtotal: 0
-        });
-      }
-
-      const items = await pg `select item_id, item_name, price, image_url from items where item_id in ${pg(itemIds)} order by item_name`;
-
-      let subtotal = 0;
-
-      const resultCart = items.map((item: any) => {
-        const quantity = parseInt(cartData[item.item_id], 10);
-        const itemTotal = Number(item.price) * quantity;
-
-        subtotal += itemTotal;
-
-        return {
-          ...item,
-          quantity: quantity,
-          itemTotal: itemTotal
-        };
-      });
-
+    if (itemIds.length === 0) {
       return jsonHelper({
-        items: resultCart,
-        subtotal: subtotal
+        items: [],
+        subtotal: 0,
       });
-    } catch (error) {
-      console.log(error);
-      return jsonHelper({
-        error: "Failed to load shopping cart"
-      }, 500);
     }
+
+    const items =
+      await pg`select item_id, item_name, price, image_url from items where item_id in ${pg(itemIds)} order by item_name`;
+
+    let subtotal = 0;
+
+    const resultCart = items.map((item: any) => {
+      const quantity = parseInt(cartData[item.item_id], 10);
+      const itemTotal = Number(item.price) * quantity;
+
+      subtotal += itemTotal;
+
+      return {
+        ...item,
+        quantity: quantity,
+        itemTotal: itemTotal,
+      };
+    });
+
+    return jsonHelper({
+      items: resultCart,
+      subtotal: subtotal,
+    });
+  } catch (error) {
+    console.log(error);
+    return jsonHelper(
+      {
+        error: "Failed to load shopping cart",
+      },
+      500,
+    );
   }
-)
+});
