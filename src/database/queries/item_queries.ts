@@ -439,3 +439,19 @@ export async function getAllTagsQuery() {
     throw error;
   }
 }
+
+export async function getItemTagsByItemIdQuery(itemId: string): Promise<string[]> {
+  try {
+    const result = await pg`
+      select t.tag_name
+      from item_tags it
+      join tags t on it.tag_id = t.tag_id
+      where it.item_id = ${itemId}
+    `;
+
+    return result.map((row: any) => row.tag_name);
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
