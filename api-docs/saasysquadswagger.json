@@ -2309,6 +2309,12 @@
                           },
                           "image_url": {
                             "type": "string"
+                          },
+                          "itemTags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
                           }
                         }
                       }
