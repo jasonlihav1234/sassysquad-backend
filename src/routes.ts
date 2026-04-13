@@ -22,6 +22,7 @@ import googleCallback, {
   googleLogin,
   addTwoFactor,
   verifyTwoFactor,
+  updateSubscription,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
@@ -160,6 +161,13 @@ export async function handleRequest(req: any, res: any) {
       </body>
     </html>
     `);
+  }
+
+  if (url === "/v1/users/subscription" && method === "PATCH") {
+    const response = await updateSubscription(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
   }
 
   if (url === "/v1/agent/process" && method === "POST") {
