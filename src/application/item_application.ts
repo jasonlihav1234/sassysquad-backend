@@ -19,6 +19,7 @@ import {
   fetchTaggedCategoryItem,
   getAllCategoriesQuery,
   getAllTagsQuery,
+  getItemTagsByItemIdQuery,
 } from "../database/queries/item_queries";
 import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
@@ -610,7 +611,10 @@ export const getItemsById = authHelper(
     try {
       // should follow /items/{id}, refresh token soould be passed by header
       const itemId = req.url?.split("/").pop() as string;
-      const items = await getItemByItemIdQuery(itemId);
+      const [items, itemTag] = await Promise.all([
+        getItemByItemIdQuery(itemId),
+        getItemTagsByItemIdQuery(itemId),
+      ]);
 
       if (items.length === 0) {
         return jsonHelper(
@@ -621,9 +625,14 @@ export const getItemsById = authHelper(
         );
       }
 
+      const itemsWithTags = items.map((item: any) => ({
+        ...item,
+        itemTag: itemTag,
+      }));
+
       return jsonHelper({
         message: "Items found",
-        items: items,
+        items: itemsWithTags,
       });
     } catch (error) {
       return jsonHelper(
