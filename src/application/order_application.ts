@@ -603,12 +603,12 @@ export const createCheckoutSession = authHelper(
       await pg`select subscription_tier from users where user_id = ${userId}`;
     const userTier = userResult[0]?.subscription_tier || "free";
 
-    const tierDiscounts: Record<string, number> = {
-      free: 0,
-      pro: 20,
-      enterprise: 40,
+    const tierFeePercents: Record<string, number> = {
+      free: 10,
+      pro: 5,
+      enterprise: 2,
     };
-    const tierDiscountPercent = tierDiscounts[userTier] || 0;
+    const feePercent = tierFeePercents[userTier] ?? 10;
 
     const voucherData = await redis.get(`voucher:${userId}`);
     let discountPercent = 0;
@@ -616,11 +616,6 @@ export const createCheckoutSession = authHelper(
       const voucher = JSON.parse(voucherData);
       discountPercent = voucher.discount_percent;
     }
-
-    const totalDiscountPercent = Math.min(
-      tierDiscountPercent + discountPercent,
-      100,
-    );
 
     // get the cart from the redis cache, need to save quantity and get info about item
     const itemIds = await redis.hkeys(key);
@@ -642,11 +637,13 @@ export const createCheckoutSession = authHelper(
     }
 
     const lineItems = [];
+    let subtotal = 0;
     for (const item of getItems) {
       const getQuantity = await redis.hget(key, item.item_id);
-
+      const quantity = Number(getQuantity);
       const originalPrice = Number(item.price);
-      const discountedPrice = originalPrice * (1 - totalDiscountPercent / 100);
+      const discountedPrice = Math.round(originalPrice * (1 - discountPercent / 100) * 100);
+      subtotal += (discountedPrice / 100) * quantity;
 
       const newObject = {
         price_data: {
@@ -654,25 +651,38 @@ export const createCheckoutSession = authHelper(
           product_data: {
             name: item.item_name,
             tax_code: "txcd_99999999",
-            description: `${item.description} (${userTier} tier discount applied)`,
+            description: item.description,
             metadata: {
               item_id: item.item_id,
-              tier_applied: userTier,
             },
           },
-          unit_amount: Math.round(discountedPrice * 100),
+          unit_amount: discountedPrice,
         },
-        quantity: Number(getQuantity),
+        quantity: quantity,
       };
 
       lineItems.push(newObject);
     }
 
+    const feeAmount = subtotal * (feePercent / 100);
+
+    lineItems.push({
+      price_data: {
+        currency: "aud",
+        product_data: {
+          name: "Service Fee",
+          description: `${feePercent}% Service Fee (${userTier} tier)`
+        },
+        unit_amount: Math.round(feeAmount * 100),
+      },
+      quantity: 1,
+    });
+
     const session = await stripe!.checkout.sessions.create({
       metadata: {
         buyerId: userId ?? "",
         orderId: internalOrderId ?? "",
-        appliedTier: userTier,
+        tierApplied: userTier
       },
       ui_mode: "embedded",
       submit_type: "pay",
