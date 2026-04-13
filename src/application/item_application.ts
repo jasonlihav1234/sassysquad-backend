@@ -19,6 +19,7 @@ import {
   fetchTaggedCategoryItem,
   getAllCategoriesQuery,
   getAllTagsQuery,
+  getItemTagsByItemIdQuery,
 } from "../database/queries/item_queries";
 import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
@@ -621,9 +622,15 @@ export const getItemsById = authHelper(
         );
       }
 
+      const itemTags = await getItemTagsByItemIdQuery(itemId);
+      const itemsWithTags = items.map((item: any) => ({
+        ...item,
+        itemTags: itemTags,
+      }));
+
       return jsonHelper({
         message: "Items found",
-        items: items,
+        items: itemsWithTags,
       });
     } catch (error) {
       return jsonHelper(
