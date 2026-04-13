@@ -180,3 +180,8 @@ INSERT INTO categories (category_id, category_name) VALUES
   (gen_random_uuid(), 'planter'),
   (gen_random_uuid(), 'sculpture')
 ON CONFLICT (category_name) DO NOTHING;
+
+ALTER TABLE public.users
+ADD COLUMN subscription_tier VARCHAR(20)
+DEFAULT 'free'
+CHECK (subscription_tier IN ('free', 'pro', 'enterprise'));
