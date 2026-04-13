@@ -28,6 +28,7 @@ import {
   isUserIdValid,
   removeUserById,
   updateProfileQuery,
+  updateSubscriptionByUserId
 } from "../database/queries/user_queries";
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import * as arctic from "arctic";
@@ -914,3 +915,27 @@ export const addTwoFactor = authHelper(
     }
   },
 );
+
+export const updateSubscription = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      if (!req.body.subscriptionTier) {
+        return jsonHelper({
+          message: "Missing subscription tier"
+        }, 400);
+      }
+
+      const response = await updateSubscriptionByUserId(req.user!.subject_claim, req.body.subscriptonTier);
+
+      return jsonHelper({
+        message: "Subscription update successful"
+      }, response.status);
+    } catch (error: any) {
+      console.log(error);
+
+      return jsonHelper({
+        message: error
+      }, error.status);
+    }
+  }
+)

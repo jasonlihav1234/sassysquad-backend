@@ -151,3 +151,33 @@ export async function removeUserById(userId: string) {
     throw error;
   }
 }
+
+export async function updateSubscriptionByUserId(
+  userId: string,
+  subscriptionTier: string,
+) {
+  const validTiers = ["free", "pro", "enterprise"];
+  if (!validTiers.includes(subscriptionTier)) {
+    throw new Error("Invalid tier");
+  }
+
+  try {
+    const query = await pg`
+    update users
+    set subscription_tier = ${subscriptionTier}
+    where user_id = ${userId}
+    returning subscription_tier
+    `;
+
+    if (query.length === 0) {
+      throw new Error("User not found");
+    }
+
+    return jsonHelper({
+      message: "Subscription updated"
+    });
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
