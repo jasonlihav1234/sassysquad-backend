@@ -65,7 +65,43 @@ export const createSubscriptionSession = authHelper(
       }, 400);
     }
 
-    
+    if (user.stripe_subscription_id && user.subscription_tier !== "free") {
+      try {
+        const subscription = await stripe!.subscriptions.retrieve(
+          user.stripe_subscription_id
+        );
+
+        const currentItemId = subscription.items.data[0].id;
+
+        if (currentItemId) {
+          await stripe!.subscriptions.update(user.stripe_subscription_id, {
+            items: [
+              {
+                id: currentItemId,
+                price: TIER_PRICE_IDS[tier]
+              },
+            ],
+            proration_behavior: "create_prorations",
+            metadata: {
+              userId: userId ?? "",
+              tier: tier,
+            },
+          });
+
+          await pg`
+          update users
+          set subscription_tier = ${tier}, last_updated = now()
+          where user_id = ${userId}
+          `
+        }
+      } catch (error) {
+        console.log(error);
+        return jsonHelper({
+          message: "Failed to update subscription",
+          error: error
+        }, 500);
+      }
+    }
   }
 )
 
