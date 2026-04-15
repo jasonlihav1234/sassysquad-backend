@@ -20,6 +20,7 @@ import {
   getAllCategoriesQuery,
   getAllTagsQuery,
   getItemTagsByItemIdQuery,
+  getSellerUsernameBySellerIdQuery,
 } from "../database/queries/item_queries";
 import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
@@ -688,9 +689,20 @@ export const getAllItems = authHelper(
         );
       }
 
+      const sellerUsernames = await Promise.all(
+        response.map((item: any) =>
+          getSellerUsernameBySellerIdQuery(item.seller_id),
+        ),
+      );
+
+      const itemsWithSellerUsername = response.map((item: any, index: number) => ({
+        ...item,
+        seller_user_name: sellerUsernames[index],
+      }));
+
       return jsonHelper({
         message: "Items successfully fetched",
-        items: response,
+        items: itemsWithSellerUsername,
       });
     } catch (error) {
       return jsonHelper(
