@@ -26,6 +26,29 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const TIER_PRICE_IDS: any = {
+  pro: process.env.STRIPE_PRICE_PRO_YEARLY!,
+  enterprise: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY!
+}
+
+const TIER_NAMES = {
+  pro: "Pro",
+  enterprise: "Enterprise"
+}
+
+export const createSubscriptionSession = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const userId = req.user?.subject_claim;
+    const { tier } = req.body;
+
+    if (!tier || !TIER_PRICE_IDS[tier]) {
+      return jsonHelper({
+        message: "Invalid subscription tier"
+      }, 400);
+    }
+  }
+)
+
 export const validateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const contentType = req.headers?.["content-type"];
