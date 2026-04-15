@@ -222,6 +222,24 @@ export async function fulfillSubscription(
   `;
 }
 
+// cancellation or payment failure
+export async function handleSubscriptionDeleted(
+  subscription: Stripe.Subscription
+): Promise<void> {
+  const userId = subscription.metadata?.userId;
+
+  if (!userId) return;
+
+  await pg`
+  update users
+  set
+    subscription_tier = 'free',
+    stripe_subscription_tier = null,
+    last_updated = now()
+  where user_id = ${userId}
+  `;
+}
+
 export const validateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const contentType = req.headers?.["content-type"];
