@@ -51,6 +51,31 @@ export async function getAllItemsQuery() {
 }
 
 /*
+ * Gets a seller's user_name from their seller_id
+ */
+export async function getSellerUsernameBySellerIdQuery(
+  sellerId: string,
+): Promise<string | null> {
+  try {
+    const result = await pg`
+      select u.user_name
+      from users u
+      where u.user_id = ${sellerId}
+      limit 1
+    `;
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    return result[0].user_name;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
+/*
  * Gets all items given a userId
  */
 export async function getItemsUserQuery(userId: string) {
