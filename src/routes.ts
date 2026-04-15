@@ -55,6 +55,7 @@ import {
   getMarketEstimate,
   getAllCategories,
   getAllTags,
+  postItemReview,
 } from "./application/item_application";
 import { agentProcess, agentAccept } from "./application/agentic_application";
 import { deleteItemTagsQuery } from "./database/queries/item_queries";
@@ -370,6 +371,14 @@ export async function handleRequest(req: any, res: any) {
 
   if (url.match(/^\/cart\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
     const response = await updateCartItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  // POST /items/{itemId}/review
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+\/review$/) && method === "POST") {
+    const response = await postItemReview(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);

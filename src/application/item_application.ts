@@ -21,6 +21,7 @@ import {
   getAllTagsQuery,
   getItemTagsByItemIdQuery,
   getSellerUsernameBySellerIdQuery,
+  createReviewQuery,
 } from "../database/queries/item_queries";
 import { GoogleGenAI } from "@google/genai";
 import { updateProfileQuery } from "../database/queries/user_queries";
@@ -695,10 +696,12 @@ export const getAllItems = authHelper(
         ),
       );
 
-      const itemsWithSellerUsername = response.map((item: any, index: number) => ({
-        ...item,
-        seller_user_name: sellerUsernames[index],
-      }));
+      const itemsWithSellerUsername = response.map(
+        (item: any, index: number) => ({
+          ...item,
+          seller_user_name: sellerUsernames[index],
+        }),
+      );
 
       return jsonHelper({
         message: "Items successfully fetched",
@@ -885,6 +888,75 @@ export const addItemTags = authHelper(
       return jsonHelper(
         {
           message: "Adding item tag failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const postItemReview = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const contentType = req.headers?.["content-type"];
+
+      if (!contentType || !contentType.includes("application/json")) {
+        return jsonHelper(
+          {
+            error: "UNSUPPORTED_TYPE",
+            message: "This content type is not supported",
+          },
+          415,
+        );
+      }
+
+      const itemId = req.url?.split("/").at(2) as string;
+      const userId = req.user?.subject_claim as string;
+      const body = req.body || {};
+      const { review, rating } = body;
+
+      if (!review || typeof review !== "string") {
+        return jsonHelper(
+          {
+            error: "Bad Request",
+            message: "Invalid/missing review field",
+          },
+          400,
+        );
+      }
+
+      const item = await getItemByItemIdQuery(itemId);
+
+      if (item.length === 0) {
+        return jsonHelper(
+          {
+            message: "Item not found",
+          },
+          404,
+        );
+      }
+
+      const reviewId = crypto.randomUUID();
+      const result = await createReviewQuery(
+        reviewId,
+        userId,
+        itemId,
+        review,
+        rating,
+      );
+
+      return jsonHelper(
+        {
+          message: "Review posted successfully",
+          review: result[0],
+        },
+        201,
+      );
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Posting review failed",
           error: error,
         },
         500,
