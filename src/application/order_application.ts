@@ -46,6 +46,26 @@ export const createSubscriptionSession = authHelper(
         message: "Invalid subscription tier"
       }, 400);
     }
+
+    const [user] = await pg`
+    select subscription_tier, stripe_customer_id, stripe_subscription_id
+    from users
+    where user_id = ${userId}
+    `;
+
+    if (!user) {
+      return jsonHelper({
+        message: "User doesn't exist"
+      }, 404);
+    }
+
+    if (user.subscription_tier === tier) {
+      return jsonHelper({
+        message: "Already subscribed to this tier"
+      }, 400);
+    }
+
+    
   }
 )
 
