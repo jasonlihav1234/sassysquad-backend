@@ -916,16 +916,6 @@ export const postItemReview = authHelper(
       const body = req.body || {};
       const { review, rating } = body;
 
-      if (!review || typeof review !== "string") {
-        return jsonHelper(
-          {
-            error: "Bad Request",
-            message: "Invalid/missing review field",
-          },
-          400,
-        );
-      }
-
       const item = await getItemByItemIdQuery(itemId);
 
       if (item.length === 0) {
