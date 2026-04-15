@@ -2568,14 +2568,20 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "itemId": {
-                            "type": "string"
+                          "item_id": {
+                            "type": "string",
+                            "format": "uuid"
                           },
-                          "itemName": {
+                          "seller_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "item_name": {
                             "type": "string"
                           },
                           "description": {
-                            "type": "string"
+                            "type": "string",
+                            "nullable": true
                           },
                           "price": {
                             "type": "number",
@@ -2585,7 +2591,21 @@
                             "type": "integer"
                           },
                           "image_url": {
-                            "type": "string"
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "last_updated": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "category_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
                           }
                         }
                       }
