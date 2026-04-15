@@ -2626,6 +2626,11 @@
                             "type": "string",
                             "format": "uuid",
                             "nullable": true
+                          },
+                          "seller_user_name": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "The username of the seller who listed this item"
                           }
                         }
                       }
