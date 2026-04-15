@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS item_tags CASCADE;
 DROP TABLE IF EXISTS order_lines CASCADE;
+DROP TABLE IF EXISTS reviews CASCADE;
 
 DROP TABLE IF EXISTS refresh_tokens CASCADE;
 DROP TABLE IF EXISTS items CASCADE;
@@ -115,6 +116,15 @@ CREATE TABLE vouchers (
     usage_limit INT,
     times_used INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE reviews (
+    review_id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    item_id UUID NOT NULL REFERENCES items(item_id),
+    review TEXT NOT NULL,
+    review_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    rating SMALLINT NOT NULL CHECK (rating >= 0 AND rating <= 5)
 );
 
 INSERT INTO tags (tag_id, tag_name) VALUES

@@ -5,6 +5,7 @@ import {
   updateItemQueryV2,
   addItemTagsQuery,
   deleteItemTagsQuery,
+  createReviewQuery,
 } from "../../src/database/queries/item_queries";
 import { insertUser, insertItem, deleteTestData } from "../test_helper";
 import pg from "../../src/utils/db";
@@ -167,7 +168,8 @@ describe("updateItemQueryV2", () => {
 
   test("keeps category unchanged when categoryName is null", async () => {
     const seller = await insertUser();
-    const existingCategoryName = `ExistingCategory-${crypto.randomUUID()}`.toLowerCase();
+    const existingCategoryName =
+      `ExistingCategory-${crypto.randomUUID()}`.toLowerCase();
     const insertedCategory = await pg`
       insert into categories (category_id, category_name)
       values (${crypto.randomUUID()}, ${existingCategoryName})
@@ -349,7 +351,9 @@ describe("deleteItemTagsQuery", () => {
         order by t.tag_name asc
       `;
       expect(mappings.length).toBe(1);
-      expect(mappings[0].tag_name).toBe(lowerTags[0] === tags[0].toLowerCase() ? lowerTags[1] : lowerTags[0]);
+      expect(mappings[0].tag_name).toBe(
+        lowerTags[0] === tags[0].toLowerCase() ? lowerTags[1] : lowerTags[0],
+      );
     } finally {
       await pg`delete from item_tags where item_id = ${item.item_id}`;
       await deleteTestData({
@@ -359,4 +363,90 @@ describe("deleteItemTagsQuery", () => {
       await pg`delete from tags where tag_name in ${pg(lowerTags)}`;
     }
   }, 15000);
+});
+
+describe("createReviewQuery", () => {
+  test("inserts review and returns the created row", async () => {
+    const seller = await insertUser();
+    const reviewer = await insertUser();
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `create-review-success-${crypto.randomUUID()}`,
+    });
+    const reviewId = crypto.randomUUID();
+
+    try {
+      const result: any = await createReviewQuery(
+        reviewId,
+        reviewer.user_id,
+        item.item_id,
+        "Beautiful craftsmanship.",
+        5,
+      );
+
+      expect(result.length).toBe(1);
+      expect(result[0].review_id).toBe(reviewId);
+      expect(result[0].user_id).toBe(reviewer.user_id);
+      expect(result[0].item_id).toBe(item.item_id);
+      expect(result[0].review).toBe("Beautiful craftsmanship.");
+      expect(Number(result[0].rating)).toBe(5);
+      expect(result[0].review_date).not.toBe(undefined);
+
+      const rows = await pg`select * from reviews where review_id = ${reviewId}`;
+      expect(rows.length).toBe(1);
+      expect(rows[0].review).toBe("Beautiful craftsmanship.");
+      expect(Number(rows[0].rating)).toBe(5);
+    } finally {
+      await pg`delete from reviews where review_id = ${reviewId}`;
+      await deleteTestData({
+        itemIds: [item.item_id],
+        userIds: [seller.user_id, reviewer.user_id],
+      });
+    }
+  });
+
+  test("throws when item_id does not exist", async () => {
+    const reviewer = await insertUser();
+    const reviewId = crypto.randomUUID();
+
+    try {
+      await expect(
+        createReviewQuery(
+          reviewId,
+          reviewer.user_id,
+          crypto.randomUUID(),
+          "Review for nonexistent item",
+          3,
+        ),
+      ).rejects.toThrow();
+    } finally {
+      await deleteTestData({ userIds: [reviewer.user_id] });
+    }
+  });
+
+  test("throws when user_id does not exist", async () => {
+    const seller = await insertUser();
+    const item = await insertItem({
+      seller_id: seller.user_id,
+      item_name: `create-review-bad-user-${crypto.randomUUID()}`,
+    });
+    const reviewId = crypto.randomUUID();
+
+    try {
+      await expect(
+        createReviewQuery(
+          reviewId,
+          crypto.randomUUID(),
+          item.item_id,
+          "Review from nonexistent user",
+          4,
+        ),
+      ).rejects.toThrow();
+    } finally {
+      await deleteTestData({
+        itemIds: [item.item_id],
+        userIds: [seller.user_id],
+      });
+    }
+  });
 });

@@ -40,6 +40,48 @@ export async function getItemByItemIdQuery(itemId: string) {
 }
 
 /*
+ * Gets all reviews for a given item_id
+ */
+export async function getReviewsByItemIdQuery(itemId: string) {
+  try {
+    const result = await pg`
+      select *
+      from reviews
+      where item_id = ${itemId}
+      order by review_date desc
+    `;
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+}
+
+/*
+ * Creates a review for a given item_id
+ */
+export async function createReviewQuery(
+  reviewId: string,
+  userId: string,
+  itemId: string,
+  review: string,
+  rating: number,
+) {
+  try {
+    const result = await pg`
+      insert into reviews (review_id, user_id, item_id, review, rating)
+      values (${reviewId}, ${userId}, ${itemId}, ${review}, ${rating})
+      returning *
+    `;
+
+    return result;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
+/*
  * Gets all items
  */
 export async function getAllItemsQuery() {

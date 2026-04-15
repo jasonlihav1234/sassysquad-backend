@@ -13,6 +13,7 @@ import {
   getAllTags,
   updateItem,
   deleteItem,
+  postItemReview,
 } from "../../src/application/item_application";
 import { generateAuthenticatedRequest, generateRequest } from "../test_helper";
 import { beforeEach, afterEach } from "node:test";
@@ -92,11 +93,15 @@ describe("Create item tests", () => {
     await pg`delete from refresh_tokens`;
     await pg`delete from users where email in ('createitem@gmail.com')`;
 
-    const registerReq = generateRequest("http://localhost/auth/register", "POST", {
-      email: "createitem@gmail.com",
-      username: "createitemuser",
-      password: "testing123",
-    });
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "createitem@gmail.com",
+        username: "createitemuser",
+        password: "testing123",
+      },
+    );
 
     const registerRes = await register(registerReq);
     createdSellerId = (await registerRes.json()).user;
@@ -327,11 +332,15 @@ describe("Create item v2 tests", () => {
     await pg`delete from refresh_tokens`;
     await pg`delete from users where email in ('createitemv2@gmail.com')`;
 
-    const registerReq = generateRequest("http://localhost/auth/register", "POST", {
-      email: "createitemv2@gmail.com",
-      username: "createitemv2user",
-      password: "testing123",
-    });
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "createitemv2@gmail.com",
+        username: "createitemv2user",
+        password: "testing123",
+      },
+    );
 
     await register(registerReq);
 
@@ -1168,11 +1177,15 @@ describe("Add item tags tests", () => {
     await pg`delete from refresh_tokens`;
     await pg`delete from users where email in ('itemtags-owner@gmail.com', 'itemtags-other@gmail.com')`;
 
-    const ownerRegister = generateRequest("http://localhost/auth/register", "POST", {
-      email: "itemtags-owner@gmail.com",
-      username: "itemtagsowner",
-      password: "testing123",
-    });
+    const ownerRegister = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "itemtags-owner@gmail.com",
+        username: "itemtagsowner",
+        password: "testing123",
+      },
+    );
     const ownerRes = await register(ownerRegister);
     ownerId = (await ownerRes.json()).user;
 
@@ -1182,11 +1195,15 @@ describe("Add item tags tests", () => {
     });
     ownerAccessToken = (await (await login(ownerLogin)).json()).accessToken;
 
-    const otherRegister = generateRequest("http://localhost/auth/register", "POST", {
-      email: "itemtags-other@gmail.com",
-      username: "itemtagsother",
-      password: "testing123",
-    });
+    const otherRegister = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "itemtags-other@gmail.com",
+        username: "itemtagsother",
+        password: "testing123",
+      },
+    );
     await register(otherRegister);
 
     const otherLogin = generateRequest("http://localhost/auth/login", "POST", {
@@ -1376,11 +1393,15 @@ describe("Delete item tags tests", () => {
     await pg`delete from refresh_tokens`;
     await pg`delete from users where email in ('deleteitemtags@gmail.com')`;
 
-    const registerReq = generateRequest("http://localhost/auth/register", "POST", {
-      email: "deleteitemtags@gmail.com",
-      username: "deleteitemtagsuser",
-      password: "testing123",
-    });
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "deleteitemtags@gmail.com",
+        username: "deleteitemtagsuser",
+        password: "testing123",
+      },
+    );
     const regRes = await register(registerReq);
     userId = (await regRes.json()).user;
 
@@ -1507,6 +1528,241 @@ describe("Delete item tags tests", () => {
 
     expect(response.status).toBe(500);
     expect(body.message).toBe("Removing item tags failed");
+    expect(body.error).not.toBe(undefined);
+  });
+});
+
+describe("Post item review tests", () => {
+  let accessToken: string;
+  let userId: string;
+  let itemId: string;
+
+  beforeEach(async () => {
+    itemId = crypto.randomUUID();
+    await pg`
+      delete from reviews
+      where item_id in (
+        select item_id from items
+        where seller_id in (
+          select user_id from users
+          where email in ('postreview@gmail.com')
+        )
+      )
+    `;
+    await pg`
+      delete from items
+      where seller_id in (
+        select user_id from users
+        where email in ('postreview@gmail.com')
+      )
+    `;
+    await pg`delete from refresh_tokens`;
+    await pg`delete from users where email in ('postreview@gmail.com')`;
+
+    const registerReq = generateRequest(
+      "http://localhost/auth/register",
+      "POST",
+      {
+        email: "postreview@gmail.com",
+        username: "postreviewuser",
+        password: "testing123",
+      },
+    );
+    const regRes = await register(registerReq);
+    userId = (await regRes.json()).user;
+
+    const loginReq = generateRequest("http://localhost/auth/login", "POST", {
+      email: "postreview@gmail.com",
+      password: "testing123",
+    });
+    accessToken = (await (await login(loginReq)).json()).accessToken;
+
+    await pg`
+      insert into items (item_id, seller_id, item_name, price, quantity_available)
+      values (${itemId}, ${userId}, ${"reviewable_item"}, ${29.99}, ${5})
+    `;
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  afterAll(async () => {
+    await pg`
+      delete from reviews
+      where item_id in (
+        select item_id from items
+        where seller_id in (
+          select user_id from users
+          where email in ('postreview@gmail.com')
+        )
+      )
+    `;
+    await pg`
+      delete from items
+      where seller_id in (
+        select user_id from users
+        where email in ('postreview@gmail.com')
+      )
+    `;
+    await pg`delete from refresh_tokens`;
+    await pg`delete from users where email in ('postreview@gmail.com')`;
+  });
+
+  test("returns 401 when authorization header is missing", async () => {
+    const request = generateRequest(
+      `/items/${itemId}/review`,
+      "POST",
+      {
+        review: "Great item!",
+        rating: 5,
+      },
+    );
+    request.headers = {
+      "content-type": "application/json",
+    };
+
+    const response = await postItemReview(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body.error).toBe("Authorization is header missing");
+  });
+
+  test("returns 415 for unsupported content type", async () => {
+    const request = generateAuthenticatedRequest(
+      `/items/${itemId}/review`,
+      "POST",
+      {
+        review: "Great item!",
+        rating: 5,
+      },
+      accessToken,
+    );
+    request.headers = {
+      "content-type": "text/plain",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await postItemReview(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(415);
+    expect(body.error).toBe("UNSUPPORTED_TYPE");
+    expect(body.message).toBe("This content type is not supported");
+  });
+
+  test("returns 404 when item does not exist", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: userId,
+    } as any);
+    const request = generateAuthenticatedRequest(
+      `/items/${crypto.randomUUID()}/review`,
+      "POST",
+      {
+        review: "Great item!",
+        rating: 5,
+      },
+      "valid.fake.token",
+    );
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: "Bearer valid.fake.token",
+    };
+
+    const response = await postItemReview(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.message).toBe("Item not found");
+  });
+
+  test("posts review successfully and persists to DB", async () => {
+    const request = generateAuthenticatedRequest(
+      `/items/${itemId}/review`,
+      "POST",
+      {
+        review: "Absolutely love this piece!",
+        rating: 5,
+      },
+      accessToken,
+    );
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const response = await postItemReview(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.message).toBe("Review posted successfully");
+    expect(body.review).not.toBe(undefined);
+    expect(body.review.review_id).not.toBe(undefined);
+    expect(body.review.item_id).toBe(itemId);
+    expect(body.review.user_id).toBe(userId);
+    expect(body.review.review).toBe("Absolutely love this piece!");
+    expect(body.review.rating).toBe(5);
+
+    const rows = await pg`select * from reviews where item_id = ${itemId}`;
+    expect(rows.length).toBe(1);
+    expect(rows[0].review).toBe("Absolutely love this piece!");
+    expect(Number(rows[0].rating)).toBe(5);
+    expect(rows[0].user_id).toBe(userId);
+  });
+
+  test("multiple reviews can be posted for the same item", async () => {
+    const postReview = async (reviewText: string, rating: number) => {
+      const request = generateAuthenticatedRequest(
+        `/items/${itemId}/review`,
+        "POST",
+        { review: reviewText, rating },
+        accessToken,
+      );
+      request.headers = {
+        "content-type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      };
+      return postItemReview(request);
+    };
+
+    const res1 = await postReview("First review", 4);
+    const res2 = await postReview("Second review", 3);
+
+    expect(res1.status).toBe(201);
+    expect(res2.status).toBe(201);
+
+    const rows = await pg`select * from reviews where item_id = ${itemId}`;
+    expect(rows.length).toBe(2);
+  });
+
+  test("returns 500 when createReviewQuery fails", async () => {
+    spyOn(authUtils, "verifyAccessToken").mockResolvedValue({
+      subject_claim: userId,
+    } as any);
+    spyOn(itemQueries, "createReviewQuery").mockRejectedValue(
+      new Error("review insert failed"),
+    );
+
+    const request = generateAuthenticatedRequest(
+      `/items/${itemId}/review`,
+      "POST",
+      {
+        review: "Great item!",
+        rating: 5,
+      },
+      "valid.fake.token",
+    );
+    request.headers = {
+      "content-type": "application/json",
+      Authorization: "Bearer valid.fake.token",
+    };
+
+    const response = await postItemReview(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.message).toBe("Posting review failed");
     expect(body.error).not.toBe(undefined);
   });
 });
