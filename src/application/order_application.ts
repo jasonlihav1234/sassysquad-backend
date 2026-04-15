@@ -195,6 +195,33 @@ export const cancelSubscription = authHelper(
   },
 );
 
+export async function fulfillSubscription(
+  session: Stripe.Checkout.Session
+): Promise<void> {
+  const userId = session.metadata?.userId;
+  const tier = session.metadata?.tier;
+  const subscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id;
+
+  if (!userId || !tier) {
+    console.log(`Missing metadata on subscription session: ${session.id}`);
+    return;
+  }
+
+  await pg`
+  update users
+  set
+    subscription_tier = ${tier},
+    stripe_subscription_id = ${subscriptionId ?? null},
+    stripe_customer_id = ${session.customer ?? null},
+    last_updated = now()
+  where
+    user_id = ${userId}
+  `;
+}
+
 export const validateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const contentType = req.headers?.["content-type"];
