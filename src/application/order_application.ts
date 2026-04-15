@@ -28,13 +28,13 @@ const transporter = nodemailer.createTransport({
 
 const TIER_PRICE_IDS: any = {
   pro: process.env.STRIPE_PRICE_PRO_YEARLY!,
-  enterprise: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY!
-}
+  enterprise: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY!,
+};
 
 const TIER_NAMES = {
   pro: "Pro",
-  enterprise: "Enterprise"
-}
+  enterprise: "Enterprise",
+};
 
 export const createSubscriptionSession = authHelper(
   async (req: AuthReq): Promise<Response> => {
@@ -42,9 +42,12 @@ export const createSubscriptionSession = authHelper(
     const { tier } = req.body;
 
     if (!tier || !TIER_PRICE_IDS[tier]) {
-      return jsonHelper({
-        message: "Invalid subscription tier"
-      }, 400);
+      return jsonHelper(
+        {
+          message: "Invalid subscription tier",
+        },
+        400,
+      );
     }
 
     const [user] = await pg`
@@ -54,21 +57,27 @@ export const createSubscriptionSession = authHelper(
     `;
 
     if (!user) {
-      return jsonHelper({
-        message: "User doesn't exist"
-      }, 404);
+      return jsonHelper(
+        {
+          message: "User doesn't exist",
+        },
+        404,
+      );
     }
 
     if (user.subscription_tier === tier) {
-      return jsonHelper({
-        message: "Already subscribed to this tier"
-      }, 400);
+      return jsonHelper(
+        {
+          message: "Already subscribed to this tier",
+        },
+        400,
+      );
     }
 
     if (user.stripe_subscription_id && user.subscription_tier !== "free") {
       try {
         const subscription = await stripe!.subscriptions.retrieve(
-          user.stripe_subscription_id
+          user.stripe_subscription_id,
         );
 
         const currentItemId = subscription.items.data[0].id;
@@ -78,7 +87,7 @@ export const createSubscriptionSession = authHelper(
             items: [
               {
                 id: currentItemId,
-                price: TIER_PRICE_IDS[tier]
+                price: TIER_PRICE_IDS[tier],
               },
             ],
             proration_behavior: "create_prorations",
@@ -92,14 +101,17 @@ export const createSubscriptionSession = authHelper(
           update users
           set subscription_tier = ${tier}, last_updated = now()
           where user_id = ${userId}
-          `
+          `;
         }
       } catch (error) {
         console.log(error);
-        return jsonHelper({
-          message: "Failed to update subscription",
-          error: error
-        }, 500);
+        return jsonHelper(
+          {
+            message: "Failed to update subscription",
+            error: error,
+          },
+          500,
+        );
       }
     }
 
@@ -132,17 +144,56 @@ export const createSubscriptionSession = authHelper(
       line_items: [
         {
           price: TIER_PRICE_IDS[tier],
-          quantity: 1
+          quantity: 1,
         },
       ],
       return_url: `https://saasysquad-frontend.vercel.app/subscribe/return?session_id={CHECKOUT_SESSION_ID}`,
     });
 
     return jsonHelper({
-      clientSecret: session.client_secret
+      clientSecret: session.client_secret,
     });
-  }
-)
+  },
+);
+
+export const cancelSubscription = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const userId = req.user?.subject_claim;
+
+    const [user] = await pg`
+    select stripe_subscription_id, subscription_tier
+    form users
+    where user_id = ${userId}
+    `;
+
+    if (!user?.stripe_subscription_id) {
+      return jsonHelper(
+        {
+          message: "No active subscription",
+        },
+        400,
+      );
+    }
+
+    try {
+      await stripe!.subscriptions.update(user.stripe_subscription_id, {
+        cancel_at_period_end: true,
+      });
+
+      return jsonHelper({
+        message: "Subscription will cancel at end of billing month",
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper(
+        {
+          message: "Failed to cancel subscription",
+        },
+        500,
+      );
+    }
+  },
+);
 
 export const validateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
@@ -760,7 +811,9 @@ export const createCheckoutSession = authHelper(
       const getQuantity = await redis.hget(key, item.item_id);
       const quantity = Number(getQuantity);
       const originalPrice = Number(item.price);
-      const discountedPrice = Math.round(originalPrice * (1 - discountPercent / 100) * 100);
+      const discountedPrice = Math.round(
+        originalPrice * (1 - discountPercent / 100) * 100,
+      );
       subtotal += (discountedPrice / 100) * quantity;
 
       const newObject = {
@@ -789,7 +842,7 @@ export const createCheckoutSession = authHelper(
         currency: "aud",
         product_data: {
           name: "Service Fee",
-          description: `${feePercent}% Service Fee (${userTier} tier)`
+          description: `${feePercent}% Service Fee (${userTier} tier)`,
         },
         unit_amount: Math.round(feeAmount * 100),
       },
@@ -800,7 +853,7 @@ export const createCheckoutSession = authHelper(
       metadata: {
         buyerId: userId ?? "",
         orderId: internalOrderId ?? "",
-        tierApplied: userTier
+        tierApplied: userTier,
       },
       ui_mode: "embedded",
       submit_type: "pay",
