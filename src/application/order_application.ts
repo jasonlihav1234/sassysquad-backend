@@ -102,6 +102,45 @@ export const createSubscriptionSession = authHelper(
         }, 500);
       }
     }
+
+    // new subscription
+    let customerId = user.stripe_customer_id;
+
+    if (!customerId) {
+      const customer = await stripe!.customers.create({
+        metadata: { userId: userId ?? "" },
+      });
+
+      customerId = customer.id;
+
+      await pg`
+      update users
+      set stripe_customer_id = ${customerId}
+      where user_id = ${userId}
+      `;
+    }
+
+    const session = await stripe!.checkout.sessions.create({
+      customer: customerId,
+      metadata: {
+        userId: userId ?? "",
+        tier: tier,
+        type: "subscription",
+      },
+      ui_mode: "embedded",
+      mode: "subscription",
+      line_items: [
+        {
+          price: TIER_PRICE_IDS[tier],
+          quantity: 1
+        },
+      ],
+      return_url: `https://saasysquad-frontend.vercel.app/subscribe/return?session_id={CHECKOUT_SESSION_ID}`,
+    });
+
+    return jsonHelper({
+      clientSecret: session.client_secret
+    });
   }
 )
 
