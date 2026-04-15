@@ -4933,6 +4933,160 @@
         ]
       }
     },
+    "/items/{itemId}/review": {
+      "post": {
+        "tags": ["item"],
+        "summary": "Post a review for an item",
+        "description": "Allows an authenticated user to post a review for a specific item. Review includes a text body and a rating.",
+        "operationId": "postItemReview",
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "description": "Unique identifier of the item to review",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["review", "rating"],
+                "properties": {
+                  "review": {
+                    "type": "string",
+                    "description": "The text content of the review",
+                    "example": "The quality is outstanding!"
+                  },
+                  "rating": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5,
+                    "description": "Star rating for the item (0–5, no decimals)",
+                    "example": 5
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review posted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Review posted successfully"
+                    },
+                    "review": {
+                      "type": "object",
+                      "properties": {
+                        "review_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "user_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "item_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "review": {
+                          "type": "string"
+                        },
+                        "review_date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "rating": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 5
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Item not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Item not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type (Missing or invalid Content-Type)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "UNSUPPORTED_TYPE"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "This content type is not supported"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Posting review failed"
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {},
+                      "description": "Detailed error object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/auth/google/login": {
       "get": {
         "tags": ["auth"],
