@@ -124,8 +124,7 @@ CREATE TABLE reviews (
     item_id UUID NOT NULL REFERENCES items(item_id),
     review TEXT NOT NULL,
     review_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    rating SMALLINT NOT NULL CHECK (rating >= 0 AND rating <= 5),
-    user_name VARCHAR(255) NOT NULL REFERENCES users(user_name)
+    rating SMALLINT NOT NULL CHECK (rating >= 0 AND rating <= 5)
 );
 
 INSERT INTO tags (tag_id, tag_name) VALUES
