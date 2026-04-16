@@ -222,7 +222,7 @@ export async function fulfillSubscription(
   set
     subscription_tier = ${tier},
     stripe_subscription_id = ${subscriptionId ?? null},
-    stripe_customer_id = ${session.customer ?? null},
+    stripe_customer_id = ${session.customer ?? null}
   where
     user_id = ${userId}
   `;
