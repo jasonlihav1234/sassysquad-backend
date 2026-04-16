@@ -41,6 +41,8 @@ export const createSubscriptionSession = authHelper(
     const userId = req.user?.subject_claim;
     const { tier } = req.body;
 
+    console.log(tier);
+
     if (!tier || !TIER_PRICE_IDS[tier]) {
       return jsonHelper(
         {
