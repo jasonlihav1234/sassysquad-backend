@@ -169,7 +169,7 @@ export const cancelSubscription = authHelper(
 
     const [user] = await pg`
     select stripe_subscription_id, subscription_tier
-    form users
+    from users
     where user_id = ${userId}
     `;
 
