@@ -154,7 +154,7 @@ export const createSubscriptionSession = authHelper(
           quantity: 1,
         },
       ],
-      return_url: `https://saasysquad-frontend.vercel.app/subscribe/return?session_id={CHECKOUT_SESSION_ID}`,
+      return_url: `http://localhost:3000/subscribe/return?session_id={CHECKOUT_SESSION_ID}`,
     });
 
     return jsonHelper({
