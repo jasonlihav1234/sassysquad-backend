@@ -56,7 +56,7 @@ export const createSubscriptionSession = authHelper(
     where user_id = ${userId}
     `;
 
-    if (!user) {
+    if (user.length === 0) {
       return jsonHelper(
         {
           message: "User doesn't exist",
