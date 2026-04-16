@@ -196,7 +196,7 @@ export const cancelSubscription = authHelper(
 );
 
 export async function fulfillSubscription(
-  session: Stripe.Checkout.Session
+  session: Stripe.Checkout.Session,
 ): Promise<void> {
   const userId = session.metadata?.userId;
   const tier = session.metadata?.tier;
@@ -224,7 +224,7 @@ export async function fulfillSubscription(
 
 // cancellation or payment failure
 export async function handleSubscriptionDeleted(
-  subscription: Stripe.Subscription
+  subscription: Stripe.Subscription,
 ): Promise<void> {
   const userId = subscription.metadata?.userId;
 
@@ -1012,24 +1012,38 @@ export async function serverWebhook(
     );
   }
 
-  if (
-    event.type === "checkout.session.completed" ||
-    event.type === "checkout.session.async_payment_succeeded"
-  ) {
-    try {
-      await fulfillCheckout(event.data.object);
+  switch (event.type) {
+    case "checkout.session.completed":
+    case "checkout.session.async_payment_succeeded": {
+      const session = event.data.object as Stripe.Checkout.Session;
+
+      if (session.metadata?.type === "subscription") {
+        await fulfillSubscription(session);
+      } else {
+        await fulfillCheckout(session);
+      }
 
       return jsonHelper({
-        message: "Checkout successfully fulfilled",
+        message: "Fulfilled",
       });
-    } catch (error) {
-      console.log(error);
-      return jsonHelper({ error: "Event type invalid" }, 400);
     }
-  }
 
-  // prevent stripe from retrying
-  return jsonHelper({ message: "Unhandled event type ignored" }, 200);
+    case "customer.subscription.deleted": {
+      const subscription = event.data.object as Stripe.Subscription;
+      await handleSubscriptionDeleted(subscription);
+      return jsonHelper({
+        message: "Subscription removed",
+      });
+    }
+
+    default:
+      return jsonHelper(
+        {
+          message: "Unhandled event type ignored",
+        },
+        200,
+      );
+  }
 }
 
 // post with itemId and quantity and userId in body
