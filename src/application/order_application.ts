@@ -101,7 +101,7 @@ export const createSubscriptionSession = authHelper(
 
           await pg`
           update users
-          set subscription_tier = ${tier}, last_updated = now()
+          set subscription_tier = ${tier}
           where user_id = ${userId}
           `;
 
@@ -223,7 +223,6 @@ export async function fulfillSubscription(
     subscription_tier = ${tier},
     stripe_subscription_id = ${subscriptionId ?? null},
     stripe_customer_id = ${session.customer ?? null},
-    last_updated = now()
   where
     user_id = ${userId}
   `;
@@ -242,7 +241,6 @@ export async function handleSubscriptionDeleted(
   set
     subscription_tier = 'free',
     stripe_subscription_tier = null,
-    last_updated = now()
   where user_id = ${userId}
   `;
 }
