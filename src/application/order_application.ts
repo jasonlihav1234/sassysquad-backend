@@ -31,7 +31,7 @@ const TIER_PRICE_IDS: any = {
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY!,
 };
 
-const TIER_NAMES = {
+const TIER_NAMES: any = {
   pro: "Pro",
   enterprise: "Enterprise",
 };
@@ -102,6 +102,11 @@ export const createSubscriptionSession = authHelper(
           set subscription_tier = ${tier}, last_updated = now()
           where user_id = ${userId}
           `;
+
+          return jsonHelper({
+            message: `Subscription updated to ${TIER_NAMES[tier]}`,
+            upgraded: true,
+          });
         }
       } catch (error) {
         console.log(error);
