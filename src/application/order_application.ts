@@ -1023,7 +1023,7 @@ export async function serverWebhook(
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded": {
       const session = event.data.object as Stripe.Checkout.Session;
-      console.log("here");
+      console.log(`This is working: ${session.metadata?.type}`);
       if (session.metadata?.type === "subscription") {
         await fulfillSubscription(session);
       } else {
