@@ -1018,12 +1018,12 @@ export async function serverWebhook(
       400,
     );
   }
-
+  console.log(event.type);
   switch (event.type) {
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded": {
       const session = event.data.object as Stripe.Checkout.Session;
-
+      console.log("here");
       if (session.metadata?.type === "subscription") {
         await fulfillSubscription(session);
       } else {
