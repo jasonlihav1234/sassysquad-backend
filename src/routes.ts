@@ -4,7 +4,12 @@ import {
   getOrderById,
   updateOrdersById,
 } from "./database/queries/order_queries";
-import { applyVoucher, getCart } from "./application/order_application";
+import {
+  applyVoucher,
+  cancelSubscription,
+  createSubscriptionSession,
+  getCart,
+} from "./application/order_application";
 import googleCallback, {
   register,
   login,
@@ -171,6 +176,13 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
+  if (url === "/v1/subscription/checkout" && method === "POST") {
+    const response = await createSubscriptionSession(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   if (url === "/v1/analytics/pro" && method === "GET") {
     const response = await getProAnalytics(req);
 
@@ -180,6 +192,13 @@ export async function handleRequest(req: any, res: any) {
 
   if (url === "/v1/analytics/enterprise" && method === "GET") {
     const response = await getEnterpriseAnalytics(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+  
+  if (url === "/v1/subscription/cancel" && method === "POST") {
+    const response = await cancelSubscription(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);
