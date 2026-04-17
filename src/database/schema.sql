@@ -185,3 +185,52 @@ ALTER TABLE public.users
 ADD COLUMN subscription_tier VARCHAR(20)
 DEFAULT 'free'
 CHECK (subscription_tier IN ('free', 'pro', 'enterprise'));
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS stripe_customer_id     TEXT,
+  ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+ 
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ 
+UPDATE orders SET created_at = issue_date::timestamp
+  WHERE created_at IS NULL AND issue_date IS NOT NULL;
+ 
+CREATE TABLE IF NOT EXISTS item_views (
+  view_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  item_id    UUID NOT NULL REFERENCES items(item_id) ON DELETE CASCADE,
+  viewer_id  UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  viewed_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ip_hash    TEXT,
+  session_id UUID
+);
+ 
+CREATE INDEX IF NOT EXISTS idx_orders_seller_created
+  ON orders (seller_id, created_at DESC);
+ 
+CREATE INDEX IF NOT EXISTS idx_orders_buyer_created
+  ON orders (buyer_id, created_at DESC);
+ 
+CREATE INDEX IF NOT EXISTS idx_order_lines_order
+  ON order_lines (order_id);
+ 
+CREATE INDEX IF NOT EXISTS idx_order_lines_item
+  ON order_lines (item_id);
+ 
+CREATE INDEX IF NOT EXISTS idx_items_seller
+  ON items (seller_id);
+ 
+CREATE INDEX IF NOT EXISTS idx_items_category
+  ON items (category_id);
+ 
+CREATE INDEX IF NOT EXISTS idx_items_seller_quantity
+  ON items (seller_id, quantity_available) WHERE quantity_available > 0;
+ 
+CREATE INDEX IF NOT EXISTS idx_item_views_item_viewed
+  ON item_views (item_id, viewed_at DESC);
+ 
+CREATE INDEX IF NOT EXISTS idx_item_tags_item
+  ON item_tags (item_id);
+ 
+CREATE INDEX IF NOT EXISTS idx_item_tags_tag
+  ON item_tags (tag_id);
