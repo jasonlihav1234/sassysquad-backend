@@ -65,6 +65,7 @@ import { agentProcess, agentAccept } from "./application/agentic_application";
 import { deleteItemTagsQuery } from "./database/queries/item_queries";
 import { UnexpectedResponseError } from "arctic";
 import { ur } from "zod/locales";
+import { getBasicAnalytics, getEnterpriseAnalytics, getProAnalytics } from "./application/analytics_application";
 
 export async function handleRequest(req: any, res: any) {
   const { method, url, body } = req;
@@ -168,6 +169,13 @@ export async function handleRequest(req: any, res: any) {
     `);
   }
 
+  if (url === "/v1/analytics/basic" && method === "GET") {
+    const response = await getBasicAnalytics(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   if (url === "/v1/subscription/checkout" && method === "POST") {
     const response = await createSubscriptionSession(req);
 
@@ -175,6 +183,20 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
+  if (url === "/v1/analytics/pro" && method === "GET") {
+    const response = await getProAnalytics(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (url === "/v1/analytics/enterprise" && method === "GET") {
+    const response = await getEnterpriseAnalytics(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+  
   if (url === "/v1/subscription/cancel" && method === "POST") {
     const response = await cancelSubscription(req);
 

@@ -613,6 +613,7 @@ export const getItemsById = authHelper(
       // should follow /items/{id}, refresh token soould be passed by header
       const itemId = req.url?.split("/").pop() as string;
       const items = await getItemByItemIdQuery(itemId);
+      const userId = req.user?.subject_claim;
 
       if (items.length === 0) {
         return jsonHelper(
@@ -621,6 +622,13 @@ export const getItemsById = authHelper(
           },
           404,
         );
+      }
+
+      if (userId !== items[0].seller_id) {
+        pg`
+        insert into item_views (view_id, item_id, viewer_id, viewed_at)
+        values (gen_random_uuid(), ${items[0].item_id}, ${userId ?? null}, now())
+        `. catch((error: any) => console.log("view tracking failed", error));
       }
 
       const itemTags = await getItemTagsByItemIdQuery(itemId);
