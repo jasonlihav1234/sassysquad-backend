@@ -34,6 +34,32 @@ async function setCached(key: string, value: unknown): Promise<void> {
   await redis.expire(key, CACHE_TTL_SECONDS);
 }
 
+function linearForecast(points: { t: number, y: number }[], periods: number) {
+  if (points.length < 2) {
+    return points[0]?.y ?? 0;
+  }
+
+  const n = points.length;
+  const sumX = points.reduce((s, p) => s + p.t, 0);
+  const sumY = points.reduce((s, p) => s + p.y, 0);
+  const sumXY = points.reduce((s, p) => s + p.t * p.y, 0);
+  const sumXX = points.reduce((s, p) => s + p.t * p.t, 0);
+ 
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+ 
+  const last = points[points.length - 1].t;
+  const monthInSeconds = 60 * 60 * 24 * 30;
+ 
+  let projected = 0;
+  for (let i = 1; i <= periods; i++) {
+    const t = last + i * monthInSeconds;
+    projected += Math.max(0, slope * t + intercept);
+  }
+ 
+  return projected;
+}
+
 export const getBasicAnalytucs = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim as string;
