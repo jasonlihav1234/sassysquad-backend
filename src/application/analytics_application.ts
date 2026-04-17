@@ -1,6 +1,5 @@
 import { authHelper, jsonHelper, AuthReq } from "../utils/jwt_helpers";
 import pg, { redis } from "../utils/db";
-import { StringLike } from "bun";
 
 const CACHE_TTL_SECONDS = 600;
 const TIER_ORDER: any = {
@@ -18,7 +17,7 @@ async function getUserTier(userId: string | undefined): Promise<string> {
   where user_id = ${userId}
   `;
 
-  return row[0]?.subscription_tier ?? "free";
+  return row?.subscription_tier ?? "free";
 }
 
 function hasAccess(userTier: string, requiredTier: string): boolean {
@@ -61,7 +60,7 @@ function linearForecast(points: { t: number; y: number }[], periods: number) {
   return projected;
 }
 
-function percentileLabel(
+function percentileToLabel(
   pct: number,
 ): "leading" | "strong" | "mid" | "emerging" {
   if (pct >= 0.9) return "leading";
@@ -71,7 +70,7 @@ function percentileLabel(
   return "emerging";
 }
 
-export const getBasicAnalytucs = authHelper(
+export const getBasicAnalytics = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim as string;
     const cacheKey = `analytics:basic:${userId}`;
@@ -257,9 +256,147 @@ export const getProAnalytics = authHelper(
       return jsonHelper(result);
     } catch (error) {
       console.log(error);
-      return jsonHelper({
-        message: "Failed to load analytics"
-      }, 500);
+      return jsonHelper(
+        {
+          message: "Failed to load analytics",
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const getEnterpriseAnalytics = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const userId = req.user?.subject_claim as string;
+    const userTier = await getUserTier(userId);
+
+    if (!hasAccess(userTier, "enterprise")) {
+      return jsonHelper(
+        {
+          message: "Enterprise subscription required",
+          required: "enterprise",
+        },
+        403,
+      );
+    }
+
+    const cacheKey = `analytics:enterprise:${userId}`;
+    const cached = await getCached(cacheKey);
+    if (cached) return jsonHelper(cached);
+
+    try {
+      const monthly = await pg`
+        select extract(epoch from date_trunc('month', o.created_at))::bigint as t,
+              sum(ol.price_at_purchase * ol.quantity)::numeric as revenue
+        from order_lines ol
+        join orders o on o.order_id = ol.order_id
+        join items i on i.item_id = ol.item_id
+        where i.seller_id = ${userId}
+          and o.created_at >= now() - interval '6 months'
+        group by date_trunc('month', o.created_at)
+        order by date_trunc('month', o.created_at) asc
+      `;
+
+      const forecast = linearForecast(
+        monthly.map((r: any) => ({ t: Number(r.t), y: Number(r.revenue) })),
+        3,
+      );
+
+      const [ltv] = await pg`
+        with buyer_totals as (
+          select o.buyer_id,
+                sum(ol.price_at_purchase * ol.quantity)::numeric as total_spent
+          from orders o
+          join order_lines ol on ol.order_id = o.order_id
+          join items i on i.item_id = ol.item_id
+          where i.seller_id = ${userId}
+          group by o.buyer_id
+        )
+        select count(*)::int as unique_buyers,
+              coalesce(avg(total_spent), 0)::numeric as avg_ltv
+        from buyer_totals
+      `;
+
+      const [churn] = await pg`
+        with active_then as (
+          select distinct o.buyer_id
+          from orders o
+          join order_lines ol on ol.order_id = o.order_id
+          join items i on i.item_id = ol.item_id
+          where i.seller_id = ${userId}
+            and o.created_at between now() - interval '6 months'
+                                  and now() - interval '3 months'
+        ),
+        active_now as (
+          select distinct o.buyer_id
+          from orders o
+          join order_lines ol on ol.order_id = o.order_id
+          join items i on i.item_id = ol.item_id
+          where i.seller_id = ${userId}
+            and o.created_at >= now() - interval '3 months'
+        )
+        select count(*)::int as at_risk_count
+        from active_then
+        where buyer_id not in (select buyer_id from active_now)
+      `;
+
+      const [turnover] = await pg`
+        select coalesce(avg(extract(epoch from (i.last_updated - i.created_at)) / 86400), 0)::int
+          as avg_days_to_sellout
+        from items i
+        where i.seller_id = ${userId}
+          and i.quantity_available = 0
+          and i.last_updated > i.created_at
+      `;
+
+      const [position] = await pg`
+        with seller_category as (
+          select category_id from items
+          where seller_id = ${userId}
+          group by category_id
+          order by count(*) desc
+          limit 1
+        ),
+        category_sellers as (
+          select i.seller_id,
+                sum(ol.price_at_purchase * ol.quantity) as revenue
+          from order_lines ol
+          join orders o on o.order_id = ol.order_id
+          join items i on i.item_id = ol.item_id
+          where i.category_id = (select category_id from seller_category)
+            and o.created_at >= now() - interval '90 days'
+          group by i.seller_id
+        ),
+        ranked as (
+          select seller_id, revenue,
+                percent_rank() over (order by revenue) as pct_rank
+          from category_sellers
+        )
+        select pct_rank from ranked where seller_id = ${userId}
+      `;
+
+      const competitivePosition = percentileToLabel(
+        Number(position?.pct_rank ?? 0),
+      );
+
+      const result = {
+        forecastNextQuarter: Math.round(forecast),
+        customerLifetimeValue: Number(Number(ltv.avg_ltv).toFixed(2)),
+        uniqueBuyers: ltv.unique_buyers,
+        churnRiskCount: churn.at_risk_count,
+        inventoryTurnoverDays: turnover.avg_days_to_sellout,
+        competitivePosition,
+        marketShareSegment: position
+          ? Number((Number(position.pct_rank) * 100).toFixed(1))
+          : 0,
+      };
+
+      await setCached(cacheKey, result);
+      return jsonHelper(result);
+    } catch (error) {
+      console.error("getEnterpriseAnalytics failed:", error);
+      return jsonHelper({ message: "Failed to load analytics" }, 500);
     }
   },
 );
