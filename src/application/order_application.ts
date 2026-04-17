@@ -26,6 +26,225 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const TIER_PRICE_IDS: any = {
+  pro: process.env.STRIPE_PRICE_PRO_YEARLY!,
+  enterprise: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY!,
+};
+
+const TIER_NAMES: any = {
+  pro: "Pro",
+  enterprise: "Enterprise",
+};
+
+export const createSubscriptionSession = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const userId = req.user?.subject_claim;
+    const { tier } = req.body;
+
+    console.log(tier);
+
+    if (!tier || !TIER_PRICE_IDS[tier]) {
+      return jsonHelper(
+        {
+          message: "Invalid subscription tier",
+        },
+        400,
+      );
+    }
+
+    const [user] = await pg`
+    select subscription_tier, stripe_customer_id, stripe_subscription_id
+    from users
+    where user_id = ${userId}
+    `;
+
+    if (user.length === 0) {
+      return jsonHelper(
+        {
+          message: "User doesn't exist",
+        },
+        404,
+      );
+    }
+
+    if (user.subscription_tier === tier) {
+      return jsonHelper(
+        {
+          message: "Already subscribed to this tier",
+        },
+        400,
+      );
+    }
+
+    if (user.stripe_subscription_id && user.subscription_tier !== "free") {
+      try {
+        const subscription = await stripe!.subscriptions.retrieve(
+          user.stripe_subscription_id,
+        );
+
+        const currentItemId = subscription.items.data[0].id;
+
+        if (currentItemId) {
+          await stripe!.subscriptions.update(user.stripe_subscription_id, {
+            items: [
+              {
+                id: currentItemId,
+                price: TIER_PRICE_IDS[tier],
+              },
+            ],
+            proration_behavior: "create_prorations",
+            metadata: {
+              userId: userId ?? "",
+              tier: tier,
+            },
+          });
+
+          await pg`
+          update users
+          set subscription_tier = ${tier}
+          where user_id = ${userId}
+          `;
+
+          return jsonHelper({
+            message: `Subscription updated to ${TIER_NAMES[tier]}`,
+            upgraded: true,
+          });
+        }
+      } catch (error) {
+        console.log(error);
+        return jsonHelper(
+          {
+            message: "Failed to update subscription",
+            error: error,
+          },
+          500,
+        );
+      }
+    }
+
+    // new subscription
+    let customerId = user.stripe_customer_id;
+
+    if (!customerId) {
+      const customer = await stripe!.customers.create({
+        metadata: { userId: userId ?? "" },
+      });
+
+      customerId = customer.id;
+
+      await pg`
+      update users
+      set stripe_customer_id = ${customerId}
+      where user_id = ${userId}
+      `;
+    }
+
+    const session = await stripe!.checkout.sessions.create({
+      customer: customerId,
+      metadata: {
+        userId: userId ?? "",
+        tier: tier,
+        type: "subscription",
+      },
+      ui_mode: "embedded",
+      mode: "subscription",
+      line_items: [
+        {
+          price: TIER_PRICE_IDS[tier],
+          quantity: 1,
+        },
+      ],
+      return_url: `https://saasysquad-frontend.vercel.app/subscribe/return?session_id={CHECKOUT_SESSION_ID}`,
+    });
+
+    return jsonHelper({
+      clientSecret: session.client_secret,
+    });
+  },
+);
+
+export const cancelSubscription = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const userId = req.user?.subject_claim;
+
+    const [user] = await pg`
+    select stripe_subscription_id, subscription_tier
+    from users
+    where user_id = ${userId}
+    `;
+
+    if (!user?.stripe_subscription_id) {
+      return jsonHelper(
+        {
+          message: "No active subscription",
+        },
+        400,
+      );
+    }
+
+    try {
+      await stripe!.subscriptions.update(user.stripe_subscription_id, {
+        cancel_at_period_end: true,
+      });
+
+      return jsonHelper({
+        message: "Subscription will cancel at end of billing month",
+      });
+    } catch (error) {
+      console.log(error);
+      return jsonHelper(
+        {
+          message: "Failed to cancel subscription",
+        },
+        500,
+      );
+    }
+  },
+);
+
+export async function fulfillSubscription(
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  const userId = session.metadata?.userId;
+  const tier = session.metadata?.tier;
+  const subscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id;
+
+  if (!userId || !tier) {
+    console.log(`Missing metadata on subscription session: ${session.id}`);
+    return;
+  }
+
+  await pg`
+  update users
+  set
+    subscription_tier = ${tier},
+    stripe_subscription_id = ${subscriptionId ?? null},
+    stripe_customer_id = ${session.customer ?? null}
+  where
+    user_id = ${userId}
+  `;
+}
+
+// cancellation or payment failure
+export async function handleSubscriptionDeleted(
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  const userId = subscription.metadata?.userId;
+
+  if (!userId) return;
+
+  await pg`
+  update users
+  set
+    subscription_tier = 'free',
+    stripe_subscription_tier = null,
+  where user_id = ${userId}
+  `;
+}
+
 export const validateOrder = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const contentType = req.headers?.["content-type"];
@@ -642,7 +861,9 @@ export const createCheckoutSession = authHelper(
       const getQuantity = await redis.hget(key, item.item_id);
       const quantity = Number(getQuantity);
       const originalPrice = Number(item.price);
-      const discountedPrice = Math.round(originalPrice * (1 - discountPercent / 100) * 100);
+      const discountedPrice = Math.round(
+        originalPrice * (1 - discountPercent / 100) * 100,
+      );
       subtotal += (discountedPrice / 100) * quantity;
 
       const newObject = {
@@ -671,7 +892,7 @@ export const createCheckoutSession = authHelper(
         currency: "aud",
         product_data: {
           name: "Service Fee",
-          description: `${feePercent}% Service Fee (${userTier} tier)`
+          description: `${feePercent}% Service Fee (${userTier} tier)`,
         },
         unit_amount: Math.round(feeAmount * 100),
       },
@@ -682,7 +903,7 @@ export const createCheckoutSession = authHelper(
       metadata: {
         buyerId: userId ?? "",
         orderId: internalOrderId ?? "",
-        tierApplied: userTier
+        tierApplied: userTier,
       },
       ui_mode: "embedded",
       submit_type: "pay",
@@ -795,25 +1016,39 @@ export async function serverWebhook(
       400,
     );
   }
-
-  if (
-    event.type === "checkout.session.completed" ||
-    event.type === "checkout.session.async_payment_succeeded"
-  ) {
-    try {
-      await fulfillCheckout(event.data.object);
+  console.log(event.type);
+  switch (event.type) {
+    case "checkout.session.completed":
+    case "checkout.session.async_payment_succeeded": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      console.log(`This is working: ${session.metadata?.type}`);
+      if (session.metadata?.type === "subscription") {
+        await fulfillSubscription(session);
+      } else {
+        await fulfillCheckout(session);
+      }
 
       return jsonHelper({
-        message: "Checkout successfully fulfilled",
+        message: "Fulfilled",
       });
-    } catch (error) {
-      console.log(error);
-      return jsonHelper({ error: "Event type invalid" }, 400);
     }
-  }
 
-  // prevent stripe from retrying
-  return jsonHelper({ message: "Unhandled event type ignored" }, 200);
+    case "customer.subscription.deleted": {
+      const subscription = event.data.object as Stripe.Subscription;
+      await handleSubscriptionDeleted(subscription);
+      return jsonHelper({
+        message: "Subscription removed",
+      });
+    }
+
+    default:
+      return jsonHelper(
+        {
+          message: "Unhandled event type ignored",
+        },
+        200,
+      );
+  }
 }
 
 // post with itemId and quantity and userId in body

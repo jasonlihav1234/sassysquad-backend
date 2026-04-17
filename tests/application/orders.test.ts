@@ -283,7 +283,7 @@ describe("Webhook tests", async () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.message).toBe("Checkout successfully fulfilled");
+    expect(body.message).toBe("Fulfilled");
     expect(fulfillSpy).toHaveBeenCalled();
   });
 
