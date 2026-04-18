@@ -719,6 +719,20 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
       });
       await redis.del(`voucher:${buyerId}`);
 
+      const feeMetadata = session.metadata;
+      if (feeMetadata?.itemsSubtotalCents) {
+        await pg`
+          update orders
+          set
+            items_subtotal       = ${Number(feeMetadata.itemsSubtotalCents) / 100},
+            buyer_processing_fee = ${Number(feeMetadata.buyerProcessingFeeCents) / 100},
+            platform_fee         = ${Number(feeMetadata.platformCommissionCents) / 100},
+            seller_payout        = ${Number(feeMetadata.sellerPayoutCents) / 100},
+            seller_tier_at_sale  = ${feeMetadata.sellerTier ?? "free"}
+          where order_id = ${internalOrderId}
+        `;
+      }
+
       const invoicePayload = {
         purchaseOrder: {
           orderId: internalOrderId,
