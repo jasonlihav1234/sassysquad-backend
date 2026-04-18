@@ -733,48 +733,48 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
         `;
       }
 
-      const invoicePayload = {
-        purchaseOrder: {
-          orderId: internalOrderId,
-          buyerName: safeSession.customer_details?.name || "Customer",
-          buyerEmail: safeSession.customer_details?.email || "user@example.com",
-          sellerName: "The Curated Althair",
-          currency: checkoutSession.currency?.toUpperCase() || "AUD",
-          totalAmount: (checkoutSession.amount_total || 0) / 100,
-          items: orderLines.map((line) => ({
-            desc: line.description,
-            qty: line.quantity,
-            price: line.priceAtPurchase,
-          })),
-        },
-        fieldPurposeMapping: {
-          orderId: "ORDER_ID",
-          buyerName: "BUYER_NAME",
-          buyerEmail: "BUYER_EMAIL",
-          sellerName: "SELLER_NAME",
-          currency: "CURRENCY_CODE",
-          totalAmount: "TOTAL_AMOUNT",
-          items: "LINE_ITEMS",
-          "items.desc": "LINE_ITEM_DESCRIPTION",
-          "items.qty": "LINE_ITEM_QUANTITY",
-          "items.price": "LINE_ITEM_PRICE",
-        },
-      };
+      // const invoicePayload = {
+      //   purchaseOrder: {
+      //     orderId: internalOrderId,
+      //     buyerName: safeSession.customer_details?.name || "Customer",
+      //     buyerEmail: safeSession.customer_details?.email || "user@example.com",
+      //     sellerName: "The Curated Althair",
+      //     currency: checkoutSession.currency?.toUpperCase() || "AUD",
+      //     totalAmount: (checkoutSession.amount_total || 0) / 100,
+      //     items: orderLines.map((line) => ({
+      //       desc: line.description,
+      //       qty: line.quantity,
+      //       price: line.priceAtPurchase,
+      //     })),
+      //   },
+      //   fieldPurposeMapping: {
+      //     orderId: "ORDER_ID",
+      //     buyerName: "BUYER_NAME",
+      //     buyerEmail: "BUYER_EMAIL",
+      //     sellerName: "SELLER_NAME",
+      //     currency: "CURRENCY_CODE",
+      //     totalAmount: "TOTAL_AMOUNT",
+      //     items: "LINE_ITEMS",
+      //     "items.desc": "LINE_ITEM_DESCRIPTION",
+      //     "items.qty": "LINE_ITEM_QUANTITY",
+      //     "items.price": "LINE_ITEM_PRICE",
+      //   },
+      // };
 
-      const invoiceRes = await fetch(
-        "https://tte-invoice-api-production.up.railway.app/invoices/simple",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json " },
-          body: JSON.stringify(invoicePayload),
-        },
-      );
+      // const invoiceRes = await fetch(
+      //   "https://tte-invoice-api-production.up.railway.app/invoices/simple",
+      //   {
+      //     method: "POST",
+      //     headers: { "Content-Type": "application/json " },
+      //     body: JSON.stringify(invoicePayload),
+      //   },
+      // );
 
-      if (!invoiceRes.ok) {
-        throw new Error(
-          `Invoice generation failed: other teams api doesn't work`,
-        );
-      }
+      // if (!invoiceRes.ok) {
+      //   throw new Error(
+      //     `Invoice generation failed: other teams api doesn't work`,
+      //   );
+      // }
 
       const orderTotal = (checkoutSession.amount_total || 0) / 100;
       const itemsHtml = orderLines
@@ -835,7 +835,7 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
           </div>
         </div>
       `;
-      const xmlString = await invoiceRes.text();
+      // const xmlString = await invoiceRes.text();
 
       const buyerEmail = safeSession.customer_details?.email;
       if (buyerEmail) {
@@ -850,7 +850,7 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
           attachments: [
             {
               filename: `invoice_${internalOrderId}.xml`,
-              content: xmlString,
+              // content: xmlString,
               contentType: "application/xml",
             },
           ],
