@@ -60,16 +60,19 @@ const enrichmentSchema = z.object({
 
 async function withRetry(
   func: any,
-  maxRetries: number = 3,
-  baseDelay: number = 1000,
+  maxRetries: number = 5,
+  baseDelay: number = 2000,
 ) {
   for (let i = 0; i <= maxRetries; ++i) {
     try {
       return await func();
     } catch (error: any) {
-      if (i === maxRetries || error?.status !== 503) throw error;
+      if (i === maxRetries || ![503, 429].includes(error?.status)) throw error;
       // random delay before looping again
-      const delay = baseDelay * 2 ** i + Math.random() * 500;
+      const backoff = baseDelay * 2 ** i;
+      const delay = Math.random() * backoff; 
+      
+      console.warn(`Retrying... Attempt ${i + 1}. Status ${status}. Delay: ${Math.round(delay)}ms`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
@@ -628,7 +631,7 @@ export const getItemsById = authHelper(
         pg`
         insert into item_views (view_id, item_id, viewer_id, viewed_at)
         values (gen_random_uuid(), ${items[0].item_id}, ${userId ?? null}, now())
-        `. catch((error: any) => console.log("view tracking failed", error));
+        `.catch((error: any) => console.log("view tracking failed", error));
       }
 
       const itemTags = await getItemTagsByItemIdQuery(itemId);
@@ -703,10 +706,12 @@ export const getAllItems = authHelper(
         ),
       );
 
-      const itemsWithSellerUsername = response.map((item: any, index: number) => ({
-        ...item,
-        seller_user_name: sellerUsernames[index],
-      }));
+      const itemsWithSellerUsername = response.map(
+        (item: any, index: number) => ({
+          ...item,
+          seller_user_name: sellerUsernames[index],
+        }),
+      );
 
       return jsonHelper({
         message: "Items successfully fetched",
