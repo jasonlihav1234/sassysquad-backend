@@ -36,6 +36,45 @@ const TIER_NAMES: any = {
   enterprise: "Enterprise",
 };
 
+const BUYER_PROCESSING_FEE = 0.5;
+const SELLER_COMMISSION_PERCENT: Record<string, number> = {
+  free: 13,
+  pro: 12.5,
+  enterprise: 12,
+};
+
+interface FeeBreakdown {
+  itemsSubtotalCents: number;
+  buyerProcessingFeeCents: number;
+  platformCommissionCents: number;
+  sellerPayoutCents: number;
+  sellerTierAtSale: string;
+}
+
+function calculateFees(
+  itemsSubtotalCents: number,
+  sellerTier: string,
+): FeeBreakdown {
+  const tier = sellerTier in SELLER_COMMISSION_PERCENT ? sellerTier : "free";
+  const commissionPct = SELLER_COMMISSION_PERCENT[tier];
+
+  const buyerProcessingFeeCents = Math.round(
+    itemsSubtotalCents * (BUYER_PROCESSING_FEE / 100),
+  );
+
+  const platformCommissionCents = Math.round(itemsSubtotalCents * (commissionPct / 100));
+
+  const sellerPayoutCents = itemsSubtotalCents - platformCommissionCents;
+
+  return {
+    itemsSubtotalCents,
+    buyerProcessingFeeCents,
+    platformCommissionCents,
+    sellerPayoutCents,
+    sellerTierAtSale: tier,
+  };
+}
+
 export const createSubscriptionSession = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim;
