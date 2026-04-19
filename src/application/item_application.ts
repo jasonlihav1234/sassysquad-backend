@@ -67,7 +67,8 @@ async function withRetry(
     try {
       return await func();
     } catch (error: any) {
-      if (i === maxRetries || ![503, 429].includes(error?.status)) throw error;
+      const status = error?.status || error?.response?.status;
+      if (i === maxRetries || ![503, 429].includes(status)) throw error;
       // random delay before looping again
       const backoff = baseDelay * 2 ** i;
       const delay = Math.random() * backoff; 
