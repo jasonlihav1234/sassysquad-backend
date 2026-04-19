@@ -290,7 +290,7 @@ export async function handleRequest(req: any, res: any) {
     return res.status(200).json({
       message: "Deleted refresh tokens",
     });
-  }
+  } 
 
   if (url === "/auth/logout" && method === "POST") {
     const response = await logout(req);

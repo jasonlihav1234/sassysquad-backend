@@ -36,6 +36,47 @@ const TIER_NAMES: any = {
   enterprise: "Enterprise",
 };
 
+const BUYER_PROCESSING_FEE = 0.5;
+const SELLER_COMMISSION_PERCENT: Record<string, number> = {
+  free: 13,
+  pro: 12.5,
+  enterprise: 12,
+};
+
+interface FeeBreakdown {
+  itemsSubtotalCents: number;
+  buyerProcessingFeeCents: number;
+  platformCommissionCents: number;
+  sellerPayoutCents: number;
+  sellerTierAtSale: string;
+}
+
+function calculateFees(
+  itemsSubtotalCents: number,
+  sellerTier: string,
+): FeeBreakdown {
+  const tier = sellerTier in SELLER_COMMISSION_PERCENT ? sellerTier : "free";
+  const commissionPct = SELLER_COMMISSION_PERCENT[tier];
+
+  const buyerProcessingFeeCents = Math.round(
+    itemsSubtotalCents * (BUYER_PROCESSING_FEE / 100),
+  );
+
+  const platformCommissionCents = Math.round(
+    itemsSubtotalCents * (commissionPct / 100),
+  );
+
+  const sellerPayoutCents = itemsSubtotalCents - platformCommissionCents;
+
+  return {
+    itemsSubtotalCents,
+    buyerProcessingFeeCents,
+    platformCommissionCents,
+    sellerPayoutCents,
+    sellerTierAtSale: tier,
+  };
+}
+
 export const createSubscriptionSession = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim;
@@ -678,48 +719,62 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
       });
       await redis.del(`voucher:${buyerId}`);
 
-      const invoicePayload = {
-        purchaseOrder: {
-          orderId: internalOrderId,
-          buyerName: safeSession.customer_details?.name || "Customer",
-          buyerEmail: safeSession.customer_details?.email || "user@example.com",
-          sellerName: "The Curated Althair",
-          currency: checkoutSession.currency?.toUpperCase() || "AUD",
-          totalAmount: (checkoutSession.amount_total || 0) / 100,
-          items: orderLines.map((line) => ({
-            desc: line.description,
-            qty: line.quantity,
-            price: line.priceAtPurchase,
-          })),
-        },
-        fieldPurposeMapping: {
-          orderId: "ORDER_ID",
-          buyerName: "BUYER_NAME",
-          buyerEmail: "BUYER_EMAIL",
-          sellerName: "SELLER_NAME",
-          currency: "CURRENCY_CODE",
-          totalAmount: "TOTAL_AMOUNT",
-          items: "LINE_ITEMS",
-          "items.desc": "LINE_ITEM_DESCRIPTION",
-          "items.qty": "LINE_ITEM_QUANTITY",
-          "items.price": "LINE_ITEM_PRICE",
-        },
-      };
-
-      const invoiceRes = await fetch(
-        "https://tte-invoice-api-production.up.railway.app/invoices/simple",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json " },
-          body: JSON.stringify(invoicePayload),
-        },
-      );
-
-      if (!invoiceRes.ok) {
-        throw new Error(
-          `Invoice generation failed: other teams api doesn't work`,
-        );
+      const feeMetadata = session.metadata;
+      if (feeMetadata?.itemsSubtotalCents) {
+        await pg`
+          update orders
+          set
+            items_subtotal       = ${Number(feeMetadata.itemsSubtotalCents) / 100},
+            buyer_processing_fee = ${Number(feeMetadata.buyerProcessingFeeCents) / 100},
+            platform_fee         = ${Number(feeMetadata.platformCommissionCents) / 100},
+            seller_payout        = ${Number(feeMetadata.sellerPayoutCents) / 100},
+            seller_tier_at_sale  = ${feeMetadata.sellerTier ?? "free"}
+          where order_id = ${internalOrderId}
+        `;
       }
+
+      // const invoicePayload = {
+      //   purchaseOrder: {
+      //     orderId: internalOrderId,
+      //     buyerName: safeSession.customer_details?.name || "Customer",
+      //     buyerEmail: safeSession.customer_details?.email || "user@example.com",
+      //     sellerName: "The Curated Althair",
+      //     currency: checkoutSession.currency?.toUpperCase() || "AUD",
+      //     totalAmount: (checkoutSession.amount_total || 0) / 100,
+      //     items: orderLines.map((line) => ({
+      //       desc: line.description,
+      //       qty: line.quantity,
+      //       price: line.priceAtPurchase,
+      //     })),
+      //   },
+      //   fieldPurposeMapping: {
+      //     orderId: "ORDER_ID",
+      //     buyerName: "BUYER_NAME",
+      //     buyerEmail: "BUYER_EMAIL",
+      //     sellerName: "SELLER_NAME",
+      //     currency: "CURRENCY_CODE",
+      //     totalAmount: "TOTAL_AMOUNT",
+      //     items: "LINE_ITEMS",
+      //     "items.desc": "LINE_ITEM_DESCRIPTION",
+      //     "items.qty": "LINE_ITEM_QUANTITY",
+      //     "items.price": "LINE_ITEM_PRICE",
+      //   },
+      // };
+
+      // const invoiceRes = await fetch(
+      //   "https://tte-invoice-api-production.up.railway.app/invoices/simple",
+      //   {
+      //     method: "POST",
+      //     headers: { "Content-Type": "application/json " },
+      //     body: JSON.stringify(invoicePayload),
+      //   },
+      // );
+
+      // if (!invoiceRes.ok) {
+      //   throw new Error(
+      //     `Invoice generation failed: other teams api doesn't work`,
+      //   );
+      // }
 
       const orderTotal = (checkoutSession.amount_total || 0) / 100;
       const itemsHtml = orderLines
@@ -780,7 +835,7 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
           </div>
         </div>
       `;
-      const xmlString = await invoiceRes.text();
+      // const xmlString = await invoiceRes.text();
 
       const buyerEmail = safeSession.customer_details?.email;
       if (buyerEmail) {
@@ -795,7 +850,7 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
           attachments: [
             {
               filename: `invoice_${internalOrderId}.xml`,
-              content: xmlString,
+              // content: xmlString,
               contentType: "application/xml",
             },
           ],
@@ -815,19 +870,8 @@ export async function fulfillCheckout(session: Stripe.Checkout.Session) {
 // sellerId has to be in the body
 export const createCheckoutSession = authHelper(
   async (req: AuthReq): Promise<Response> => {
-    const userId = req.user?.subject_claim;
+    const userId = req.user?.subject_claim; // buyer
     const key = `cart:${userId}`;
-
-    const userResult =
-      await pg`select subscription_tier from users where user_id = ${userId}`;
-    const userTier = userResult[0]?.subscription_tier || "free";
-
-    const tierFeePercents: Record<string, number> = {
-      free: 10,
-      pro: 5,
-      enterprise: 2,
-    };
-    const feePercent = tierFeePercents[userTier] ?? 10;
 
     const voucherData = await redis.get(`voucher:${userId}`);
     let discountPercent = 0;
@@ -836,65 +880,75 @@ export const createCheckoutSession = authHelper(
       discountPercent = voucher.discount_percent;
     }
 
-    // get the cart from the redis cache, need to save quantity and get info about item
     const itemIds = await redis.hkeys(key);
     const internalOrderId = crypto.randomUUID();
 
     if (itemIds.length === 0) {
-      return jsonHelper({
-        message: "Cart is empty",
-      });
+      return jsonHelper({ message: "Cart is empty" });
     }
 
     const getItems =
       await pg`select * from items where item_id in ${pg(itemIds)}`;
 
     if (getItems.length === 0) {
-      return jsonHelper({
-        message: "No items found",
-      });
+      return jsonHelper({ message: "No items found" });
     }
 
-    const lineItems = [];
-    let subtotal = 0;
+    const sellerIds = [...new Set(getItems.map((i: any) => i.seller_id))];
+    if (sellerIds.length > 1) {
+      return jsonHelper(
+        {
+          message:
+            "Cart contains items from multiple sellers. Please check out each seller's items separately.",
+        },
+        400,
+      );
+    }
+    const sellerId = sellerIds[0] as string;
+
+    const [sellerRow] = await pg`
+      select subscription_tier from users where user_id = ${sellerId}
+    `;
+    const sellerTier = sellerRow?.subscription_tier ?? "free";
+
+    const lineItems: any[] = [];
+    let itemsSubtotalCents = 0;
+
     for (const item of getItems) {
       const getQuantity = await redis.hget(key, item.item_id);
       const quantity = Number(getQuantity);
-      const originalPrice = Number(item.price);
-      const discountedPrice = Math.round(
-        originalPrice * (1 - discountPercent / 100) * 100,
+      const originalPriceCents = Math.round(Number(item.price) * 100);
+      const discountedPriceCents = Math.round(
+        originalPriceCents * (1 - discountPercent / 100),
       );
-      subtotal += (discountedPrice / 100) * quantity;
 
-      const newObject = {
+      itemsSubtotalCents += discountedPriceCents * quantity;
+
+      lineItems.push({
         price_data: {
           currency: "aud",
           product_data: {
             name: item.item_name,
             tax_code: "txcd_99999999",
             description: item.description,
-            metadata: {
-              item_id: item.item_id,
-            },
+            metadata: { item_id: item.item_id },
           },
-          unit_amount: discountedPrice,
+          unit_amount: discountedPriceCents,
         },
         quantity: quantity,
-      };
-
-      lineItems.push(newObject);
+      });
     }
 
-    const feeAmount = subtotal * (feePercent / 100);
+    const fees = calculateFees(itemsSubtotalCents, sellerTier);
 
     lineItems.push({
       price_data: {
         currency: "aud",
         product_data: {
-          name: "Service Fee",
-          description: `${feePercent}% Service Fee (${userTier} tier)`,
+          name: "Processing fee",
+          description: `${BUYER_PROCESSING_FEE}% platform processing fee`,
         },
-        unit_amount: Math.round(feeAmount * 100),
+        unit_amount: fees.buyerProcessingFeeCents,
       },
       quantity: 1,
     });
@@ -902,18 +956,21 @@ export const createCheckoutSession = authHelper(
     const session = await stripe!.checkout.sessions.create({
       metadata: {
         buyerId: userId ?? "",
-        orderId: internalOrderId ?? "",
-        tierApplied: userTier,
+        sellerId: sellerId,
+        orderId: internalOrderId,
+        sellerTier: fees.sellerTierAtSale,
+        itemsSubtotalCents: String(fees.itemsSubtotalCents),
+        buyerProcessingFeeCents: String(fees.buyerProcessingFeeCents),
+        platformCommissionCents: String(fees.platformCommissionCents),
+        sellerPayoutCents: String(fees.sellerPayoutCents),
       },
       ui_mode: "embedded",
       submit_type: "pay",
       billing_address_collection: "auto",
-      shipping_address_collection: {
-        allowed_countries: ["AU"],
-      },
+      shipping_address_collection: { allowed_countries: ["AU"] },
       line_items: lineItems,
       mode: "payment",
-      return_url: `https://saasysquad-frontend.vercel.app/return?session_id={CHECKOUT_SESSION_ID}`, // wip, need to edit this when starting the frontend
+      return_url: `https://saasysquad-frontend.vercel.app/return?session_id={CHECKOUT_SESSION_ID}`,
       automatic_tax: { enabled: true },
       shipping_options: [
         {
@@ -941,9 +998,7 @@ export const createCheckoutSession = authHelper(
       ],
     });
 
-    return jsonHelper({
-      clientSecret: session.client_secret,
-    });
+    return jsonHelper({ clientSecret: session.client_secret });
   },
 );
 

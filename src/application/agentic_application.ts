@@ -214,6 +214,7 @@ export const agentAccept = authHelper(
 
 export async function processImage(imageBase64: string): Promise<any> {
   const extracted = await analyseImageForExtraction(imageBase64);
+  console.log(extracted);
   const enriched = await enrichListing(
     extracted.name,
     extracted.category,
