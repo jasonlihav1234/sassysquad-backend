@@ -110,7 +110,7 @@ export async function callLLMFallback(
 
   const response = await withRetry(() =>
     ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-2.5-flash",
       contents: [prompt],
       config: {
         responseMimeType: "application/json",
@@ -157,7 +157,7 @@ export async function enrichListing(
 
   const response = await withRetry(() =>
     ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-2.5-flash",
       contents: [prompt],
       config: {
         responseMimeType: "application/json",
@@ -215,7 +215,7 @@ export async function analyseImageForExtraction(
 
   const response = await withRetry(() =>
     ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-2.5-flash",
       contents: [
         prompt,
         { inlineData: { mimeType: imageType, data: rawImage } },
