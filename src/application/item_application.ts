@@ -88,7 +88,7 @@ export async function callLLMFallback(
   knownCategories?: string[],
 ): Promise<any> {
   const categoryHint = knownCategories?.length
-    ? `Known categorieson this marketplace: ${knownCategories.slice(0, 10).join(", ")}.`
+    ? `Known categories on this marketplace: ${knownCategories.slice(0, 10).join(", ")}.`
     : "";
 
   const prompt = `
@@ -371,7 +371,7 @@ export const generateAIRecommendations = authHelper(
     try {
       const response = await withRetry(() =>
         ai.models.generateContent({
-          model: "gemini-3.1-flash-lite-preview",
+          model: "gemini-2.5-flash",
           contents: contents,
           config: {
             responseMimeType: "application/json",
