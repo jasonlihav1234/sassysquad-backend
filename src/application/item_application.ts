@@ -71,9 +71,11 @@ async function withRetry(
       if (i === maxRetries || ![503, 429].includes(status)) throw error;
       // random delay before looping again
       const backoff = baseDelay * 2 ** i;
-      const delay = Math.random() * backoff; 
-      
-      console.warn(`Retrying... Attempt ${i + 1}. Status ${status}. Delay: ${Math.round(delay)}ms`);
+      const delay = Math.random() * backoff;
+
+      console.warn(
+        `Retrying... Attempt ${i + 1}. Status ${status}. Delay: ${Math.round(delay)}ms`,
+      );
       await new Promise((r) => setTimeout(r, delay));
     }
   }
@@ -110,7 +112,7 @@ export async function callLLMFallback(
 
   const response = await withRetry(() =>
     ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-flash-lite-preview",
       contents: [prompt],
       config: {
         responseMimeType: "application/json",
@@ -157,7 +159,7 @@ export async function enrichListing(
 
   const response = await withRetry(() =>
     ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-flash-lite-preview",
       contents: [prompt],
       config: {
         responseMimeType: "application/json",
@@ -215,7 +217,7 @@ export async function analyseImageForExtraction(
 
   const response = await withRetry(() =>
     ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-flash-lite-preview",
       contents: [
         prompt,
         { inlineData: { mimeType: imageType, data: rawImage } },
@@ -371,7 +373,7 @@ export const generateAIRecommendations = authHelper(
     try {
       const response = await withRetry(() =>
         ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3.1-flash-lite-preview",
           contents: contents,
           config: {
             responseMimeType: "application/json",
