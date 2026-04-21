@@ -53,6 +53,7 @@ import {
   getAllItems,
   getItemByUserId,
   getItemsById,
+  getItemReviews,
   createItemV2,
   addItemTags,
   deleteItemTags,
@@ -411,6 +412,14 @@ export async function handleRequest(req: any, res: any) {
 
   if (url.match(/^\/cart\/items\/[a-zA-Z0-9_-]+$/) && method === "PATCH") {
     const response = await updateCartItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  // /items/{item_id}/review
+  if (url.match(/^\/items\/[a-zA-Z0-9_-]+\/review$/) && method === "GET") {
+    const response = await getItemReviews(req);
 
     const body = await response.json();
     return res.status(response.status).json(body);

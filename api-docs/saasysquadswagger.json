@@ -4933,6 +4933,118 @@
         ]
       }
     },
+    "/items/{itemId}/review": {
+      "get": {
+        "tags": ["item"],
+        "summary": "Get all reviews for an item",
+        "description": "Fetches all reviews left on a specific item, ordered from newest to oldest.",
+        "operationId": "getItemReviews",
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "description": "Unique identifier of the item whose reviews to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reviews successfully fetched (array may be empty)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Reviews found"
+                    },
+                    "reviews": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "review_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "user_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "item_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "review": {
+                            "type": "string"
+                          },
+                          "review_date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "rating": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 5
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Item not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Item not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Fetching reviews failed"
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {},
+                      "description": "Detailed error object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/auth/google/login": {
       "get": {
         "tags": ["auth"],
