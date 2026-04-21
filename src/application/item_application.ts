@@ -8,6 +8,7 @@ import { verifyRefreshToken } from "../utils/jwt_config";
 import {
   getAllItemsQuery,
   getItemByItemIdQuery,
+  getReviewsByItemIdQuery,
   getItemsUserQuery,
   updateItemQuery,
   deleteItemFromIdQuery,
@@ -651,6 +652,39 @@ export const getItemsById = authHelper(
       return jsonHelper(
         {
           message: "Items fetch failed",
+          error: error,
+        },
+        500,
+      );
+    }
+  },
+);
+
+export const getItemReviews = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const itemId = req.url?.split("/").at(2) as string;
+      const item = await getItemByItemIdQuery(itemId);
+
+      if (item.length === 0) {
+        return jsonHelper(
+          {
+            message: "Item not found",
+          },
+          404,
+        );
+      }
+
+      const reviews = await getReviewsByItemIdQuery(itemId);
+
+      return jsonHelper({
+        message: "Reviews found",
+        reviews: reviews,
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Fetching reviews failed",
           error: error,
         },
         500,
