@@ -160,6 +160,32 @@ export async function addSavedItemByUserId(
   }
 }
 
+/**
+ * Fetches the saved item_id array for a user.
+ * Returns null if the user does not exist.
+ */
+export async function getSavedItemsByUserId(
+  userId: string,
+): Promise<string[] | null> {
+  try {
+    const rows = await pg`
+      select saved
+      from users
+      where user_id = ${userId}
+      limit 1
+    `;
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    return rows[0].saved;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
 export async function getUserById(userId: string) {
   try {
     const response = await pg`select * from users where user_id = ${userId}`;
