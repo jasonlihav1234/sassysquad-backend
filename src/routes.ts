@@ -554,7 +554,8 @@ export async function handleRequest(req: any, res: any) {
 
   if (
     (url.match(/^\/users\/[a-zA-Z0-9_-]+\/purchases/) ||
-      url.match(/^\/users\/[a-zA-Z0-9_-]+\/sales/)) &&
+      url.match(/^\/users\/[a-zA-Z0-9_-]+\/sales/) ||
+      url.match(/^\/users\/[a-zA-Z0-9_-]+\/saved/)) &&
     method === "GET"
   ) {
     return handleUserRoutes(req, res);
