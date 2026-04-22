@@ -130,6 +130,36 @@ export async function updateProfileQuery(
   }
 }
 
+/**
+ * Appends an item_id to a user's saved items array if not already present.
+ * Returns the updated saved array.
+ */
+export async function addSavedItemByUserId(
+  userId: string,
+  itemId: string,
+): Promise<string[]> {
+  try {
+    const rows = await pg`
+      update users
+      set saved = case
+        when ${itemId} = any(saved) then saved
+        else array_append(saved, ${itemId})
+      end
+      where user_id = ${userId}
+      returning saved
+    `;
+
+    if (rows.length === 0) {
+      throw new Error("User not found");
+    }
+
+    return rows[0].saved;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
 export async function getUserById(userId: string) {
   try {
     const response = await pg`select * from users where user_id = ${userId}`;
