@@ -28,6 +28,7 @@ import googleCallback, {
   addTwoFactor,
   verifyTwoFactor,
   updateSubscription,
+  addSavedItem,
 } from "./application/user_application";
 import { deleteExpiredRefreshTokens } from "./utils/jwt_helpers";
 import { handleUserRoutes } from "./routes/user_routes";
@@ -356,6 +357,13 @@ export async function handleRequest(req: any, res: any) {
     return res.status(response.status).json(body);
   }
 
+  if (url === "/saved" && method === "POST") {
+    const response = await addSavedItem(req);
+
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
   // /items
   // POST /items
   if (url === "/items" && method === "POST") {
@@ -546,7 +554,8 @@ export async function handleRequest(req: any, res: any) {
 
   if (
     (url.match(/^\/users\/[a-zA-Z0-9_-]+\/purchases/) ||
-      url.match(/^\/users\/[a-zA-Z0-9_-]+\/sales/)) &&
+      url.match(/^\/users\/[a-zA-Z0-9_-]+\/sales/) ||
+      url.match(/^\/users\/[a-zA-Z0-9_-]+\/saved/)) &&
     method === "GET"
   ) {
     return handleUserRoutes(req, res);

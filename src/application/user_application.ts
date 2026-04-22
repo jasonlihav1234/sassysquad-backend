@@ -22,13 +22,15 @@ import {
 import nodemailer from "nodemailer";
 import path from "path";
 import {
+  addSavedItemByUserId,
+  getSavedItemsByUserId,
   getUserBuyerOrders,
   getUserById,
   getUserSellerOrders,
   isUserIdValid,
   removeUserById,
   updateProfileQuery,
-  updateSubscriptionByUserId
+  updateSubscriptionByUserId,
 } from "../database/queries/user_queries";
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import * as arctic from "arctic";
@@ -697,6 +699,46 @@ export const getUserSales = authHelper(
   },
 );
 
+// For GET users/{userId}/saved
+
+export const getUserSavedItems = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const pathname = req.url?.split("?")[0] ?? "";
+    const components = pathname.split("/").filter(Boolean);
+
+    if (
+      components.length !== 3 ||
+      components[0] !== "users" ||
+      components[2] !== "saved"
+    ) {
+      return jsonHelper({ error: "Invalid saved route path!" }, 400);
+    }
+
+    const pathUserId = components[1];
+    if (req.user!.subject_claim !== pathUserId) {
+      return jsonHelper(
+        {
+          error:
+            "User is not logged on or lacks authorization to access saved items",
+        },
+        401,
+      );
+    }
+
+    const userRows = await isUserIdValid(pathUserId);
+    if (!userRows) {
+      return jsonHelper({ error: "User not found!" }, 404);
+    }
+
+    try {
+      const saved = await getSavedItemsByUserId(pathUserId);
+      return jsonHelper({ saved: saved ?? [] }, 200);
+    } catch {
+      return jsonHelper({ error: "Internal Server Error" }, 500);
+    }
+  },
+);
+
 export const getUserSessions = authHelper(
   async (req: AuthReq): Promise<Response> => {
     const userId = req.user?.subject_claim as string;
@@ -912,6 +954,43 @@ export const addTwoFactor = authHelper(
       });
     } catch (error) {
       return jsonHelper({ message: "2FA failed to set up", error: error }, 500);
+    }
+  },
+);
+
+export const addSavedItem = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const userId = req.user?.subject_claim as string;
+      const body = req.body;
+
+      if (!body.itemId) {
+        return jsonHelper({ error: "Need item ID in the body" }, 400);
+      }
+
+      const [item] = await pg`
+        select item_id
+        from items
+        where item_id = ${body.itemId}
+      `;
+
+      if (!item) {
+        return jsonHelper({ error: "Item does not exist" }, 404);
+      }
+
+      await addSavedItemByUserId(userId, body.itemId);
+
+      return jsonHelper({
+        message: "Item successfully added to saved items",
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Item failed to add to saved items",
+          error: error,
+        },
+        500,
+      );
     }
   },
 );

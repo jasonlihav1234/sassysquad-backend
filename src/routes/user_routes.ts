@@ -1,6 +1,7 @@
 import {
   getUserPurchases,
   getUserSales,
+  getUserSavedItems,
 } from "../application/user_application";
 
 export async function handleUserRoutes(req: any, res: any) {
@@ -14,6 +15,12 @@ export async function handleUserRoutes(req: any, res: any) {
 
   if (method === "GET" && url.match(/^\/users\/[^/]+\/sales$/)) {
     const response = await getUserSales(req);
+    const body = await response.json();
+    return res.status(response.status).json(body);
+  }
+
+  if (method === "GET" && url.match(/^\/users\/[^/]+\/saved$/)) {
+    const response = await getUserSavedItems(req);
     const body = await response.json();
     return res.status(response.status).json(body);
   }
