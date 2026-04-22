@@ -23,6 +23,7 @@ import nodemailer from "nodemailer";
 import path from "path";
 import {
   addSavedItemByUserId,
+  getSavedItemsByUserId,
   getUserBuyerOrders,
   getUserById,
   getUserSellerOrders,
@@ -692,6 +693,46 @@ export const getUserSales = authHelper(
     try {
       const orders = await getUserSellerOrders(req.user!.subject_claim);
       return jsonHelper({ orders }, 200);
+    } catch {
+      return jsonHelper({ error: "Internal Server Error" }, 500);
+    }
+  },
+);
+
+// For GET users/{userId}/saved
+
+export const getUserSavedItems = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    const pathname = req.url?.split("?")[0] ?? "";
+    const components = pathname.split("/").filter(Boolean);
+
+    if (
+      components.length !== 3 ||
+      components[0] !== "users" ||
+      components[2] !== "saved"
+    ) {
+      return jsonHelper({ error: "Invalid saved route path!" }, 400);
+    }
+
+    const pathUserId = components[1];
+    if (req.user!.subject_claim !== pathUserId) {
+      return jsonHelper(
+        {
+          error:
+            "User is not logged on or lacks authorization to access saved items",
+        },
+        401,
+      );
+    }
+
+    const userRows = await isUserIdValid(pathUserId);
+    if (!userRows) {
+      return jsonHelper({ error: "User not found!" }, 404);
+    }
+
+    try {
+      const saved = await getSavedItemsByUserId(pathUserId);
+      return jsonHelper({ saved: saved ?? [] }, 200);
     } catch {
       return jsonHelper({ error: "Internal Server Error" }, 500);
     }
