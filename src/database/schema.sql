@@ -199,7 +199,7 @@ CHECK (subscription_tier IN ('free', 'pro', 'enterprise'));
 
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS stripe_customer_id     TEXT,
-  ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+  ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT,
   ADD COLUMN IF NOT EXISTS saved UUID[] NOT NULL DEFAULT '{}';
 
 ALTER TABLE orders
