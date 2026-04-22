@@ -22,13 +22,14 @@ import {
 import nodemailer from "nodemailer";
 import path from "path";
 import {
+  addSavedItemByUserId,
   getUserBuyerOrders,
   getUserById,
   getUserSellerOrders,
   isUserIdValid,
   removeUserById,
   updateProfileQuery,
-  updateSubscriptionByUserId
+  updateSubscriptionByUserId,
 } from "../database/queries/user_queries";
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import * as arctic from "arctic";
@@ -912,6 +913,43 @@ export const addTwoFactor = authHelper(
       });
     } catch (error) {
       return jsonHelper({ message: "2FA failed to set up", error: error }, 500);
+    }
+  },
+);
+
+export const addSavedItem = authHelper(
+  async (req: AuthReq): Promise<Response> => {
+    try {
+      const userId = req.user?.subject_claim as string;
+      const body = req.body;
+
+      if (!body.itemId) {
+        return jsonHelper({ error: "Need item ID in the body" }, 400);
+      }
+
+      const [item] = await pg`
+        select item_id
+        from items
+        where item_id = ${body.itemId}
+      `;
+
+      if (!item) {
+        return jsonHelper({ error: "Item does not exist" }, 404);
+      }
+
+      await addSavedItemByUserId(userId, body.itemId);
+
+      return jsonHelper({
+        message: "Item successfully added to saved items",
+      });
+    } catch (error) {
+      return jsonHelper(
+        {
+          message: "Item failed to add to saved items",
+          error: error,
+        },
+        500,
+      );
     }
   },
 );
