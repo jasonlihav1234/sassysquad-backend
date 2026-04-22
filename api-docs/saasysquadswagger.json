@@ -2473,7 +2473,7 @@
       "get": {
         "tags": ["item"],
         "summary": "Retrieves the details of a specific item",
-        "description": "Fetches a specific item from the system using its unique item ID.",
+        "description": "Fetches a specific item from the system using its unique item ID, including its tags and reviews.",
         "operationId": "get-item-by-id",
         "parameters": [
           {
@@ -2546,6 +2546,41 @@
                             "type": "array",
                             "items": {
                               "type": "string"
+                            }
+                          },
+                          "reviews": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "review_id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "user_id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "item_id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "review": {
+                                  "type": "string"
+                                },
+                                "review_date": {
+                                  "type": "string",
+                                  "format": "date"
+                                },
+                                "rating": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5
+                                },
+                                "user_name": {
+                                  "type": "string"
+                                }
+                              }
                             }
                           }
                         }

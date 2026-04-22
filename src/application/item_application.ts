@@ -639,9 +639,11 @@ export const getItemsById = authHelper(
       }
 
       const itemTags = await getItemTagsByItemIdQuery(itemId);
+      const reviews = await getReviewsByItemIdQuery(itemId);
       const itemsWithTags = items.map((item: any) => ({
         ...item,
         itemTags: itemTags,
+        reviews: reviews,
       }));
 
       return jsonHelper({
