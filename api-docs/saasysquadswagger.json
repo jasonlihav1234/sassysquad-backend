@@ -658,6 +658,124 @@
         }
       }
     },
+    "/saved": {
+      "post": {
+        "tags": ["user"],
+        "summary": "Adds an item to the user's saved items list",
+        "description": "Validates that the item exists and appends its ID to the authenticated user's saved items array. Duplicate item IDs are ignored — adding an already-saved item is a no-op.",
+        "operationId": "add-saved-item",
+        "requestBody": {
+          "description": "Payload containing the ID of the item to save",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": ["itemId"],
+                "type": "object",
+                "properties": {
+                  "itemId": {
+                    "type": "string",
+                    "description": "The unique identifier of the item to save",
+                    "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Item successfully added to saved items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Item successfully added to saved items"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing itemId in request body)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Need item ID in the body"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Invalid or missing access token)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorised"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found (Item does not exist in the database)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Item does not exist"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "General error for failing to add the item to saved items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Item failed to add to saved items"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-codegen-request-body-name": "body"
+      }
+    },
     "/profile": {
       "get": {
         "tags": ["user"],
